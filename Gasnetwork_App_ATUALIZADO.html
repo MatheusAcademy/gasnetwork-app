@@ -1437,6 +1437,30 @@ textarea.fi{resize:vertical;}
     </div>
   </div>
 
+  <div id="pane-contatos" style="display:none;">
+    <div class="eyebrow">Cadastro</div>
+    <div class="pgtitle" style="margin-bottom:4px;">Contatos</div>
+    <div class="pgsub" style="margin-bottom:14px;">Seus contatos do Google + clientes com telefone. Mande mensagem no WhatsApp com um toque, ou selecione vários e dispare a mesma mensagem pra todos. Atualiza conforme você salva.</div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+      <input id="contatos-busca" oninput="renderContatos()" placeholder="Buscar por nome ou telefone..." style="flex:1;min-width:200px;padding:10px 12px;border:1px solid var(--gn-border);border-radius:8px;">
+      <button onclick="gnPullContatos(true)" style="background:#2563eb;color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:600;">🔄 Puxar do Google</button>
+      <button onclick="gnContatosPreencherClientes()" title="Usa os telefones dos contatos para preencher os clientes que estão sem telefone (cruza pelo nome)" style="background:#0e7490;color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:600;">📥 Preencher telefones dos clientes</button>
+    </div>
+
+    <div style="background:rgba(124,92,255,.10);border:1px solid rgba(124,92,255,.28);border-radius:12px;padding:12px 14px;margin-bottom:12px;">
+      <div style="font-weight:700;color:#c4b5fd;margin-bottom:6px;">💬 Mensagem para vários de uma vez</div>
+      <textarea id="contatos-msg" rows="2" placeholder="Escreva a mensagem que será enviada para os contatos selecionados..." style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--gn-border);border-radius:8px;font-size:13px;resize:vertical;"></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;">
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--gn-text);cursor:pointer;"><input type="checkbox" id="contatos-selall" onchange="gnContatosSelAll(this.checked)"> Selecionar todos</label>
+        <button onclick="gnContatosEnviarSelec()" style="background:#25d366;color:#fff;border:none;padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:700;">💬 Enviar p/ selecionados</button>
+        <span id="contatos-selcount" style="font-size:12px;color:var(--gn-dim);"></span>
+      </div>
+    </div>
+    <div id="contatos-status" style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;"></div>
+    <div id="contatos-list"></div>
+  </div>
+
   <div id="pane-cli" style="display:none;">
     <div class="eyebrow">Cadastro</div>
     <div class="pgtitle" style="margin-bottom:4px;">Clientes</div>
@@ -2007,7 +2031,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // TABS
 // ══════════════════════════════════════════════
 function goTab(t) {
-  ['inicio','ped','age','tec','novo','hist','laudo','relvist','fin','cli','svc','rec','os','prod','rel','chk','ctr','cfg','imp','pro','docrap','hoje','tarefas','cob','atend','forn','compras','chamados','posvenda','arquivos'].forEach(id => {
+  ['inicio','ped','age','tec','novo','hist','laudo','relvist','fin','cli','svc','rec','os','prod','rel','chk','ctr','cfg','imp','pro','docrap','hoje','tarefas','cob','atend','forn','compras','chamados','posvenda','arquivos','contatos'].forEach(id => {
     var p=document.getElementById('pane-'+id); if(p) p.style.display = id===t?'block':'none';
     var tb=document.getElementById('tab-'+id); if(tb) tb.classList.toggle('on', id===t);
   });
@@ -2038,6 +2062,7 @@ function goTab(t) {
   if (t==='chamados'){ try{ if(window.renderChamados) renderChamados(); }catch(e){} }
   if (t==='posvenda'){ try{ if(window.renderPosvenda) renderPosvenda(); }catch(e){} }
   if (t==='arquivos'){ try{ if(window.renderArquivos) renderArquivos(); }catch(e){} }
+  if (t==='contatos'){ try{ if(window.renderContatos) renderContatos(); if(window.gnPullContatos) gnPullContatos(); }catch(e){} }
   try{ if(window.notifBadge) notifBadge(); }catch(e){}
 }
 
@@ -6364,10 +6389,10 @@ function renderInicio(){
     ['Comercial', [['atend','Atend','Atendimentos & Funil'], ['posvenda','PV','Pós-venda'], ['chamados','Cham','Chamados técnicos']]],
     ['Gestão', [['fin','Fin','Financeiro'], ['cob','Cob','Cobranças'], ['arquivos','Arq','Arquivos & Mídia']]],
     ['Suprimentos', [['forn','Forn','Fornecedores'], ['compras','Compras','Compras']]],
-    ['Cadastros', [['cli','Cli','Clientes'], ['svc','Svc','Serviços'], ['prod','Prod','Materiais'], ['ctr','Ctr','Contratos']]],
+    ['Cadastros', [['cli','Cli','Clientes'], ['contatos','Cont','Contatos'], ['svc','Svc','Serviços'], ['prod','Prod','Materiais'], ['ctr','Ctr','Contratos']]],
     ['Sistema', [['imp','Imp','Importar / Migração'], ['cfg','Cfg','Configurações']]]
   ];
-  var ICON={inicio:'🏠',hoje:'☀️',ped:'📋',tarefas:'✅',age:'📅',novo:'✨',rec:'🧾',os:'📝',ctr:'📄',laudo:'🔬',relvist:'📑',cli:'👥',svc:'🛠️',prod:'📦',fin:'💰',cob:'📢',arquivos:'📁',atend:'📞',posvenda:'⭐',chamados:'🛎️',forn:'🏭',compras:'🛒',tec:'🔧',cfg:'⚙️',imp:'📥',docrap:'⚡'};
+  var ICON={inicio:'🏠',hoje:'☀️',ped:'📋',tarefas:'✅',age:'📅',novo:'✨',rec:'🧾',os:'📝',ctr:'📄',laudo:'🔬',relvist:'📑',cli:'👥',contatos:'📇',svc:'🛠️',prod:'📦',fin:'💰',cob:'📢',arquivos:'📁',atend:'📞',posvenda:'⭐',chamados:'🛎️',forn:'🏭',compras:'🛒',tec:'🔧',cfg:'⚙️',imp:'📥',docrap:'⚡'};
   function build(){
     if(document.getElementById('gn-side')) return;
     var side=document.createElement('nav'); side.id='gn-side';
@@ -7737,6 +7762,77 @@ function renderInicio(){
     if(window.toast) toast('✓ Financeiro resetado para o Agenda Boa ('+clone.length+' lançamentos)','ok');
     alert('✓ Pronto! O financeiro agora tem '+clone.length+' lançamentos, iguais ao Agenda Boa.\n\nOs extras foram apagados (sincroniza em todos os aparelhos) e a base está sendo reenviada à nuvem em segundo plano. Deixe o app aberto por ~1-2 minutos para concluir o envio.');
   };
+})();
+</script>
+<script>
+// ══════════════════════════════════════════════
+// ═══ CONTATOS (Google Contacts + clientes) + WhatsApp em massa ═══
+// ══════════════════════════════════════════════
+(function(){
+  function gj(k){ try{ return JSON.parse(localStorage.getItem(k)||'[]'); }catch(e){ return []; } }
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function soNum(t){ return String(t||'').replace(/\D/g,''); }
+  function waNum(t){ var n=soNum(t); if(!n) return ''; if(n.length<=11) n='55'+n; return n; }
+  function lista(){
+    var map={};
+    function add(nome, tel, fonte){
+      nome=String(nome||'').trim(); var key=soNum(tel)||('nome:'+nome.toLowerCase());
+      if(!nome && !tel) return;
+      if(!map[key]){ map[key]={nome:nome,tel:tel||'',fonte:fonte}; }
+      else { if(!map[key].nome && nome) map[key].nome=nome; if(!map[key].tel && tel) map[key].tel=tel; }
+    }
+    gj('gn_contatos').forEach(function(c){ add(c.nome, c.tel||c.telefone||'', 'Google'); });
+    gj('gn_cli').forEach(function(c){ var t=c.whatsapp||c.tel||''; if(t) add(c.nome, t, 'Cliente'); });
+    var arr=Object.keys(map).map(function(k){ return map[k]; });
+    arr.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
+    return arr;
+  }
+  window.renderContatos=function(){
+    var box=document.getElementById('contatos-list'); if(!box) return;
+    var q=((document.getElementById('contatos-busca')||{}).value||'').toLowerCase().trim();
+    var arr=lista();
+    var st=document.getElementById('contatos-status'); if(st) st.textContent=arr.length+' contato(s) · puxe do Google pra trazer todos.';
+    if(q) arr=arr.filter(function(c){ return ((c.nome||'')+' '+(c.tel||'')).toLowerCase().indexOf(q)>=0; });
+    if(!arr.length){ box.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum contato ainda. Toque em "🔄 Puxar do Google" para trazer sua agenda de contatos.</div>'; return; }
+    box.innerHTML=arr.slice(0,800).map(function(c){
+      var wn=waNum(c.tel);
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--gn-border);border-radius:10px;margin-bottom:6px;">'
+        +'<input type="checkbox" class="ct-chk" data-num="'+esc(wn)+'" data-nome="'+esc(c.nome)+'" style="width:18px;height:18px;flex:none;cursor:pointer;">'
+        +(wn?('<a href="https://wa.me/'+wn+'" target="_blank" title="WhatsApp" style="background:#25d366;color:#fff;text-decoration:none;border-radius:8px;padding:7px 10px;font-weight:700;flex:none;">💬</a>'):'<span style="width:34px;"></span>')
+        +'<div style="min-width:0;flex:1;"><div style="font-weight:700;color:var(--gn-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(c.nome||'(sem nome)')+'</div>'
+        +'<div style="font-size:12px;color:var(--gn-dim);">'+esc(c.tel||'sem telefone')+' · '+esc(c.fonte||'')+'</div></div></div>';
+    }).join('');
+    var cc=document.getElementById('contatos-selcount'); if(cc) cc.textContent='';
+  };
+  window.gnContatosSelAll=function(ck){ Array.prototype.forEach.call(document.querySelectorAll('#contatos-list .ct-chk'), function(c){ c.checked=ck; }); };
+  window.gnContatosEnviarSelec=function(){
+    var msg=((document.getElementById('contatos-msg')||{}).value||'').trim();
+    var sel=[]; Array.prototype.forEach.call(document.querySelectorAll('#contatos-list .ct-chk'), function(c){ if(c.checked){ var n=c.getAttribute('data-num'); if(n) sel.push({num:n,nome:c.getAttribute('data-nome')}); } });
+    if(!sel.length){ if(window.toast) toast('Selecione ao menos um contato (com telefone).','er'); return; }
+    if(!confirm('Vou abrir o WhatsApp para '+sel.length+' contato(s), um por vez. O navegador pode pedir pra permitir várias janelas — clique em Permitir. Continuar?')) return;
+    var i=0;
+    (function next(){ if(i>=sel.length) { if(window.toast) toast('✓ Abri o WhatsApp para '+sel.length+' contato(s).','ok'); return; } var c=sel[i++]; var url='https://wa.me/'+c.num+(msg?('?text='+encodeURIComponent(msg)):''); window.open(url,'_blank'); setTimeout(next, 800); })();
+  };
+  window.gnContatosPreencherClientes=function(){
+    var contatos=gj('gn_contatos'); if(!contatos.length){ if(window.toast) toast('Puxe os contatos do Google primeiro.','er'); return; }
+    var byNome={}; contatos.forEach(function(c){ var nm=String(c.nome||'').toLowerCase().trim(); var t=c.tel||c.telefone||''; if(nm && t && !byNome[nm]) byNome[nm]=t; });
+    var cli=gj('gn_cli'); var n=0;
+    cli.forEach(function(c){ if(!(c.tel||c.whatsapp)){ var nm=String(c.nome||'').toLowerCase().trim().replace(/\s*\(cliente\)\s*$/,''); var t=byNome[nm]; if(t){ c.tel=t; c.whatsapp=t; n++; } } });
+    if(n){ try{ localStorage.setItem('gn_cli', JSON.stringify(cli)); }catch(e){} try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_cli'); }catch(e){} try{ if(window.renderCli) renderCli(); }catch(e){} }
+    if(window.toast) toast(n? ('✓ '+n+' cliente(s) tiveram o telefone preenchido pelos contatos.') : 'Nenhum cliente sem telefone bateu com os contatos.', n?'ok':'er');
+  };
+  var _ctPulling=false;
+  window.gnPullContatos=function(aviso){
+    if(typeof GN_CLOUD2==='undefined'||!GN_CLOUD2){ if(aviso&&window.toast) toast('Nuvem indisponível.','er'); return; }
+    if(_ctPulling) return; _ctPulling=true;
+    if(aviso){ var st=document.getElementById('contatos-status'); if(st) st.textContent='Puxando contatos do Google...'; }
+    fetch(GN_CLOUD2+'?action=contatosList&_='+Date.now()).then(function(r){return r.json();}).then(function(j){
+      _ctPulling=false;
+      if(j&&j.ok&&Array.isArray(j.contatos)){ try{ localStorage.setItem('gn_contatos', JSON.stringify(j.contatos)); }catch(e){} try{ renderContatos(); }catch(e){} if(aviso&&window.toast) toast('✓ '+j.contatos.length+' contatos do Google carregados.','ok'); }
+      else { if(aviso&&window.toast) toast('Não consegui puxar do Google ainda: '+(((j&&j.error)||'endpoint pendente')+'').slice(0,80),'er'); }
+    }).catch(function(e){ _ctPulling=false; if(aviso&&window.toast) toast('Falha ao puxar contatos.','er'); });
+  };
+  setInterval(function(){ var p=document.getElementById('pane-contatos'); if(p && p.style.display!=='none'){ try{ renderContatos(); }catch(e){} } }, 5000);
 })();
 </script>
 <script>
