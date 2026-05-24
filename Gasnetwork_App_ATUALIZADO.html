@@ -3654,7 +3654,7 @@ function gnCor(){ var c=gnCfg(); return c.cor||'#7c5cff'; }
 // Dados compartilhados por toda a equipe + auto-save de documentos no Drive.
 // ══════════════════════════════════════════════
 var GN_CLOUD2 = 'https://script.google.com/macros/s/AKfycbycnK4Fx0J4QphoLr-LQJPkh04RTy6zbBto-Sqlgr306GqjggZkKhyOsJXypeprS0Loww/exec';
-var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod'];
+var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod','gn_tomb'];
 var _gnSynced = {};        // último valor conhecido por chave (string)
 var _gnSyncBusy = false;
 var _gnSyncOn = true;
@@ -3667,11 +3667,35 @@ function gnCloud2Pull(cb){
     fetch(url).then(function(r){return r.json();}).then(function(j){
       if(!j||!j.ok||!j.data){ if(cb)cb(false); return; }
       var changed=false;
+      // Lápides de exclusão: itens apagados NUNCA podem voltar da nuvem (corrige "apago e volta").
+      var tombSet={};
+      try{ var tb=JSON.parse(localStorage.getItem('gn_tomb')||'{}'); for(var _id in tb){ tombSet[_id]=1; } }catch(e){}
+      try{ JSON.parse(localStorage.getItem('gn_fin_del')||'[]').forEach(function(id){ tombSet[id]=1; }); }catch(e){}
+      var hasTomb=false; for(var _z in tombSet){ hasTomb=true; break; }
       GN_SHARED_KEYS.forEach(function(k){
         var sv=j.data[k]; if(sv==null) return;
+        // gn_tomb (lápides): UNIÃO — junta as exclusões locais com as da nuvem, nunca perde nenhuma
+        if(k==='gn_tomb'){
+          try{
+            var localTomb={}; try{ localTomb=JSON.parse(localStorage.getItem('gn_tomb')||'{}'); }catch(_){}
+            var merged={}; for(var a in localTomb) merged[a]=localTomb[a];
+            if(sv && typeof sv==='object' && !Array.isArray(sv)){ for(var b in sv){ if(merged[b]==null) merged[b]=sv[b]; } }
+            else if(Array.isArray(sv)){ sv.forEach(function(id){ if(merged[id]==null) merged[id]=Date.now(); }); }
+            var ms=JSON.stringify(merged);
+            if(ms!==localStorage.getItem('gn_tomb')){ localStorage.setItem('gn_tomb', ms); changed=true; }
+            _gnSynced[k]=(ms!==JSON.stringify(sv))?JSON.stringify(sv):ms;
+          }catch(e){}
+          return;
+        }
+        var rawStr=JSON.stringify(sv);
+        // remove da nuvem os itens já excluídos antes de gravar localmente
+        if(hasTomb && Array.isArray(sv)){
+          sv=sv.filter(function(x){ return !(x && x.id && tombSet[x.id]); });
+        }
         var str=JSON.stringify(sv);
         if(str!==localStorage.getItem(k)){ localStorage.setItem(k,str); changed=true; }
-        _gnSynced[k]=str;
+        // se a nuvem ainda trouxe itens excluídos, marca como "pendente de reenvio" para limpar a nuvem no próximo ciclo
+        _gnSynced[k]=(str!==rawStr)?rawStr:str;
       });
       if(changed){ try{ gnRefreshUI(); }catch(e){} }
       gnSyncStatus('sincronizado','ok');
