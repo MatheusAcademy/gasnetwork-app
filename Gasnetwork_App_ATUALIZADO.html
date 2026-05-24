@@ -265,7 +265,7 @@ textarea.fi{resize:vertical;}
     <div id="ferr-menu" class="ferr-menu">
       <button class="ferr-item" onclick="ferrGo('novo')">📝 Nova Proposta / Orçamento</button>
       <button class="ferr-item" onclick="ferrGo('rec')">🧾 Recibo</button>
-      <button class="ferr-item" onclick="ferrGo('os')">📋 Ordem de Serviço</button>
+      <button class="ferr-item" onclick="ferrGo('os')">📝 Nota de Serviço</button>
       <button class="ferr-item" onclick="ferrGo('laudo')">🔬 Laudo</button>
     </div>
   </div>
@@ -1070,6 +1070,10 @@ textarea.fi{resize:vertical;}
       </div>
       <button onclick="comprasAdd()" style="margin-top:12px;background:#16a34a;color:#fff;border:none;border-radius:9px;padding:10px 16px;cursor:pointer;font-weight:700;">+ Adicionar à lista</button>
     </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--gn-text);cursor:pointer;"><input type="checkbox" id="compras-selall" onchange="comprasSelAll(this.checked)"> Selecionar todos</label>
+      <button onclick="comprasRemoverSelec()" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:600;font-size:13px;">🗑 Remover selecionados (já comprei)</button>
+    </div>
     <div id="compras-list"></div>
   </div>
   <div id="pane-chamados" style="display:none;">
@@ -1382,9 +1386,12 @@ textarea.fi{resize:vertical;}
     <div class="pgsub" style="margin-bottom:14px;">Suba Notas Fiscais, ART, fotos e vídeos de cada serviço. Tudo vai para a pasta do cliente no seu Google Drive, organizado por tipo — fácil de achar depois.</div>
 
     <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
-      <label style="font-size:12px;color:var(--gn-dim);">Cliente</label>
-      <input id="arq-cli" list="cli-datalist" placeholder="Digite o nome do cliente..." style="width:100%;padding:10px;border:1px solid var(--gn-border);border-radius:8px;margin-bottom:6px;">
-      <div style="font-size:11.5px;color:var(--gn-dim);">Os arquivos serão salvos em <b>Gás Network App → (nome do cliente) → (tipo do arquivo)</b> no Drive.</div>
+      <div style="font-weight:700;color:var(--gn-text);margin-bottom:8px;">1º) Escolha o cliente e a data — depois faça o upload</div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;">
+        <div><label style="font-size:12px;color:var(--gn-dim);">Cliente *</label><input id="arq-cli" list="cli-datalist" placeholder="Digite/escolha o cliente..." style="width:100%;padding:10px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">Data do serviço</label><input id="arq-data" type="date" style="width:100%;padding:10px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+      </div>
+      <div style="font-size:11.5px;color:var(--gn-dim);margin-top:8px;">Tudo será salvo na <b>pasta exclusiva desse cliente</b> no Drive: <b>Gás Network App → (cliente) → (tipo)</b>, com a data no nome do arquivo. Se o cliente ainda não tiver pasta, ela é criada automaticamente.</div>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;">
@@ -1524,8 +1531,8 @@ textarea.fi{resize:vertical;}
 
   <div id="pane-os" style="display:none;">
     <div class="eyebrow">Documento</div>
-    <div class="pgtitle" style="margin-bottom:4px;">Ordens de Serviço</div>
-    <div class="pgsub" style="margin-bottom:14px;">Abra OS reconhecendo o cliente, registre o serviço e gere o PDF. Sincroniza na nuvem.</div>
+    <div class="pgtitle" style="margin-bottom:4px;">Nota de Serviço</div>
+    <div class="pgsub" style="margin-bottom:14px;">Reconheça o cliente, registre o serviço executado e gere a Nota de Serviço em PDF (mesmo layout padrão dos outros documentos). Salva automaticamente na nuvem.</div>
 
     <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:16px;">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
@@ -1543,7 +1550,7 @@ textarea.fi{resize:vertical;}
       </div>
       <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
         <button onclick="osPreview()" style="background:#0e7490;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">👁 Pré-visualizar</button>
-        <button onclick="osGerar()" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">Gerar OS (PDF) e salvar na nuvem</button>
+        <button onclick="osGerar()" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">Gerar Nota de Serviço (PDF) e salvar na nuvem</button>
         <button onclick="osLimpar()" style="background:var(--gn-surface2);color:var(--gn-text);border:none;padding:10px 16px;border-radius:8px;cursor:pointer;">Limpar</button>
       </div>
     </div>
@@ -2218,10 +2225,13 @@ var COMPRAS_ST=['Necessário comprar','Cotando','Comprado','Recebido','Cancelado
 function comprasGet(){try{return JSON.parse(localStorage.getItem('gn_compras')||'[]');}catch(e){return[];}}
 function comprasSaveAll(a){try{localStorage.setItem('gn_compras',JSON.stringify(a));}catch(e){}}
 function comprasAdd(){var m=((document.getElementById('cp-mat')||{}).value||'').trim();if(!m){toast('Informe o material','er');return;}var a=comprasGet();a.unshift({id:'k'+Date.now(),material:m,qtd:(document.getElementById('cp-qtd')||{}).value||'',forn:(document.getElementById('cp-forn')||{}).value||'',valor:(document.getElementById('cp-val')||{}).value||'',status:'Necessário comprar',criadoEm:new Date().toISOString()});comprasSaveAll(a);['cp-mat','cp-qtd','cp-forn','cp-val'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});renderCompras();toast('Item adicionado à lista de compras','ok');}
-function comprasSet(id,s){var a=comprasGet();a.forEach(function(x){if(x.id===id)x.status=s;});comprasSaveAll(a);renderCompras();}
-function comprasDel(id){if(!confirm('Excluir item?'))return;comprasSaveAll(comprasGet().filter(function(x){return x.id!==id;}));renderCompras();}
+function comprasSet(id,s){var a=comprasGet();a.forEach(function(x){if(x.id===id)x.status=s;});comprasSaveAll(a);try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_compras'); }catch(e){}renderCompras();}
+function comprasDel(id){if(!confirm('Excluir item?'))return;comprasSaveAll(comprasGet().filter(function(x){return x.id!==id;}));try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_compras'); }catch(e){}renderCompras();}
 function comprasCor(s){return {'Necessário comprar':'#f59e0b','Cotando':'#0891b2','Comprado':'#7c5cff','Recebido':'#16a34a','Cancelado':'#64748b'}[s]||'#64748b';}
-function renderCompras(){var box=document.getElementById('compras-list');if(!box)return;var a=comprasGet();if(!a.length){box.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum item de compra. Dica: na aba Materiais, os itens com estoque baixo são candidatos a comprar.</div>';return;}box.innerHTML=a.map(function(x){var opt=COMPRAS_ST.map(function(s){return '<option'+(s===x.status?' selected':'')+'>'+s+'</option>';}).join('');return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--gn-border);border-left:4px solid '+comprasCor(x.status)+';border-radius:11px;margin-bottom:7px;"><div style="min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(x.material)+(x.qtd?(' · '+gnEsc(x.qtd)):'')+'</div><div style="font-size:12px;color:var(--gn-dim);">'+[x.forn,x.valor].filter(Boolean).map(gnEsc).join(' · ')+'</div></div><div style="display:flex;gap:5px;align-items:center;"><select onchange="comprasSet(\''+x.id+'\',this.value)" style="padding:6px;border:1px solid var(--gn-border);border-radius:7px;font-size:12px;color:'+comprasCor(x.status)+';font-weight:600;">'+opt+'</select><button onclick="comprasDel(\''+x.id+'\')" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;">✕</button></div></div>';}).join('');}
+function comprasEditQtd(id){var a=comprasGet();var x=a.filter(function(y){return y.id===id;})[0];if(!x)return;var q=prompt('Quantidade a comprar de "'+x.material+'":', x.qtd||'1');if(q===null)return;x.qtd=String(q).trim();comprasSaveAll(a);try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_compras'); }catch(e){}renderCompras();}
+function comprasSelAll(ck){Array.prototype.forEach.call(document.querySelectorAll('#compras-list .compras-chk'),function(c){c.checked=ck;});}
+function comprasRemoverSelec(){var ids=[];Array.prototype.forEach.call(document.querySelectorAll('#compras-list .compras-chk'),function(c){if(c.checked)ids.push(c.getAttribute('data-id'));});if(!ids.length){toast('Marque os itens que você já comprou (caixinhas).','er');return;}if(!confirm('Remover '+ids.length+' item(ns) da lista de compras? (use isso para tirar o que você já comprou)'))return;var set={};ids.forEach(function(i){set[i]=1;});comprasSaveAll(comprasGet().filter(function(x){return !set[x.id];}));try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_compras'); }catch(e){}var sa=document.getElementById('compras-selall');if(sa)sa.checked=false;renderCompras();toast('✓ '+ids.length+' item(ns) comprado(s) removido(s) da lista.','ok');}
+function renderCompras(){var box=document.getElementById('compras-list');if(!box)return;var a=comprasGet();if(!a.length){box.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum item de compra. Dica: na aba <b>Materiais</b>, clique em <b>🛒 Comprar</b> no que estiver faltando — ele vem pra cá.</div>';return;}box.innerHTML=a.map(function(x){var opt=COMPRAS_ST.map(function(s){return '<option'+(s===x.status?' selected':'')+'>'+s+'</option>';}).join('');return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--gn-border);border-left:4px solid '+comprasCor(x.status)+';border-radius:11px;margin-bottom:7px;"><div style="display:flex;align-items:center;gap:10px;min-width:0;"><input type="checkbox" class="compras-chk" data-id="'+x.id+'" style="width:18px;height:18px;flex:none;cursor:pointer;"><div style="min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(x.material)+'</div><div style="font-size:12px;color:var(--gn-dim);">Qtd: <b style="color:var(--gn-text);">'+(gnEsc(x.qtd)||'1')+'</b> <button onclick="comprasEditQtd(\''+x.id+'\')" style="background:rgba(124,92,255,.18);color:var(--gn-text);border:none;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:11px;">✎ editar</button>'+([x.forn,x.valor].filter(Boolean).map(gnEsc).join(' · ')?(' · '+[x.forn,x.valor].filter(Boolean).map(gnEsc).join(' · ')):'')+'</div></div></div><div style="display:flex;gap:5px;align-items:center;"><select onchange="comprasSet(\''+x.id+'\',this.value)" style="padding:6px;border:1px solid var(--gn-border);border-radius:7px;font-size:12px;color:'+comprasCor(x.status)+';font-weight:600;">'+opt+'</select><button onclick="comprasDel(\''+x.id+'\')" title="Excluir" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;">✕</button></div></div>';}).join('');}
 
 // ═══ CHAMADOS TÉCNICOS (item 38) ═══
 var CHAM_ST=['Aberto','Em análise','Aguardando cliente','Resolvido','Cancelado'];
@@ -3828,7 +3838,7 @@ function gnAutoSaveDoc(doc, filename, meta){
   }catch(e){ console.warn('[autosave]',e); }
 }
 // ---- Upload de arquivos (NF, ART, fotos, vídeos) para a pasta do cliente no Drive ----
-function renderArquivos(){ try{ if(typeof cliRefreshDatalist==='function') cliRefreshDatalist(); }catch(e){} }
+function renderArquivos(){ try{ if(typeof cliRefreshDatalist==='function') cliRefreshDatalist(); }catch(e){} try{ var dd=document.getElementById('arq-data'); if(dd && !dd.value) dd.value=new Date().toISOString().slice(0,10); }catch(e){} }
 function gnAbrirDrive(){ try{ window.open('https://drive.google.com/drive/search?q='+encodeURIComponent('Gás Network App'),'_blank'); }catch(e){ window.open('https://drive.google.com','_blank'); } }
 function gnArqLog(m){ var el=document.getElementById('arq-status'); if(el) el.textContent=(el.textContent?el.textContent+'\n':'')+m; }
 function gnUploadArquivo(tipo, inputId){
@@ -3837,6 +3847,7 @@ function gnUploadArquivo(tipo, inputId){
   var inp=document.getElementById(inputId);
   if(!inp || !inp.files || !inp.files.length){ toast('Selecione um ou mais arquivos.','er'); return; }
   if(!GN_CLOUD2){ toast('Nuvem indisponível.','er'); return; }
+  var dataServ=((document.getElementById('arq-data')||{}).value||'').trim();
   var files=Array.prototype.slice.call(inp.files);
   gnArqLog('⏳ Enviando '+files.length+' arquivo(s) de "'+tipo+'" para a pasta de '+cli+'...');
   var i=0;
@@ -3848,7 +3859,8 @@ function gnUploadArquivo(tipo, inputId){
     var r=new FileReader();
     r.onload=function(e){
       var b64=String(e.target.result||'').split(',')[1]||'';
-      fetch(GN_CLOUD2,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveDoc', base64:b64, filename:f.name, mime:(f.type||''), cliente:cli, tipo:tipo, numero:''})})
+      var fn=(dataServ?(dataServ+' - '):'')+f.name;
+      fetch(GN_CLOUD2,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveDoc', base64:b64, filename:fn, mime:(f.type||''), cliente:cli, tipo:tipo, numero:''})})
         .then(function(){ gnArqLog('✓ '+f.name); }).catch(function(){ gnArqLog('✗ '+f.name+' (falha de rede)'); })
         .then(function(){ setTimeout(next, 250); });
     };
@@ -3856,6 +3868,36 @@ function gnUploadArquivo(tipo, inputId){
     r.readAsDataURL(f);
   }
   next();
+}
+// Anexar foto/vídeo a um pedido/documento — vai direto pra pasta do cliente no Drive
+function gnAnexarMidia(cliente, ref){
+  cliente=(cliente||'').trim();
+  if(!cliente){ if(typeof toast==='function') toast('Este pedido está sem cliente — não dá pra organizar a pasta no Drive.','er'); return; }
+  if(!GN_CLOUD2){ if(typeof toast==='function') toast('Nuvem indisponível agora.','er'); return; }
+  var inp=document.getElementById('gn-midia-input');
+  if(!inp){ inp=document.createElement('input'); inp.type='file'; inp.id='gn-midia-input'; inp.accept='image/*,video/*'; inp.multiple=true; inp.style.display='none'; document.body.appendChild(inp); }
+  inp.value='';
+  inp.onchange=function(){
+    var files=Array.prototype.slice.call(inp.files||[]); if(!files.length) return;
+    if(typeof toast==='function') toast('⏳ Enviando '+files.length+' arquivo(s) para a pasta de '+cliente+'...','in');
+    var i=0, ok=0;
+    (function next(){
+      if(i>=files.length){ if(typeof toast==='function') toast('☁️ '+ok+' arquivo(s) salvos na pasta de '+cliente+' no Drive.','ok'); return; }
+      var f=files[i++];
+      if(f.size>100*1024*1024){ if(typeof toast==='function') toast('✗ '+f.name+' acima de 100MB — pulado.','er'); next(); return; }
+      var tipo=(String(f.type||'').indexOf('video')>=0)?'Vídeos':'Fotos';
+      var r=new FileReader();
+      r.onload=function(e){
+        var b64=String(e.target.result||'').split(',')[1]||'';
+        var fn=(ref?(ref+' - '):'')+f.name;
+        fetch(GN_CLOUD2,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveDoc', base64:b64, filename:fn, mime:(f.type||''), cliente:cliente, tipo:tipo, numero:(ref||'')})})
+          .then(function(){ ok++; }).catch(function(){}).then(function(){ setTimeout(next,200); });
+      };
+      r.onerror=function(){ next(); };
+      r.readAsDataURL(f);
+    })();
+  };
+  inp.click();
 }
 // IA via backend (chave fica no servidor, não no código)
 function gnAI(systemPrompt, userText){
@@ -4103,6 +4145,7 @@ function renderPed(){
       + '<button class="ped-edit" data-n="'+gnEsc(e.numero)+'" style="background:rgba(124,92,255,.20);color:var(--gn-text);border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;">Editar</button>'
       + '<button class="ped-wa" data-n="'+gnEsc(e.numero)+'" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;">WhatsApp</button>'
       + '<button class="ped-pdf" data-n="'+gnEsc(e.numero)+'" style="background:#4338ca;color:#fff;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;">PDF</button>'
+      + '<button class="ped-midia" data-n="'+gnEsc(e.numero)+'" title="Anexar foto/vídeo na pasta deste cliente no Drive" style="background:#0e7490;color:#fff;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;">📎 Foto/Vídeo</button>'
       + '<button class="ped-del" data-n="'+gnEsc(e.numero)+'" title="Excluir pedido" style="background:rgba(251,113,133,.16);color:#fb7185;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:13px;font-weight:700;">✕</button>'
       + '</div></div></div>';
   }).join('');
@@ -4113,6 +4156,7 @@ function renderPed(){
   Array.prototype.forEach.call(list.querySelectorAll('.ped-info'), function(b){ b.onclick=function(){ pedDetalhe(b.getAttribute('data-n')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.ped-wa'), function(b){ b.onclick=function(){ pedWhats(b.getAttribute('data-n')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.ped-pdf'), function(b){ b.onclick=function(){ pedDoc(b.getAttribute('data-n')); }; });
+  Array.prototype.forEach.call(list.querySelectorAll('.ped-midia'), function(b){ b.onclick=function(){ var n=b.getAttribute('data-n'); var e=(typeof pedEntry==='function')?(pedEntry(n)||{}):{}; gnAnexarMidia(e.cliente||'', n); }; });
 }
 function pedFiltrarStatus(s){ pedStatusFiltro=s; renderPed(); }
 function pedInPeriodo(d, per){ if(!per||per==='tudo') return true; var iso=pedISO(d); if(!iso) return true; var dt=new Date(iso+'T00:00:00'); if(isNaN(dt)) return true; var now=new Date(); if(per==='hoje'){ return iso===new Date().toISOString().slice(0,10); } if(per==='semana'){ var diff=(now.getTime()-dt.getTime())/86400000; return diff<=7 && diff>=-1; } if(per==='mes'){ return dt.getFullYear()===now.getFullYear()&&dt.getMonth()===now.getMonth(); } if(per==='ano'){ return dt.getFullYear()===now.getFullYear(); } return true; }
@@ -5640,13 +5684,13 @@ function osGerar(){
   var nome=(document.getElementById('os-nome').value||'').trim();
   if(!nome){ toast('Informe o cliente','er'); return; }
   var dataIso=document.getElementById('os-data').value||new Date().toISOString().slice(0,10);
-  var os={ id:'o'+Date.now(), numero:((typeof gnDocNum==='function')?gnDocNum('Ordem de serviço'):gnNumero('OS')), nome:nome, end:document.getElementById('os-end').value||'',
+  var os={ id:'o'+Date.now(), numero:((typeof gnDocNum==='function')?gnDocNum('Nota de Serviço'):gnNumero('NS')), nome:nome, end:document.getElementById('os-end').value||'',
     status:document.getElementById('os-status').value, valor:gnParseVal(document.getElementById('os-valor').value),
     desc:document.getElementById('os-desc').value||'', exec:document.getElementById('os-exec').value||'',
     mat:document.getElementById('os-mat').value||'', data:dataIso, criadoEm:new Date().toISOString() };
   gnStoreUpsert('os', os); osSyncFinance(os); osDoc(os, true);
   osLimpar(); renderOs();
-  toast(os.status==='Finalizada'?'✓ OS finalizada e lançada nos recebidos':'✓ OS salva','ok');
+  toast(os.status==='Finalizada'?'✓ Nota de Serviço finalizada e lançada nos recebidos':'✓ Nota de Serviço salva','ok');
 }
 function osDoc(os, save){
   var blocos=[];
@@ -5654,13 +5698,13 @@ function osDoc(os, save){
   if(os.exec) blocos.push({titulo:'Serviço executado', texto:os.exec});
   if(os.mat) blocos.push({titulo:'Materiais utilizados', texto:os.mat});
   var doc=gnDocPDF({
-    titulo:'ORDEM DE SERVIÇO', numero:os.numero, data:(os.data||'').split('-').reverse().join('/'),
+    titulo:'NOTA DE SERVIÇO', numero:os.numero, data:(os.data||'').split('-').reverse().join('/'),
     cliente:{ nome:os.nome, end:os.end },
     linhas:[ {label:'Status', valor:os.status} ],
     total: os.valor||null, blocos:blocos,
     rodape:'Ordem de serviço emitida eletronicamente.'
   });
-  if(doc && save){ var _fn='OS '+os.numero+' - '+(os.nome||'')+'.pdf'; doc.save(_fn); try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(doc, _fn, {numero:os.numero, cliente:(os.nome||''), tipo:'Ordem de serviço'}); }catch(er){} }
+  if(doc && save){ var _fn='Nota de Serviço '+os.numero+' - '+(os.nome||'')+'.pdf'; doc.save(_fn); try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(doc, _fn, {numero:os.numero, cliente:(os.nome||''), tipo:'Nota de Serviço'}); }catch(er){} }
   return doc;
 }
 function osPreview(){
@@ -5680,7 +5724,7 @@ function osFinalizar(id){
   toast('✓ OS finalizada — '+gnBRL(os.valor)+' lançado nos recebidos','ok');
 }
 function osWhats(id){ var os=osGet(id); if(!os) return;
-  var msg='Olá, '+os.nome+'! Segue a Ordem de Serviço '+os.numero+'. Status: '+os.status+'.';
+  var msg='Olá, '+os.nome+'! Segue a Nota de Serviço '+os.numero+'. Status: '+os.status+'.';
   var cli=osClientes().filter(function(c){ return (c.nome||'')===os.nome; })[0];
   var num=cli?String(cli.whatsapp||cli.tel||'').replace(/\D/g,''):''; if(num&&num.length<=11) num='55'+num;
   window.open('https://wa.me/'+num+'?text='+encodeURIComponent(msg),'_blank');
@@ -5766,6 +5810,7 @@ function renderProd(){
       + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">'
       + '<button class="prod-menos" data-id="'+c.id+'" style="background:#fee;color:#dc2626;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-weight:700;">−</button>'
       + '<button class="prod-mais" data-id="'+c.id+'" style="background:#e7f5ec;color:#16a34a;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-weight:700;">＋</button>'
+      + '<button class="prod-comprar" data-id="'+c.id+'" title="Adicionar à lista de compras" style="background:#f59e0b;color:#fff;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:700;">🛒 Comprar</button>'
       + '<button class="prod-usar" data-id="'+c.id+'" style="background:#4338ca;color:#fff;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;">➤ Orçamento</button>'
       + '<button class="prod-edit" data-id="'+c.id+'" style="background:rgba(124,92,255,.20);color:var(--gn-text)8aa;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;">Editar</button>'
       + '<button class="prod-del" data-id="'+c.id+'" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;">Excluir</button>'
@@ -5773,11 +5818,29 @@ function renderProd(){
   }).join('');
   Array.prototype.forEach.call(list.querySelectorAll('.prod-menos'), function(b){ b.onclick=function(){ prodMov(b.getAttribute('data-id'),-1); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.prod-mais'), function(b){ b.onclick=function(){ prodMov(b.getAttribute('data-id'),1); }; });
+  Array.prototype.forEach.call(list.querySelectorAll('.prod-comprar'), function(b){ b.onclick=function(){ prodComprar(b.getAttribute('data-id')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.prod-usar'), function(b){ b.onclick=function(){ prodUsar(b.getAttribute('data-id')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.prod-edit'), function(b){ b.onclick=function(){ prodEdit(b.getAttribute('data-id')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.prod-del'), function(b){ b.onclick=function(){ prodDel(b.getAttribute('data-id')); }; });
 }
 
+// Adiciona um material à Lista de Compras (com quantidade) e leva pra lista
+function prodComprar(id){
+  var p=(typeof prodFind==='function')?prodFind(id):(gnStoreGet('prod').filter(function(x){return x.id===id;})[0]);
+  if(!p) return;
+  var qRaw=prompt('Quantos "'+p.nome+'" você precisa comprar?', '1'); if(qRaw===null) return;
+  var qtd=String(qRaw).trim()||'1';
+  var a=[]; try{ a=JSON.parse(localStorage.getItem('gn_compras')||'[]'); }catch(e){}
+  // se já existe na lista (mesmo material, ainda não comprado), soma/atualiza a quantidade
+  var ex=a.filter(function(x){ return (x.material||'').toLowerCase()===(p.nome||'').toLowerCase() && x.status!=='Comprado' && x.status!=='Recebido'; })[0];
+  if(ex){ ex.qtd=qtd; }
+  else { a.unshift({id:'k'+Date.now(), material:p.nome, qtd:qtd, forn:(p.fornecedor||''), valor:'', categoria:(p.categoria||''), status:'Necessário comprar', criadoEm:new Date().toISOString()}); }
+  try{ localStorage.setItem('gn_compras',JSON.stringify(a)); }catch(e){}
+  try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_compras'); }catch(e){}
+  try{ if(typeof renderCompras==='function') renderCompras(); }catch(e){}
+  if(confirm('✓ "'+p.nome+'" (x'+qtd+') foi para a Lista de Compras.\n\nAbrir a Lista de Compras agora?')){ if(typeof goTab==='function') goTab('compras'); }
+  else if(typeof toast==='function'){ toast('🛒 Adicionado às Compras: '+p.nome+' (x'+qtd+')','ok'); }
+}
 // ═══ ASSISTENTE DE ESTOQUE POR TEXTO ═══
 function estNorm(s){ return String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
 function estFornecedor(p){ if(p.fornecedor) return p.fornecedor; try{ var fs=JSON.parse(localStorage.getItem('gn_forn')||'[]'); var nm=estNorm(p.nome).replace(/s$/,''); var f=fs.filter(function(x){ return estNorm(x.produtos||'').indexOf(nm)>=0; })[0]; if(f) return f.nome; }catch(e){} return ''; }
@@ -6188,7 +6251,8 @@ function renderInicio(){
 (function(){
   var GROUPS=[
     ['Principal', [['inicio','Inicio','Início'], ['docrap','Doc','Documento Rápido'], ['hoje','Hoje','Hoje'], ['ped','Ped','Pedidos'], ['tarefas','Tar','Tarefas'], ['age','Age','Agenda'], ['tec','Tec','Técnico em Campo']]],
-    ['Ferramentas', [['novo','Prop','Nova Proposta'], ['rec','Rec','Recibos'], ['os','OS','Ordens de Serviço'], ['laudo','Laudo','Laudo de Estanqueidade'], ['relvist','Rel','Relatório de Vistoria']]],
+    ['⭐ Emitir (mais usados)', [['laudo','Laudo','Laudo de Estanqueidade'], ['os','NS','Nota de Serviço'], ['rec','Rec','Recibo']]],
+    ['Ferramentas', [['novo','Prop','Nova Proposta'], ['relvist','Rel','Relatório de Vistoria']]],
     ['Comercial', [['atend','Atend','Atendimentos & Funil'], ['posvenda','PV','Pós-venda'], ['chamados','Cham','Chamados técnicos']]],
     ['Gestão', [['fin','Fin','Financeiro'], ['cob','Cob','Cobranças'], ['arquivos','Arq','Arquivos & Mídia']]],
     ['Suprimentos', [['forn','Forn','Fornecedores'], ['compras','Compras','Compras']]],
