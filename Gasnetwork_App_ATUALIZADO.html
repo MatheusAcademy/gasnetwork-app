@@ -1033,8 +1033,8 @@ textarea.fi{resize:vertical;}
       <textarea id="dr-conteudo" rows="13" placeholder="Cole aqui o conteúdo do documento (pode ser bagunçado)...&#10;&#10;Depois clique em ✨ Organizar com IA, ou use '## Título' para criar seções manualmente." style="width:100%;padding:11px;border:1px solid var(--gn-border);border-radius:10px;font-size:13.5px;line-height:1.6;"></textarea>
 
       <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
-        <button onclick="drGerar(false)" style="background:#4338ca;color:#fff;border:none;padding:11px 16px;border-radius:9px;cursor:pointer;font-weight:700;">📄 Gerar PDF</button>
-        <button onclick="drGerar(true)" style="background:#16a34a;color:#fff;border:none;padding:11px 16px;border-radius:9px;cursor:pointer;font-weight:700;">☁️ Gerar e salvar na nuvem</button>
+        <button onclick="drPreview()" style="background:#0e7490;color:#fff;border:none;padding:11px 16px;border-radius:9px;cursor:pointer;font-weight:700;">👁 Pré-visualizar</button>
+        <button onclick="drGerar(false)" style="background:#16a34a;color:#fff;border:none;padding:11px 16px;border-radius:9px;cursor:pointer;font-weight:700;">📄 Gerar PDF (salva na nuvem automaticamente)</button>
         <button onclick="drLimpar()" style="background:var(--gn-card,#eee);color:var(--gn-text,#333);border:1px solid var(--gn-border,#ddd);padding:11px 16px;border-radius:9px;cursor:pointer;font-weight:600;">Limpar</button>
       </div>
       <div style="font-size:11px;color:var(--gn-dim);margin-top:10px;">Cada linha começando com <code>## </code> vira um título de seção; o resto vira texto. A logo, o cabeçalho, o rodapé e a sua assinatura entram automaticamente. (O Laudo tem tela própria, na aba Laudo.)</div>
@@ -1310,6 +1310,7 @@ textarea.fi{resize:vertical;}
         <option value="hoje">Hoje</option>
         <option value="semana">Últimos 7 dias</option>
         <option value="mes">Este mês</option>
+        <option value="mespassado">Mês passado</option>
         <option value="ano" selected>Este ano</option>
         <option value="2anos">Últimos 2 anos</option>
         <option value="3anos">Últimos 3 anos</option>
@@ -1319,6 +1320,8 @@ textarea.fi{resize:vertical;}
       <button onclick="finAdd('custo')" style="background:#dc2626;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;">+ Custo</button>
       <button onclick="finImportHist()" style="background:#2563eb;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;">↻ Histórico</button>
       <button onclick="finHistDia()" title="Ver o histórico por dia e restaurar" style="background:#0e7490;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;">📅 Histórico por dia</button>
+      <button onclick="finExportPeriodo()" title="Exportar os lançamentos do período em CSV (abre no Excel)" style="background:#334155;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;">⬇️ Exportar (CSV)</button>
+      <button onclick="finCopiarResumo()" title="Copiar um resumo do período para colar no WhatsApp" style="background:#0e7490;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;">📋 Copiar resumo</button>
     </div>
 
     <div style="background:rgba(124,92,255,.12);border:1px solid rgba(124,92,255,.30);border-radius:14px;padding:14px;margin-bottom:18px;">
@@ -1345,6 +1348,7 @@ textarea.fi{resize:vertical;}
     </div>
 
     <div id="fin-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:10px;"></div>
+    <div id="fin-meta" style="margin-bottom:10px;"></div>
     <div style="font-size:12px;color:var(--gn-dim);background:rgba(100,116,139,.10);border:1px solid var(--gn-border);border-radius:10px;padding:10px 12px;margin-bottom:20px;line-height:1.5;">
       💡 Toque em qualquer card acima para abrir a lista detalhada daquele valor (editável, com documentos por cliente). O <b>Lucro líquido</b> é calculado sozinho: faturamento − despesas no período. <span id="fin-saldoini-txt" style="display:none;"></span>
     </div>
@@ -1364,8 +1368,55 @@ textarea.fi{resize:vertical;}
       </div>
     </div>
 
-    <div style="font-weight:600;margin-bottom:8px;">Lançamentos</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+      <div style="font-weight:600;">Lançamentos</div>
+      <input id="fin-busca" oninput="renderFin()" placeholder="🔍 Buscar lançamento (cliente, descrição, categoria)..." style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--gn-border);border-radius:8px;">
+    </div>
+    <div id="fin-totais" style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;"></div>
     <div id="fin-list"></div>
+  </div>
+
+  <div id="pane-arquivos" style="display:none;">
+    <div class="eyebrow">Gestão</div>
+    <div class="pgtitle" style="margin-bottom:4px;">Arquivos & Mídia do cliente</div>
+    <div class="pgsub" style="margin-bottom:14px;">Suba Notas Fiscais, ART, fotos e vídeos de cada serviço. Tudo vai para a pasta do cliente no seu Google Drive, organizado por tipo — fácil de achar depois.</div>
+
+    <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
+      <label style="font-size:12px;color:var(--gn-dim);">Cliente</label>
+      <input id="arq-cli" list="cli-datalist" placeholder="Digite o nome do cliente..." style="width:100%;padding:10px;border:1px solid var(--gn-border);border-radius:8px;margin-bottom:6px;">
+      <div style="font-size:11.5px;color:var(--gn-dim);">Os arquivos serão salvos em <b>Gás Network App → (nome do cliente) → (tipo do arquivo)</b> no Drive.</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;">
+      <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-left:4px solid #2563eb;border-radius:12px;padding:14px;">
+        <div style="font-weight:700;color:var(--gn-text);margin-bottom:4px;">🧾 Nota Fiscal</div>
+        <div style="font-size:12px;color:var(--gn-dim);margin-bottom:8px;">PDF ou imagem da NF emitida.</div>
+        <input type="file" id="arq-nf" accept=".pdf,image/*" multiple style="font-size:12.5px;width:100%;margin-bottom:8px;">
+        <button onclick="gnUploadArquivo('Notas Fiscais','arq-nf')" style="background:#2563eb;color:#fff;border:none;padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:600;width:100%;">⬆️ Enviar NF para a nuvem</button>
+      </div>
+      <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-left:4px solid #7c5cff;border-radius:12px;padding:14px;">
+        <div style="font-weight:700;color:var(--gn-text);margin-bottom:4px;">📜 ART</div>
+        <div style="font-size:12px;color:var(--gn-dim);margin-bottom:8px;">ART emitida (PDF ou imagem).</div>
+        <input type="file" id="arq-art" accept=".pdf,image/*" multiple style="font-size:12.5px;width:100%;margin-bottom:8px;">
+        <button onclick="gnUploadArquivo('ART','arq-art')" style="background:#7c5cff;color:#fff;border:none;padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:600;width:100%;">⬆️ Enviar ART para a nuvem</button>
+      </div>
+      <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-left:4px solid #16a34a;border-radius:12px;padding:14px;">
+        <div style="font-weight:700;color:var(--gn-text);margin-bottom:4px;">📷 Fotos do serviço</div>
+        <div style="font-size:12px;color:var(--gn-dim);margin-bottom:8px;">Fotos do antes/depois, instalação, etc.</div>
+        <input type="file" id="arq-foto" accept="image/*" multiple style="font-size:12.5px;width:100%;margin-bottom:8px;">
+        <button onclick="gnUploadArquivo('Fotos','arq-foto')" style="background:#16a34a;color:#fff;border:none;padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:600;width:100%;">⬆️ Enviar fotos para a nuvem</button>
+      </div>
+      <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-left:4px solid #dc2626;border-radius:12px;padding:14px;">
+        <div style="font-weight:700;color:var(--gn-text);margin-bottom:4px;">🎥 Vídeos do serviço</div>
+        <div style="font-size:12px;color:var(--gn-dim);margin-bottom:8px;">Vídeos curtos do serviço executado.</div>
+        <input type="file" id="arq-video" accept="video/*" multiple style="font-size:12.5px;width:100%;margin-bottom:8px;">
+        <button onclick="gnUploadArquivo('Vídeos','arq-video')" style="background:#dc2626;color:#fff;border:none;padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:600;width:100%;">⬆️ Enviar vídeos para a nuvem</button>
+      </div>
+    </div>
+    <div id="arq-status" style="margin-top:12px;font-size:13px;color:var(--gn-dim);white-space:pre-wrap;"></div>
+    <div style="margin-top:14px;font-size:12px;color:var(--gn-dim);background:rgba(100,116,139,.10);border:1px solid var(--gn-border);border-radius:10px;padding:10px 12px;">
+      💡 Para abrir a pasta do cliente no Drive e ver tudo o que já foi enviado (documentos, NF, ART, fotos e vídeos), use o botão abaixo. <button onclick="gnAbrirDrive()" style="background:#0e7490;color:#fff;border:none;padding:7px 12px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;margin-left:6px;">📂 Abrir meu Drive</button>
+    </div>
   </div>
 
   <div id="pane-cli" style="display:none;">
@@ -1461,7 +1512,8 @@ textarea.fi{resize:vertical;}
         <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Referente a</label><input id="rec-ref" placeholder="Ex.: Teste de estanqueidade e visita técnica" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
       </div>
       <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
-        <button onclick="recGerar()" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">Gerar recibo (PDF) e salvar</button>
+        <button onclick="recPreview()" style="background:#0e7490;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">👁 Pré-visualizar</button>
+        <button onclick="recGerar()" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">Gerar recibo (PDF) e salvar na nuvem</button>
         <button onclick="recLimpar()" style="background:var(--gn-surface2);color:var(--gn-text);border:none;padding:10px 16px;border-radius:8px;cursor:pointer;">Limpar</button>
       </div>
     </div>
@@ -1490,7 +1542,8 @@ textarea.fi{resize:vertical;}
         <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Materiais utilizados</label><input id="os-mat" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
       </div>
       <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
-        <button onclick="osGerar()" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">Gerar OS (PDF) e salvar</button>
+        <button onclick="osPreview()" style="background:#0e7490;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">👁 Pré-visualizar</button>
+        <button onclick="osGerar()" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">Gerar OS (PDF) e salvar na nuvem</button>
         <button onclick="osLimpar()" style="background:var(--gn-surface2);color:var(--gn-text);border:none;padding:10px 16px;border-radius:8px;cursor:pointer;">Limpar</button>
       </div>
     </div>
@@ -1592,7 +1645,8 @@ textarea.fi{resize:vertical;}
         <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Objeto / serviços contratados</label><textarea id="ctr-obj" rows="3" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></textarea></div>
       </div>
       <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
-        <button onclick="ctrGerar()" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">Gerar contrato (PDF) e salvar</button>
+        <button onclick="ctrPreview()" style="background:#0e7490;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">👁 Pré-visualizar</button>
+        <button onclick="ctrGerar()" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">Gerar contrato (PDF) e salvar na nuvem</button>
         <button onclick="ctrLimpar()" style="background:var(--gn-surface2);color:var(--gn-text);border:none;padding:10px 16px;border-radius:8px;cursor:pointer;">Limpar</button>
       </div>
     </div>
@@ -1935,7 +1989,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // TABS
 // ══════════════════════════════════════════════
 function goTab(t) {
-  ['inicio','ped','age','tec','novo','hist','laudo','relvist','fin','cli','svc','rec','os','prod','rel','chk','ctr','cfg','imp','pro','docrap','hoje','tarefas','cob','atend','forn','compras','chamados','posvenda'].forEach(id => {
+  ['inicio','ped','age','tec','novo','hist','laudo','relvist','fin','cli','svc','rec','os','prod','rel','chk','ctr','cfg','imp','pro','docrap','hoje','tarefas','cob','atend','forn','compras','chamados','posvenda','arquivos'].forEach(id => {
     var p=document.getElementById('pane-'+id); if(p) p.style.display = id===t?'block':'none';
     var tb=document.getElementById('tab-'+id); if(tb) tb.classList.toggle('on', id===t);
   });
@@ -1965,6 +2019,7 @@ function goTab(t) {
   if (t==='compras'){ try{ if(window.renderCompras) renderCompras(); }catch(e){} }
   if (t==='chamados'){ try{ if(window.renderChamados) renderChamados(); }catch(e){} }
   if (t==='posvenda'){ try{ if(window.renderPosvenda) renderPosvenda(); }catch(e){} }
+  if (t==='arquivos'){ try{ if(window.renderArquivos) renderArquivos(); }catch(e){} }
   try{ if(window.notifBadge) notifBadge(); }catch(e){}
 }
 
@@ -3019,7 +3074,7 @@ function laudoGerar(cloud){
   if(!doc) return;
   var fn='Laudo '+numero+' - '+(cliNome||'Cliente')+'.pdf';
   try{ doc.save(fn); }catch(e){ toast('Erro ao gerar PDF: '+e.message,'er'); return; }
-  try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(doc, fn, {numero:(typeof numero!=='undefined'?numero:''), cliente:(typeof cliNome!=='undefined'?cliNome:'')}); }catch(e){}
+  try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(doc, fn, {numero:(typeof numero!=='undefined'?numero:''), cliente:(typeof cliNome!=='undefined'?cliNome:''), tipo:'Laudo Técnico'}); }catch(e){}
   try{ var entry={numero:numero, cliente:cliNome||'—', servicos:(obj||'Laudo técnico'), data:emis, valor:0, tipoDoc:'Laudo técnico'}; if(typeof saveHist==='function') saveHist(entry); if(typeof updCount==='function') updCount();
     if(cloud){ if(typeof cloudSave==='function'){ var b64=doc.output('datauristring').split(',')[1]; cloudSave(entry, b64, fn); toast('☁️ Laudo gerado e enviado para a nuvem.','ok'); return; } else { toast('Nuvem indisponível — laudo salvo localmente.','er'); } }
   }catch(e){ console.warn('[laudo] save', e); }
@@ -3315,7 +3370,7 @@ function laudoEstGerar(cloud){
   var doc=(typeof gnLaudoPDF==='function')?gnLaudoPDF(opts):null; if(!doc) return;
   var fn='Laudo de Estanqueidade '+numero+' - '+cliNome+'.pdf';
   try{ doc.save(fn); }catch(e){ toast('Erro ao gerar PDF: '+e.message,'er'); return; }
-  try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(doc, fn, {numero:(typeof numero!=='undefined'?numero:''), cliente:(typeof cliNome!=='undefined'?cliNome:'')}); }catch(e){}
+  try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(doc, fn, {numero:(typeof numero!=='undefined'?numero:''), cliente:(typeof cliNome!=='undefined'?cliNome:''), tipo:'Laudo de Estanqueidade'}); }catch(e){}
   try{ var entry={numero:numero, cliente:cliNome, servicos:'Laudo de estanqueidade', data:dataBR, valor:0, tipoDoc:'Laudo de estanqueidade'}; if(typeof saveHist==='function') saveHist(entry); if(typeof updCount==='function') updCount();
     if(cliNome && typeof cliAutoUpsert==='function') cliAutoUpsert({nome:cliNome,cpf:laeVal('lae-doc'),tel:laeVal('lae-tel')});
     if(cloud){ if(typeof cloudSave==='function'){ var b64=doc.output('datauristring').split(',')[1]; cloudSave(entry,b64,fn); toast('☁️ Laudo de estanqueidade enviado para a nuvem.','ok'); return; } else { toast('Nuvem indisponível — salvo localmente.','er'); } }
@@ -3377,7 +3432,7 @@ function rvGerar(cloud){
   var doc=gnRelVistoriaPDF(opts); if(!doc) return;
   var fn='Relatorio de Vistoria '+numero+' - '+cliNome+'.pdf';
   try{ doc.save(fn); }catch(e){ toast('Erro ao gerar PDF: '+e.message,'er'); return; }
-  try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(doc, fn, {numero:(typeof numero!=='undefined'?numero:''), cliente:(typeof cliNome!=='undefined'?cliNome:'')}); }catch(e){}
+  try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(doc, fn, {numero:(typeof numero!=='undefined'?numero:''), cliente:(typeof cliNome!=='undefined'?cliNome:''), tipo:'Relatório de Vistoria'}); }catch(e){}
   try{ var entry={numero:numero, cliente:cliNome, servicos:'Relatório de vistoria técnica', data:dataVist, valor:(typeof gnParseVal==='function'?gnParseVal(rvVal('rv-valor')):0)||0, tipoDoc:'Relatório de vistoria técnica'}; if(typeof saveHist==='function') saveHist(entry); if(typeof updCount==='function') updCount();
     if(cliNome && typeof cliAutoUpsert==='function') cliAutoUpsert({nome:cliNome,cpf:rvVal('rv-doc'),tel:rvVal('rv-tel')});
     if(cloud){ if(typeof cloudSave==='function'){ var b64=doc.output('datauristring').split(',')[1]; cloudSave(entry,b64,fn); toast('☁️ Relatório de vistoria enviado para a nuvem.','ok'); return; } else { toast('Nuvem indisponível — salvo localmente.','er'); } }
@@ -3457,7 +3512,8 @@ async function drOrganizarIA(){
   }catch(e){ toast('Não foi possível organizar: '+e.message,'er'); }
   finally{ if(btn){ btn.textContent=oldTxt||'✨ Organizar com IA'; btn.disabled=false; } }
 }
-function drGerar(cloud){
+function drPreview(){ drGerar(false, true); }
+function drGerar(cloud, previewOnly){
   drInit();
   var tipo=drVal('dr-tipo')||'Documento'; var conteudo=drVal('dr-conteudo');
   if(!conteudo){ toast('Cole ou preencha o conteúdo do documento.','er'); return; }
@@ -3475,8 +3531,10 @@ function drGerar(cloud){
   if(cliNome){ opts.cliente={ nome:cliNome, cpf:drVal('dr-cpf')||cli.cpf||'', end:[cli.endereco,cli.cidade].filter(Boolean).join(' – '), tel:drVal('dr-tel')||cli.tel||cli.whatsapp||'' }; }
   var doc=gnDocPDF(opts); if(!doc) return;
   var fn=String(titulo)+' '+numero+(cliNome?(' - '+cliNome):'')+'.pdf';
+  // melhoria: pré-visualizar antes de baixar (abre em nova aba, sem salvar nem lançar)
+  if(previewOnly){ try{ window.open(doc.output('bloburl'),'_blank'); toast('👁 Pré-visualização aberta em nova aba. Confira e depois clique em Gerar PDF.','ok'); }catch(e){ toast('Não consegui pré-visualizar: '+e.message,'er'); } return; }
   try{ doc.save(fn); }catch(e){ toast('Erro ao gerar PDF: '+e.message,'er'); return; }
-  try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(doc, fn, {numero:(typeof numero!=='undefined'?numero:''), cliente:(typeof cliNome!=='undefined'?cliNome:'')}); }catch(e){}
+  try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(doc, fn, {numero:(typeof numero!=='undefined'?numero:''), cliente:(typeof cliNome!=='undefined'?cliNome:''), tipo:(typeof tipo!=='undefined'?tipo:'Documento')}); }catch(e){}
   try{ var entry={numero:numero, cliente:cliNome||'—', servicos:titulo, data:emis, valor:valorN||0, tipoDoc:tipo}; if(typeof saveHist==='function') saveHist(entry); if(typeof updCount==='function') updCount();
     if(cliNome && typeof cliAutoUpsert==='function') cliAutoUpsert({nome:cliNome,cpf:drVal('dr-cpf'),tel:drVal('dr-tel')});
     if(cloud){ if(typeof cloudSave==='function'){ var b64=doc.output('datauristring').split(',')[1]; cloudSave(entry,b64,fn); toast('☁️ Documento gerado e enviado para a nuvem.','ok'); return; } }
@@ -3569,6 +3627,41 @@ select option{ background:#111726; color:#f1f5ff; }
 }
 @media(max-width:899px){
   .main{ padding-top:64px !important; }
+}
+
+/* ===== POLIMENTO DE DESIGN (v2 — PC + celular) — aditivo e seguro ===== */
+/* Feedback de toque em todos os botões (leve afundar ao clicar) */
+button{ transition: transform .08s ease, filter .12s ease, box-shadow .15s ease; }
+button:active{ transform: scale(.97); }
+button:hover{ filter: brightness(1.06); }
+/* Cards de resumo com leve elevação ao passar o mouse */
+#fin-cards>div, .ini-card, #ped-cards>div{ transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+#fin-cards>div:hover, .ini-card:hover, #ped-cards>div:hover{ transform: translateY(-2px); box-shadow:0 14px 30px -18px rgba(0,0,0,.6); }
+/* Inputs e selects com foco mais visível (acessibilidade) */
+input:focus, select:focus, textarea:focus{ outline:none; border-color:#7c5cff !important; box-shadow:0 0 0 3px rgba(124,92,255,.18); }
+/* Barra de rolagem mais discreta no tema escuro */
+::-webkit-scrollbar{ width:10px; height:10px; }
+::-webkit-scrollbar-thumb{ background:rgba(124,92,255,.35); border-radius:8px; }
+::-webkit-scrollbar-thumb:hover{ background:rgba(124,92,255,.55); }
+
+/* ----- Celular: mais legível e com alvos de toque maiores ----- */
+@media(max-width:680px){
+  .main{ padding-left:14px !important; padding-right:14px !important; }
+  /* Cards de financeiro/início em 2 colunas no celular (melhor que 1 espremido) */
+  #fin-cards{ grid-template-columns:repeat(2,1fr) !important; gap:9px !important; }
+  #fin-cards>div{ padding:11px !important; }
+  #fin-cards>div div:last-child{ font-size:15px !important; }
+  /* Botões da barra de ações ocupam melhor o espaço e têm alvo grande */
+  #pane-fin button, #pane-ped button, #pane-tarefas button{ padding:10px 13px !important; font-size:13px !important; }
+  /* Modal de detalhes (drill) usa quase toda a largura */
+  #gn-drill{ padding:10px !important; }
+  #gn-drill>div{ padding:14px !important; border-radius:14px !important; }
+  /* Título das páginas um pouco menor pra não quebrar */
+  .pgtitle{ font-size:22px !important; }
+  /* Tabelas/listas roláveis horizontalmente sem cortar */
+  #fin-list, #ped-list{ -webkit-overflow-scrolling:touch; }
+  /* Wizard de novo pedido ocupa a tela toda */
+  #pw-modal>div{ margin:8px auto !important; }
 }
 
 /* ===== CORREÇÃO DE CONTRASTE — superfícies que sobraram do tema claro ===== */
@@ -3715,8 +3808,39 @@ function gnAutoSaveDoc(doc, filename, meta){
   try{
     if(!doc || typeof doc.output!=='function' || !GN_CLOUD2) return;
     var b64=doc.output('datauristring').split(',')[1]; meta=meta||{};
-    fetch(GN_CLOUD2,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveDoc', base64:b64, filename:(filename||('documento-'+Date.now()+'.pdf')), cliente:(meta.cliente||''), tipo:(meta.tipo||''), numero:(meta.numero||'')})});
+    fetch(GN_CLOUD2,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveDoc', base64:b64, filename:(filename||('documento-'+Date.now()+'.pdf')), cliente:(meta.cliente||''), tipo:(meta.tipo||''), numero:(meta.numero||'')})})
+      .then(function(){ try{ if(typeof toast==='function') toast('☁️ Documento salvo automaticamente na nuvem (Drive).','ok'); }catch(e){} })
+      .catch(function(){ try{ if(typeof toast==='function') toast('PDF baixado. (não consegui confirmar o envio à nuvem agora)','er'); }catch(e){} });
   }catch(e){ console.warn('[autosave]',e); }
+}
+// ---- Upload de arquivos (NF, ART, fotos, vídeos) para a pasta do cliente no Drive ----
+function renderArquivos(){ try{ if(typeof cliRefreshDatalist==='function') cliRefreshDatalist(); }catch(e){} }
+function gnAbrirDrive(){ try{ window.open('https://drive.google.com/drive/search?q='+encodeURIComponent('Gás Network App'),'_blank'); }catch(e){ window.open('https://drive.google.com','_blank'); } }
+function gnArqLog(m){ var el=document.getElementById('arq-status'); if(el) el.textContent=(el.textContent?el.textContent+'\n':'')+m; }
+function gnUploadArquivo(tipo, inputId){
+  var cli=((document.getElementById('arq-cli')||{}).value||'').trim();
+  if(!cli){ toast('Escolha/digite o cliente primeiro.','er'); return; }
+  var inp=document.getElementById(inputId);
+  if(!inp || !inp.files || !inp.files.length){ toast('Selecione um ou mais arquivos.','er'); return; }
+  if(!GN_CLOUD2){ toast('Nuvem indisponível.','er'); return; }
+  var files=Array.prototype.slice.call(inp.files);
+  gnArqLog('⏳ Enviando '+files.length+' arquivo(s) de "'+tipo+'" para a pasta de '+cli+'...');
+  var i=0;
+  function next(){
+    if(i>=files.length){ gnArqLog('✅ Concluído! '+files.length+' arquivo(s) salvos em Gás Network App › '+cli+' › '+tipo+'.'); inp.value=''; toast('☁️ '+files.length+' arquivo(s) enviados para a nuvem.','ok'); return; }
+    var f=files[i++];
+    if(f.size>40*1024*1024){ gnArqLog('✗ '+f.name+' ignorado (maior que 40MB).'); next(); return; }
+    var r=new FileReader();
+    r.onload=function(e){
+      var b64=String(e.target.result||'').split(',')[1]||'';
+      fetch(GN_CLOUD2,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveDoc', base64:b64, filename:f.name, mime:(f.type||''), cliente:cli, tipo:tipo, numero:''})})
+        .then(function(){ gnArqLog('✓ '+f.name); }).catch(function(){ gnArqLog('✗ '+f.name+' (falha de rede)'); })
+        .then(function(){ setTimeout(next, 250); });
+    };
+    r.onerror=function(){ gnArqLog('✗ '+f.name+' (erro ao ler)'); next(); };
+    r.readAsDataURL(f);
+  }
+  next();
 }
 // IA via backend (chave fica no servidor, não no código)
 function gnAI(systemPrompt, userText){
@@ -4421,7 +4545,41 @@ function finRestoreSnap(ts){
 function finBRL(n){ n=Number(n)||0; return 'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function finHoje(){ return new Date().toISOString().slice(0,10); }
 function finToISO(s){ if(!s) return ''; var m=String(s).match(/(\d{2})\/(\d{2})\/(\d{4})/); if(m) return m[3]+'-'+m[2]+'-'+m[1]; if(/^\d{4}-\d{2}-\d{2}/.test(String(s))) return String(s).slice(0,10); return ''; }
-function finInPeriodo(d,p){ if(!p||p==='tudo') return true; if(!d) return false; var dt=new Date(d+'T00:00:00'); if(isNaN(dt.getTime())) return false; var now=new Date(); if(p==='hoje') return dt.toDateString()===now.toDateString(); if(p==='semana'){ var s=new Date(now); s.setDate(s.getDate()-6); s.setHours(0,0,0,0); return dt>=s&&dt<=now; } if(p==='mes') return dt.getFullYear()===now.getFullYear()&&dt.getMonth()===now.getMonth(); if(p==='ano') return dt.getFullYear()===now.getFullYear(); if(p==='2anos') return (now.getFullYear()-dt.getFullYear())<=1; if(p==='3anos') return (now.getFullYear()-dt.getFullYear())<=2; return true; }
+function finInPeriodo(d,p){ if(!p||p==='tudo') return true; if(!d) return false; var dt=new Date(d+'T00:00:00'); if(isNaN(dt.getTime())) return false; var now=new Date(); if(p==='hoje') return dt.toDateString()===now.toDateString(); if(p==='semana'){ var s=new Date(now); s.setDate(s.getDate()-6); s.setHours(0,0,0,0); return dt>=s&&dt<=now; } if(p==='mes') return dt.getFullYear()===now.getFullYear()&&dt.getMonth()===now.getMonth(); if(p==='mespassado'){ var mp=new Date(now.getFullYear(),now.getMonth()-1,1); return dt.getFullYear()===mp.getFullYear()&&dt.getMonth()===mp.getMonth(); } if(p==='ano') return dt.getFullYear()===now.getFullYear(); if(p==='2anos') return (now.getFullYear()-dt.getFullYear())<=1; if(p==='3anos') return (now.getFullYear()-dt.getFullYear())<=2; return true; }
+function finCopiarResumo(){
+  var d=finCalc();
+  var perSel=document.getElementById('fin-periodo'); var perTxt=perSel?(perSel.options[perSel.selectedIndex]||{}).text||'período':'período';
+  var lucro=d.rec-d.custoPago;
+  var txt='📊 Resumo financeiro — '+perTxt+'\n'
+    +'• Faturamento manual: '+finBRL(d.recManual)+'\n'
+    +'• Faturamento real (banco): '+finBRL(d.recBanco)+'\n'
+    +'• Serviços executados: '+finBRL(d.svcExec)+'\n'
+    +'• A receber: '+finBRL(d.arec)+'\n'
+    +'• Em atraso: '+finBRL(d.atraso)+'\n'
+    +'• Despesas: '+finBRL(d.custoPago)+'\n'
+    +'• Lucro líquido: '+finBRL(lucro)+'\n'
+    +'(Gás Network — gerado pelo app)';
+  function done(){ if(typeof toast==='function') toast('📋 Resumo copiado! Cole no WhatsApp ou e-mail.','ok'); }
+  try{ if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done, function(){ window.prompt('Copie o resumo:', txt); }); } else { window.prompt('Copie o resumo:', txt); } }
+  catch(e){ window.prompt('Copie o resumo:', txt); }
+}
+function finSetMeta(){
+  var cur=Number(localStorage.getItem('gn_meta_fat')||'0')||0;
+  var v=prompt('Meta de faturamento POR MÊS (ex.: 30000 para R$ 30.000,00).\nDeixe 0 para remover a meta.', cur||'');
+  if(v===null) return;
+  var n=parseFloat(String(v).replace(/\./g,'').replace(',','.')); if(isNaN(n)) n=0;
+  localStorage.setItem('gn_meta_fat', String(n));
+  try{ renderFin(); }catch(e){}
+  if(typeof toast==='function') toast(n>0?('🎯 Meta definida: '+finBRL(n)):'Meta removida.','ok');
+}
+function finExportPeriodo(){
+  var d=finCalc();
+  var rows=[['Tipo','Descrição','Cliente','Categoria','Data','Hora','Valor','Status']];
+  (d.arr||[]).forEach(function(x){ rows.push([x.tipo||'', x.desc||'', x.cliente||'', x.categoria||'', x.data||'', x.hora||'', String(Number(x.valor)||0).replace('.',','), x.status||'']); });
+  var per=((document.getElementById('fin-periodo')||{}).value)||'periodo';
+  if(typeof gnDownloadCSV==='function'){ gnDownloadCSV('financeiro_'+per+'_'+new Date().toISOString().slice(0,10)+'.csv', rows); if(typeof toast==='function') toast('✓ '+(rows.length-1)+' lançamento(s) exportado(s) em CSV','ok'); }
+  else if(typeof toast==='function') toast('Exportação indisponível.','er');
+}
 function finEscAttr(s){ return String(s==null?'':s).replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // ---- nuvem ----
@@ -4871,19 +5029,52 @@ function renderFin(){
     finCard('Faturamento (serviços executados)', d.svcExec, '#0e7490') +
     finCard('A receber', d.arec, '#22c55e') + finCard('Em atraso', d.atraso, '#f59e0b') +
     finCard('Despesas (custos pagos)', d.custoPago, '#dc2626') +
-    finCard('Lucro líquido', (d.rec-d.custoPago), (d.rec-d.custoPago)>=0?'#16a34a':'#dc2626'); }
+    finCard('Lucro líquido', (d.rec-d.custoPago), (d.rec-d.custoPago)>=0?'#16a34a':'#dc2626') +
+    (function(){ var nDocs=d.arr.filter(function(x){return x.tipo==='receita';}).length; var tk=nDocs?d.rec/nDocs:0; return finCard('Ticket médio', tk, '#7c5cff'); })(); }
   var sit=document.getElementById('fin-saldoini-txt'); if(sit) sit.textContent='(saldo inicial atual: '+finBRL(d.saldoIni||0)+')';
+  // melhoria: meta de faturamento mensal com barra de progresso
+  var meta=document.getElementById('fin-meta');
+  if(meta){
+    var metaVal=Number(localStorage.getItem('gn_meta_fat')||'0')||0;
+    var now=new Date(); var fatMes=0;
+    try{ finData().forEach(function(x){ if(x.tipo==='receita' && x.status==='pago' && x.data){ var dt=new Date(x.data+'T00:00:00'); if(dt.getFullYear()===now.getFullYear()&&dt.getMonth()===now.getMonth()) fatMes+=Number(x.valor)||0; } }); }catch(e){}
+    if(metaVal>0){
+      var pct=Math.min(100, Math.round(fatMes/metaVal*100));
+      var cor=pct>=100?'#16a34a':(pct>=60?'#f59e0b':'#7c5cff');
+      meta.innerHTML='<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:12px;padding:12px 14px;">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:7px;"><div style="font-weight:700;color:var(--gn-text);">🎯 Meta do mês: '+finBRL(metaVal)+'</div><div style="font-size:12.5px;color:var(--gn-dim);">Recebido no mês: <b style="color:'+cor+';">'+finBRL(fatMes)+'</b> ('+pct+'%) <button onclick="finSetMeta()" style="margin-left:6px;background:rgba(124,92,255,.18);color:var(--gn-text);border:none;border-radius:6px;padding:4px 9px;cursor:pointer;font-size:11.5px;">editar</button></div></div>'
+        +'<div style="background:var(--gn-border);border-radius:20px;height:12px;overflow:hidden;"><div style="width:'+pct+'%;height:100%;background:'+cor+';transition:width .4s;"></div></div></div>';
+    } else {
+      meta.innerHTML='<div style="background:var(--gn-card);border:1px dashed var(--gn-border);border-radius:12px;padding:10px 14px;font-size:12.5px;color:var(--gn-dim);">🎯 Defina uma <b>meta de faturamento mensal</b> para acompanhar o progresso. <button onclick="finSetMeta()" style="margin-left:6px;background:#7c5cff;color:#fff;border:none;border-radius:7px;padding:5px 11px;cursor:pointer;font-weight:600;">Definir meta</button></div>';
+    }
+  }
+  // melhoria: busca de texto na lista de lançamentos
+  var q=((document.getElementById('fin-busca')||{}).value||'').toLowerCase().trim();
+  var arrList=q? d.arr.filter(function(x){ return ((x.desc||'')+' '+(x.cliente||'')+' '+(x.categoria||'')).toLowerCase().indexOf(q)>=0; }) : d.arr;
+  // melhoria: totais do período (entradas − saídas = saldo)
+  var totEnt=0,totSai=0; arrList.forEach(function(x){ var v=Number(x.valor)||0; if(x.tipo==='receita') totEnt+=v; else if(x.tipo==='custo'||x.tipo==='fatura') totSai+=v; });
+  // melhoria: comparativo de faturamento recebido — mês atual vs mês passado
+  var comp='';
+  try{
+    var nw=new Date(); var fAtual=0,fAnt=0; var mp=new Date(nw.getFullYear(),nw.getMonth()-1,1);
+    finData().forEach(function(x){ if(x.tipo==='receita'&&x.status==='pago'&&x.data){ var dt=new Date(x.data+'T00:00:00'); var vv=Number(x.valor)||0; if(dt.getFullYear()===nw.getFullYear()&&dt.getMonth()===nw.getMonth()) fAtual+=vv; else if(dt.getFullYear()===mp.getFullYear()&&dt.getMonth()===mp.getMonth()) fAnt+=vv; } });
+    if(fAnt>0){ var dif=fAtual-fAnt; var pc=Math.round(dif/fAnt*100); comp=' · vs mês passado: <b style="color:'+(dif>=0?'#16a34a':'#dc2626')+';">'+(dif>=0?'▲ +':'▼ ')+pc+'%</b>'; }
+  }catch(e){}
+  var ftot=document.getElementById('fin-totais');
+  if(ftot){ ftot.innerHTML='Mostrando <b>'+arrList.length+'</b> lançamento(s)'+(q?' (filtrados)':'')+' · Entradas: <b style="color:#16a34a;">'+finBRL(totEnt)+'</b> · Saídas: <b style="color:#dc2626;">'+finBRL(totSai)+'</b> · Saldo: <b style="color:'+((totEnt-totSai)>=0?'#16a34a':'#dc2626')+';">'+finBRL(totEnt-totSai)+'</b>'+comp; }
   var list=document.getElementById('fin-list');
   if(list){
-    if(!d.arr.length){ list.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum lançamento no período. Adicione, importe do histórico ou importe um extrato.</div>'; }
+    if(!arrList.length){ list.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">'+(q?'Nenhum lançamento encontrado para a busca.':'Nenhum lançamento no período. Adicione, importe do histórico ou importe um extrato.')+'</div>'; }
     else{
-      list.innerHTML=d.arr.map(function(x){
+      list.innerHTML=arrList.map(function(x){
         var cor=x.tipo==='receita'?'#16a34a':x.tipo==='custo'?'#dc2626':x.tipo==='aplicacao'?'#6d28d9':x.tipo==='interna'?'#64748b':x.tipo==='fatura'?'#b45309':'#0891b2';
         var stTxt = x.tipo==='fatura'?'Fatura cartão':x.tipo==='interna'?'Interna':x.tipo==='aplicacao'?'Aplicação':x.tipo==='resgate'?'Resgate':(x.status==='pago'?(x.tipo==='receita'?'Recebido':'Pago'):((x.tipo==='receita'&&x.data&&x.data<finHoje())?'Em atraso':(x.tipo==='receita'?'A receber':'Previsto')));
         var sinal = (x.tipo==='custo'||x.tipo==='aplicacao')?'- ':'';
         var botPago=(x.tipo!=='aplicacao'&&x.tipo!=='resgate'&&x.status!=='pago')?'<button class="fin-pago" data-id="'+x.id+'" title="Marcar como pago/recebido" style="border:none;background:#e7f5ec;color:#16a34a;border-radius:6px;padding:5px 9px;cursor:pointer;font-weight:700;">✓</button>':'';
         var catTxt = x.categoria?(' · '+x.categoria):'';
-        return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--gn-border);border-radius:10px;margin-bottom:6px;">'
+        var emAtraso=(x.tipo==='receita'&&x.status!=='pago'&&x.data&&x.data<finHoje());
+        var bL=emAtraso?'border-left:4px solid #f59e0b;':(x.tipo==='custo'?'border-left:4px solid #dc2626;':(x.tipo==='receita'&&x.status==='pago'?'border-left:4px solid #16a34a;':''));
+        return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--gn-border);'+bL+'border-radius:10px;margin-bottom:6px;">'
           + '<div style="min-width:0;"><div style="font-weight:600;color:var(--gn-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(x.desc||'')+'</div>'
           + '<div style="font-size:12px;color:var(--gn-dim);">'+(x.data||'')+(x.hora?(' '+x.hora):'')+' · '+stTxt+catTxt+'</div></div>'
           + '<div style="display:flex;align-items:center;gap:6px;white-space:nowrap;">'
@@ -5354,6 +5545,12 @@ function recDoc(rec, save){
   if(doc && save){ var _fn='Recibo '+rec.numero+' - '+(rec.nome||'')+'.pdf'; doc.save(_fn); try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(doc, _fn, {numero:rec.numero, cliente:(rec.nome||''), tipo:'Recibo'}); }catch(er){} }
   return doc;
 }
+function recPreview(){
+  var nome=(document.getElementById('rec-nome').value||'').trim(); if(!nome){ toast('Informe o cliente','er'); return; }
+  var rec={ numero:'(pré-visualização)', nome:nome, cpf:document.getElementById('rec-cpf').value||'', valor:gnParseVal(document.getElementById('rec-valor').value), forma:document.getElementById('rec-forma').value||'', ref:document.getElementById('rec-ref').value||'', data:(document.getElementById('rec-data').value||new Date().toISOString().slice(0,10)) };
+  var doc=recDoc(rec, false); if(!doc) return;
+  try{ window.open(doc.output('bloburl'),'_blank'); toast('👁 Pré-visualização aberta. Confira e clique em Gerar recibo.','ok'); }catch(e){ toast('Não consegui pré-visualizar: '+e.message,'er'); }
+}
 function recWhats(id){
   var rec=gnStoreGet('rec').filter(function(x){ return x.id===id; })[0]; if(!rec) return;
   var msg='Olá, '+rec.nome+'! Segue o recibo '+rec.numero+' no valor de '+gnBRL(rec.valor)+(rec.ref?(' referente a '+rec.ref):'')+'. Obrigado!';
@@ -5450,6 +5647,12 @@ function osDoc(os, save){
   });
   if(doc && save){ var _fn='OS '+os.numero+' - '+(os.nome||'')+'.pdf'; doc.save(_fn); try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(doc, _fn, {numero:os.numero, cliente:(os.nome||''), tipo:'Ordem de serviço'}); }catch(er){} }
   return doc;
+}
+function osPreview(){
+  var nome=(document.getElementById('os-nome').value||'').trim(); if(!nome){ toast('Informe o cliente','er'); return; }
+  var os={ numero:'(pré-visualização)', nome:nome, end:document.getElementById('os-end').value||'', status:document.getElementById('os-status').value, valor:gnParseVal(document.getElementById('os-valor').value), desc:document.getElementById('os-desc').value||'', exec:document.getElementById('os-exec').value||'', mat:document.getElementById('os-mat').value||'', data:(document.getElementById('os-data').value||new Date().toISOString().slice(0,10)) };
+  var doc=osDoc(os, false); if(!doc) return;
+  try{ window.open(doc.output('bloburl'),'_blank'); toast('👁 Pré-visualização aberta. Confira e clique em Gerar OS.','ok'); }catch(e){ toast('Não consegui pré-visualizar: '+e.message,'er'); }
 }
 function osGet(id){ return gnStoreGet('os').filter(function(x){ return x.id===id; })[0]; }
 function osFinalizar(id){
@@ -5739,6 +5942,12 @@ function ctrDoc(ct, save){
   if(doc && save){ var _fn='Contrato '+ct.numero+' - '+(ct.nome||'')+'.pdf'; doc.save(_fn); try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(doc, _fn, {numero:ct.numero, cliente:(ct.nome||''), tipo:'Contrato'}); }catch(er){} }
   return doc;
 }
+function ctrPreview(){
+  var nome=(document.getElementById('ctr-nome').value||'').trim(); if(!nome){ toast('Informe o cliente','er'); return; }
+  var ct={ numero:'(pré-visualização)', nome:nome, cpf:document.getElementById('ctr-cpf').value||'', valor:gnParseVal(document.getElementById('ctr-valor').value), pgto:document.getElementById('ctr-pgto').value||'', prazo:document.getElementById('ctr-prazo').value||'', garantia:document.getElementById('ctr-gar').value||'', objeto:document.getElementById('ctr-obj').value||'', data:new Date().toISOString().slice(0,10) };
+  var doc=ctrDoc(ct, false); if(!doc) return;
+  try{ window.open(doc.output('bloburl'),'_blank'); toast('👁 Pré-visualização aberta. Confira e clique em Gerar contrato.','ok'); }catch(e){ toast('Não consegui pré-visualizar: '+e.message,'er'); }
+}
 function ctrDel(id){ if(!confirm('Excluir este contrato?')) return; gnStoreDel('ctr',id); renderCtr(); }
 
 function renderCtr(){
@@ -5966,12 +6175,12 @@ function renderInicio(){
     ['Principal', [['inicio','Inicio','Início'], ['docrap','Doc','Documento Rápido'], ['hoje','Hoje','Hoje'], ['ped','Ped','Pedidos'], ['tarefas','Tar','Tarefas'], ['age','Age','Agenda'], ['tec','Tec','Técnico em Campo']]],
     ['Ferramentas', [['novo','Prop','Nova Proposta'], ['rec','Rec','Recibos'], ['os','OS','Ordens de Serviço'], ['laudo','Laudo','Laudo de Estanqueidade'], ['relvist','Rel','Relatório de Vistoria']]],
     ['Comercial', [['atend','Atend','Atendimentos & Funil'], ['posvenda','PV','Pós-venda'], ['chamados','Cham','Chamados técnicos']]],
-    ['Gestão', [['fin','Fin','Financeiro'], ['cob','Cob','Cobranças']]],
+    ['Gestão', [['fin','Fin','Financeiro'], ['cob','Cob','Cobranças'], ['arquivos','Arq','Arquivos & Mídia']]],
     ['Suprimentos', [['forn','Forn','Fornecedores'], ['compras','Compras','Compras']]],
     ['Cadastros', [['cli','Cli','Clientes'], ['svc','Svc','Serviços'], ['prod','Prod','Materiais'], ['ctr','Ctr','Contratos']]],
     ['Sistema', [['imp','Imp','Importar / Migração'], ['cfg','Cfg','Configurações']]]
   ];
-  var ICON={inicio:'🏠',hoje:'☀️',ped:'📋',tarefas:'✅',age:'📅',novo:'✨',rec:'🧾',os:'📝',ctr:'📄',laudo:'🔬',relvist:'📑',cli:'👥',svc:'🛠️',prod:'📦',fin:'💰',cob:'📢',atend:'📞',posvenda:'⭐',chamados:'🛎️',forn:'🏭',compras:'🛒',tec:'🔧',cfg:'⚙️',imp:'📥',docrap:'⚡'};
+  var ICON={inicio:'🏠',hoje:'☀️',ped:'📋',tarefas:'✅',age:'📅',novo:'✨',rec:'🧾',os:'📝',ctr:'📄',laudo:'🔬',relvist:'📑',cli:'👥',svc:'🛠️',prod:'📦',fin:'💰',cob:'📢',arquivos:'📁',atend:'📞',posvenda:'⭐',chamados:'🛎️',forn:'🏭',compras:'🛒',tec:'🔧',cfg:'⚙️',imp:'📥',docrap:'⚡'};
   function build(){
     if(document.getElementById('gn-side')) return;
     var side=document.createElement('nav'); side.id='gn-side';
