@@ -242,7 +242,7 @@ textarea.fi{resize:vertical;}
   <img id="hdr-logo" alt="Logo" style="display:none;height:40px;width:auto;max-width:190px;object-fit:contain;margin-right:14px;">
   <div class="hdr-brand">
     <div class="nm">Gás Network Engenharia</div>
-    <div class="sub">Sistema de Orçamentos · Uso Interno · <span style="background:#16a34a;color:#fff;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">Versão 24/05 ✓</span> · <span id="gn-sync-badge" style="background:#64748b;color:#fff;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">sincronizando…</span></div>
+    <div class="sub"><span class="sub-extra">Sistema de Orçamentos · Uso Interno · </span><span style="background:#16a34a;color:#fff;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">Versão 24/05 ✓</span> <span id="gn-sync-badge" style="background:#64748b;color:#fff;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">sincronizando…</span></div>
   </div>
   <div class="hsp"></div>
   <div style="position:relative;margin-right:12px;">
@@ -3672,6 +3672,10 @@ input:focus, select:focus, textarea:focus{ outline:none; border-color:#7c5cff !i
   .hdr .hsp{ display:none; }
   #gn-search-btn{ right:58px !important; top:13px !important; width:40px !important; height:40px !important; } /* à esquerda do sino, sem sobrepor */
   #gn-bell{ font-size:22px !important; }
+  /* Subtítulo: esconde o texto longo no celular; ficam só os selos curtos (sem cortar) */
+  .hdr-brand .sub .sub-extra{ display:none !important; }
+  .hdr-brand .sub{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .hdr-brand .sub span[id="gn-sync-badge"], .hdr-brand .sub span{ font-size:10.5px !important; }
 }
 
 /* ===== CORREÇÃO DE CONTRASTE — superfícies que sobraram do tema claro ===== */
