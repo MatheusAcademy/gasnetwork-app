@@ -1288,6 +1288,17 @@ textarea.fi{resize:vertical;}
       </div>
     </div>
 
+    <div style="background:rgba(124,92,255,.12);border:1px solid rgba(124,92,255,.30);border-radius:14px;padding:14px;margin-bottom:16px;">
+      <div style="font-weight:700;color:#c4b5fd;margin-bottom:4px;">📷 Agendar a partir de uma imagem (IA)</div>
+      <div style="font-size:13px;color:var(--gn-dim);margin-bottom:8px;">Tire um print (ex.: conversa com o endereço/serviço), anexe a imagem aqui e escreva a instrução embaixo. Ex.: <i>"Deixe agendado para sexta às 10h esse cliente com o serviço solicitado na imagem"</i>. A IA lê a imagem + sua instrução e cria o compromisso.</div>
+      <input type="file" id="age-img-file" accept="image/*" style="font-size:13px;width:100%;margin-bottom:8px;">
+      <textarea id="age-img-txt" rows="3" placeholder="Escreva a instrução (cliente, dia, hora, serviço)..." style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--gn-border);border-radius:10px;font-size:13px;resize:vertical;"></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <button id="age-img-btn" onclick="ageAgendarPorImagem()" style="background:#7c3aed;color:#fff;border:none;padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:700;">✨ Ler imagem e agendar</button>
+        <button onclick="(function(){var f=document.getElementById('age-img-file');if(f)f.value='';var t=document.getElementById('age-img-txt');if(t)t.value='';})()" style="background:var(--gn-surface2,#1f2937);color:#fff;border:none;padding:9px 14px;border-radius:8px;cursor:pointer;">Limpar</button>
+      </div>
+    </div>
+
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
       <button onclick="ageMes(-1)" style="background:var(--gn-card,#eee);color:var(--gn-text,#333);border:1px solid var(--gn-border,#ddd);border-radius:8px;padding:6px 12px;cursor:pointer;">‹</button>
       <div id="age-mesnome" style="font-weight:700;color:var(--gn-text,#222);"></div>
@@ -3905,6 +3916,12 @@ function gnAI(systemPrompt, userText){
     .then(function(r){return r.json();})
     .then(function(j){ if(!j||!j.ok||!j.content) throw new Error((j&&j.error)||'falha-ia'); return JSON.parse(j.content); });
 }
+// IA com VISÃO (lê imagem + texto) — usa o backend (modelo de visão da OpenAI)
+function gnAIVision(systemPrompt, userText, imageDataURL){
+  return fetch(GN_CLOUD2,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'aiVision', system:systemPrompt, user:String(userText||'').slice(0,6000), image:imageDataURL||''})})
+    .then(function(r){return r.json();})
+    .then(function(j){ if(!j||!j.ok||!j.content) throw new Error((j&&j.error)||'falha-ia-visao'); return JSON.parse(j.content); });
+}
 (function(){ function go(){ try{ gnSyncInit(); }catch(e){} } if(document.readyState!=='loading') setTimeout(go,1000); else document.addEventListener('DOMContentLoaded', function(){ setTimeout(go,1000); }); })();
 
 // Textos padrão (modelo Gás Network) — sobrescritos pela configuração se houver
@@ -4491,7 +4508,51 @@ function ageSalvar(){
   ['age-tit','age-cli','age-obs'].forEach(function(id){ document.getElementById(id).value=''; });
   renderAge(); toast('✓ Compromisso salvo e enviado ao Google Agenda','ok');
 }
-function ageDel(id){ if(!confirm('Excluir este compromisso?')) return; gnStoreDel('agenda',id); renderAge(); }
+function ageDel(id){ if(!confirm('Excluir este compromisso?')) return; gnStoreDel('agenda',id); try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_agenda'); }catch(e){} renderAge(); }
+function ageEditar(id){
+  var arr=ageData(); var c=arr.filter(function(x){ return x.id===id; })[0]; if(!c){ toast('Compromisso não encontrado','er'); return; }
+  var tit=prompt('Título do compromisso:', c.titulo||''); if(tit===null) return;
+  var dataI=prompt('Data (AAAA-MM-DD):', c.data||''); if(dataI===null) return;
+  var hora=prompt('Hora de início (HH:MM):', c.hora||'09:00'); if(hora===null) return;
+  var horaFim=prompt('Hora de fim (HH:MM) — opcional:', c.horaFim||''); if(horaFim===null) horaFim=c.horaFim||'';
+  var cli=prompt('Cliente — opcional:', c.cliente||''); if(cli===null) cli=c.cliente||'';
+  var obs=prompt('Local / observações — opcional:', c.obs||''); if(obs===null) obs=c.obs||'';
+  c.titulo=String(tit).trim(); c.data=String(dataI).trim(); c.hora=String(hora).trim(); c.horaFim=String(horaFim).trim(); c.cliente=String(cli).trim(); c.obs=String(obs).trim();
+  try{ gnStoreUpsert('agenda', c); }catch(e){ try{ gnStoreSaveAll('agenda', arr); }catch(_){} }
+  try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_agenda'); }catch(e){}
+  renderAge(); if(typeof toast==='function') toast('✓ Compromisso atualizado','ok');
+}
+async function ageAgendarPorImagem(){
+  var inp=document.getElementById('age-img-file');
+  var txt=((document.getElementById('age-img-txt')||{}).value||'').trim();
+  var file=inp&&inp.files&&inp.files[0];
+  if(!file && !txt){ toast('Anexe uma imagem e/ou escreva a instrução.','er'); return; }
+  if(typeof gnAIVision!=='function'){ toast('IA indisponível agora.','er'); return; }
+  var btn=document.getElementById('age-img-btn'); var old; if(btn){ old=btn.textContent; btn.textContent='✨ Lendo...'; btn.disabled=true; }
+  function fim(){ if(btn){ btn.textContent=old||'✨ Ler imagem e agendar'; btn.disabled=false; } }
+  var hoje=new Date().toISOString().slice(0,10);
+  var sys='Você é o assistente da Gás Network. Recebe uma IMAGEM (print com endereço/serviço/conversa) e uma INSTRUÇÃO do usuário. '
+    +'Extraia os dados e DEVOLVA SOMENTE um JSON válido: {"titulo":"","cliente":"","endereco":"","data":"AAAA-MM-DD","hora":"HH:MM","horaFim":"","servico":""}. '
+    +'A data de hoje é '+hoje+'. Converta "sexta", "amanhã", "semana que vem" para AAAA-MM-DD. Se não houver hora, use "09:00". '
+    +'"titulo" = um resumo curto (ex.: "Visita - <serviço> - <cliente>"). "endereco" e "servico" devem vir da imagem. NÃO invente o que não estiver na imagem/instrução. Responda em português do Brasil.';
+  function envia(imgURL){
+    gnAIVision(sys, txt||'Agende o serviço solicitado na imagem.', imgURL).then(function(j){
+      var dataI=(j.data||hoje); var hora=(j.hora||'09:00');
+      var titulo=j.titulo||((j.servico?j.servico:'Visita técnica')+(j.cliente?(' - '+j.cliente):''));
+      var obs=[j.endereco,j.servico].filter(Boolean).join(' · ');
+      var c={ id:'a'+Date.now(), titulo:titulo, cliente:(j.cliente||''), data:dataI, hora:hora, horaFim:(j.horaFim||''), obs:obs, criadoEm:new Date().toISOString() };
+      try{ gnStoreUpsert('agenda', c); }catch(e){}
+      try{ if(typeof ageCloudCalendar==='function') ageCloudCalendar(c); }catch(e){}
+      try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_agenda'); }catch(e){}
+      try{ if(inp) inp.value=''; var t=document.getElementById('age-img-txt'); if(t) t.value=''; }catch(e){}
+      try{ renderAge(); }catch(e){}
+      toast('✨ Agendado: '+titulo+' — '+(dataI.split('-').reverse().join('/'))+' '+hora,'ok');
+      fim();
+    }).catch(function(e){ toast('Não consegui interpretar: '+(e&&e.message||e),'er'); fim(); });
+  }
+  if(file){ var r=new FileReader(); r.onload=function(e){ envia(String(e.target.result||'')); }; r.onerror=function(){ toast('Erro ao ler a imagem.','er'); fim(); }; r.readAsDataURL(file); }
+  else { envia(''); }
+}
 function ageGoogleURL(c){
   function dt(d,h){ var dd=(d||'').replace(/-/g,''); var hh=(h||'09:00').replace(':','')+'00'; return dd+'T'+hh; }
   var ini=dt(c.data,c.hora); var fim=dt(c.data,c.horaFim||c.hora);
@@ -4502,12 +4563,26 @@ function ageGoogleURL(c){
 function ageGoogle(id){ var c=ageData().filter(function(x){ return x.id===id; })[0]; if(!c) return; window.open(ageGoogleURL(c),'_blank'); }
 function ageMes(delta){ ageRef.setMonth(ageRef.getMonth()+delta); renderAge(); }
 
+var gcalEvents=[]; var gcalPulled=false;
+function gnPullGoogleCal(){
+  if(!GN_CLOUD2) return;
+  // janela: 30 dias atrás até 90 dias à frente
+  var s=new Date(); s.setDate(s.getDate()-30); var e=new Date(); e.setDate(e.getDate()+90);
+  var url=GN_CLOUD2+'?action=calList&start='+s.toISOString().slice(0,10)+'&end='+e.toISOString().slice(0,10)+'&_='+Date.now();
+  fetch(url).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.ok&&Array.isArray(j.eventos)){
+      gcalEvents=j.eventos.map(function(ev){ return { id:ev.id||('gcal_'+Math.random()), titulo:ev.titulo||'(sem título)', data:(ev.data||'').slice(0,10), hora:ev.hora||'', horaFim:ev.horaFim||'', cliente:'', obs:ev.obs||'', _gcal:true }; });
+      try{ renderAge(); }catch(e){}
+    }
+  }).catch(function(){});
+}
 function renderAge(){
   if(!agePulled){ agePulled=true; gnStorePull('agenda', function(ch){ if(ch) renderAge(); }); }
+  if(!gcalPulled){ gcalPulled=true; try{ gnPullGoogleCal(); }catch(e){} }
   if(!document.getElementById('age-data').value) document.getElementById('age-data').value=new Date().toISOString().slice(0,10);
   var nome=document.getElementById('age-mesnome'); if(nome) nome.textContent=AGE_MES[ageRef.getMonth()]+' de '+ageRef.getFullYear();
   var ano=ageRef.getFullYear(), mes=ageRef.getMonth();
-  var comp=ageData(); var porDia={};
+  var comp=ageData().slice(); if(gcalEvents&&gcalEvents.length){ comp=comp.concat(gcalEvents); } var porDia={};
   comp.forEach(function(c){ var d=(c.data||''); var dt=new Date(d+'T00:00:00'); if(dt.getFullYear()===ano && dt.getMonth()===mes){ var dia=dt.getDate(); (porDia[dia]=porDia[dia]||[]).push(c); } });
   var cal=document.getElementById('age-cal');
   if(cal){
@@ -4524,18 +4599,52 @@ function renderAge(){
     html+='</div>'; cal.innerHTML=html;
   }
   var list=document.getElementById('age-list'); if(!list) return;
-  var doMes=comp.filter(function(c){ var dt=new Date((c.data||'')+'T00:00:00'); return dt.getFullYear()===ano && dt.getMonth()===mes; }).sort(function(a,b){ return (a.data+ (a.hora||'')).localeCompare(b.data+(b.hora||'')); });
-  if(!doMes.length){ list.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum compromisso neste mês.</div>'; return; }
-  list.innerHTML=doMes.map(function(c){
-    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--gn-border);border-left:4px solid #7c5cff;border-radius:10px;margin-bottom:6px;">'
-      + '<div style="min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(c.titulo)+'</div>'
-      + '<div style="font-size:12px;color:var(--gn-dim);">'+((c.data||'').split('-').reverse().join('/'))+' · '+(c.hora||'')+(c.horaFim?('–'+c.horaFim):'')+(c.cliente?(' · '+gnEsc(c.cliente)):'')+'</div></div>'
-      + '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
-      + (c.obs?('<a href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(c.obs)+'" target="_blank" style="background:#e0e7ff;color:#4338ca;text-decoration:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;">📍 Mapa</a>'):'')
-      + '<button class="age-gg" data-id="'+c.id+'" style="background:#e7f5ec;color:#16a34a;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;">📅 Google Agenda</button>'
-      + '<button class="age-del" data-id="'+c.id+'" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;">Excluir</button>'
-      + '</div></div>';
-  }).join('');
+  // marcação de item (reutilizada na semana e no mês)
+  function ageItemHTML(c, destaque){
+    var corB=c._gcal?'#0e7490':(destaque?'#16a34a':'#7c5cff');
+    var selo=c._gcal?' <span style="background:#0e7490;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;vertical-align:middle;">Google Agenda</span>':'';
+    var acoes;
+    if(c._gcal){
+      acoes=(c.obs?('<a href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(c.obs)+'" target="_blank" style="background:#e0e7ff;color:#4338ca;text-decoration:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;">📍 Mapa</a>'):'')
+        + '<a href="https://calendar.google.com/calendar/r" target="_blank" style="background:#e7f5ec;color:#16a34a;text-decoration:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;">📅 Abrir no Google</a>';
+    } else {
+      acoes='<button class="age-edit" data-id="'+c.id+'" style="background:rgba(124,92,255,.20);color:var(--gn-text);border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;">✎ Editar</button>'
+        + (c.obs?('<a href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(c.obs)+'" target="_blank" style="background:#e0e7ff;color:#4338ca;text-decoration:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;">📍 Mapa</a>'):'')
+        + '<button class="age-gg" data-id="'+c.id+'" style="background:#e7f5ec;color:#16a34a;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;">📅 Google</button>'
+        + '<button class="age-del" data-id="'+c.id+'" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;">Excluir</button>';
+    }
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--gn-border);border-left:4px solid '+corB+';border-radius:10px;margin-bottom:6px;">'
+      + '<div style="min-width:0;display:flex;align-items:center;gap:10px;">'
+      + '<div style="font-weight:800;color:'+corB+';font-size:15px;white-space:nowrap;">'+(c.hora||'--:--')+'</div>'
+      + '<div style="min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(c.titulo||'(sem título)')+selo+'</div>'
+      + '<div style="font-size:12px;color:var(--gn-dim);">'+((c.data||'').split('-').reverse().join('/'))+(c.horaFim?(' · até '+c.horaFim):'')+(c.cliente?(' · '+gnEsc(c.cliente)):'')+(c.obs?(' · '+gnEsc(c.obs)):'')+'</div></div></div>'
+      + '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+acoes+'</div></div>';
+  }
+  // ---- SEÇÃO: HOJE E ESTA SEMANA (do dia atual até domingo) ----
+  var hoje0=new Date(); hoje0.setHours(0,0,0,0);
+  var hojeISO=hoje0.getFullYear()+'-'+String(hoje0.getMonth()+1).padStart(2,'0')+'-'+String(hoje0.getDate()).padStart(2,'0');
+  var amanha=new Date(hoje0); amanha.setDate(amanha.getDate()+1); var amanhaISO=amanha.getFullYear()+'-'+String(amanha.getMonth()+1).padStart(2,'0')+'-'+String(amanha.getDate()).padStart(2,'0');
+  var fim=new Date(hoje0); fim.setDate(fim.getDate()+((7-hoje0.getDay())%7)); var fimISO=fim.getFullYear()+'-'+String(fim.getMonth()+1).padStart(2,'0')+'-'+String(fim.getDate()).padStart(2,'0');
+  var DOW=['DOMINGO','SEGUNDA-FEIRA','TERÇA-FEIRA','QUARTA-FEIRA','QUINTA-FEIRA','SEXTA-FEIRA','SÁBADO'];
+  var semana=comp.filter(function(c){ var d=(c.data||'').slice(0,10); return d>=hojeISO && d<=fimISO; }).sort(function(a,b){ return ((a.data||'')+(a.hora||'')).localeCompare((b.data||'')+(b.hora||'')); });
+  var html='<div style="font-weight:800;color:var(--gn-text);font-size:17px;margin:0 0 8px;">📅 Hoje e esta semana</div>';
+  if(!semana.length){ html+='<div style="color:var(--gn-dim);padding:12px;border:1px dashed var(--gn-border);border-radius:10px;margin-bottom:18px;">Nenhum compromisso de hoje até domingo. Aproveite! 🎉</div>'; }
+  else {
+    var cur='';
+    semana.forEach(function(c){
+      var d=(c.data||'').slice(0,10);
+      if(d!==cur){ cur=d; var dt=new Date(d+'T00:00:00'); var lbl=(d===hojeISO?'HOJE':(d===amanhaISO?'AMANHÃ':DOW[dt.getDay()]))+' · '+d.split('-').reverse().slice(0,2).join('/'); html+='<div style="font-size:12px;font-weight:800;color:#7c5cff;margin:12px 0 5px;letter-spacing:.04em;">'+lbl+'</div>'; }
+      html+=ageItemHTML(c, d===hojeISO);
+    });
+    html+='<div style="height:18px;"></div>';
+  }
+  // ---- SEÇÃO: TODOS DO MÊS ----
+  var doMes=comp.filter(function(c){ var dt=new Date((c.data||'')+'T00:00:00'); return dt.getFullYear()===ano && dt.getMonth()===mes; }).sort(function(a,b){ return ((a.data||'')+(a.hora||'')).localeCompare((b.data||'')+(b.hora||'')); });
+  html+='<div style="font-weight:800;color:var(--gn-text);font-size:15px;margin:6px 0 8px;border-top:1px solid var(--gn-border);padding-top:14px;">Todos os compromissos de '+AGE_MES[mes]+'</div>';
+  if(!doMes.length){ html+='<div style="color:var(--gn-dim);padding:12px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum compromisso neste mês.</div>'; }
+  else { html+=doMes.map(function(c){ return ageItemHTML(c, (c.data||'').slice(0,10)===hojeISO); }).join(''); }
+  list.innerHTML=html;
+  Array.prototype.forEach.call(list.querySelectorAll('.age-edit'), function(b){ b.onclick=function(){ ageEditar(b.getAttribute('data-id')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.age-gg'), function(b){ b.onclick=function(){ ageGoogle(b.getAttribute('data-id')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.age-del'), function(b){ b.onclick=function(){ ageDel(b.getAttribute('data-id')); }; });
 }
@@ -6222,11 +6331,10 @@ function renderInicio(){
     var menu=document.createElement('div'); menu.id='gn-fab-menu';
     menu.style.cssText='display:none;flex-direction:column;gap:6px;align-items:flex-end;';
     var acoes=[
-      ['＋ Novo pedido',function(){ if(typeof pwOpen==='function') pwOpen(); else goTab('novo'); }],
+      ['🔬 Laudo de Estanqueidade',function(){goTab('laudo');}],
+      ['📝 Nota de Serviço',function(){goTab('os');}],
+      ['🧾 Recibo',function(){goTab('rec');}],
       ['＋ Novo orçamento',function(){goTab('novo');}],
-      ['📋 Nova OS',function(){goTab('os');}],
-      ['🧾 Novo recibo',function(){goTab('rec');}],
-      ['🔬 Novo laudo',function(){goTab('laudo');}],
       ['⚡ Documento rápido',function(){goTab('docrap');}],
       ['👥 Novo cliente',iniNovoCliente]
     ];
@@ -7629,6 +7737,81 @@ function renderInicio(){
     if(window.toast) toast('✓ Financeiro resetado para o Agenda Boa ('+clone.length+' lançamentos)','ok');
     alert('✓ Pronto! O financeiro agora tem '+clone.length+' lançamentos, iguais ao Agenda Boa.\n\nOs extras foram apagados (sincroniza em todos os aparelhos) e a base está sendo reenviada à nuvem em segundo plano. Deixe o app aberto por ~1-2 minutos para concluir o envio.');
   };
+})();
+</script>
+<script>
+// ══════════════════════════════════════════════
+// ═══ ASSISTENTE VIRTUAL (chat flutuante + IA com visão + memória no Drive) ═══
+// ══════════════════════════════════════════════
+(function(){
+  function mem(){ try{ return JSON.parse(localStorage.getItem('gn_assist_mem')||'[]'); }catch(e){ return []; } }
+  function saveMem(a){ try{ localStorage.setItem('gn_assist_mem', JSON.stringify(a.slice(-60))); }catch(e){} }
+  function hist(){ try{ return JSON.parse(localStorage.getItem('gn_assist_hist')||'[]'); }catch(e){ return []; } }
+  function saveHist(a){ try{ localStorage.setItem('gn_assist_hist', JSON.stringify(a.slice(-40))); }catch(e){} }
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  var TABLBL={age:'Agenda',novo:'Nova Proposta',os:'Nota de Serviço',rec:'Recibo',laudo:'Laudo de Estanqueidade',docrap:'Documento Rápido',fin:'Financeiro',compras:'Compras',cli:'Clientes',prod:'Materiais',arquivos:'Arquivos & Mídia',ped:'Pedidos',tarefas:'Tarefas'};
+  var _pendingImg=null;
+  function build(){
+    if(document.getElementById('gn-assist-btn')) return;
+    var st=document.createElement('style'); st.textContent='#gn-assist-btn{position:fixed;left:18px;bottom:18px;z-index:1200;width:56px;height:56px;border-radius:50%;border:none;background:linear-gradient(135deg,#7c5cff,#4338ca);color:#fff;font-size:26px;cursor:pointer;box-shadow:0 6px 18px rgba(124,92,255,.5);} #gn-assist-panel{position:fixed;left:18px;bottom:84px;z-index:1200;width:370px;max-width:94vw;height:520px;max-height:74vh;background:var(--gn-bg,#15161c);border:1px solid var(--gn-border,rgba(255,255,255,.14));border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.55);display:none;flex-direction:column;overflow:hidden;} #gn-assist-msgs{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px;} .gn-am{max-width:85%;padding:9px 12px;border-radius:12px;font-size:13.5px;line-height:1.4;white-space:pre-wrap;} .gn-am.u{align-self:flex-end;background:#4338ca;color:#fff;border-bottom-right-radius:4px;} .gn-am.a{align-self:flex-start;background:var(--gn-card,#222);color:var(--gn-text,#eee);border:1px solid var(--gn-border);border-bottom-left-radius:4px;} @media(max-width:680px){#gn-assist-panel{left:8px;right:8px;width:auto;}}';
+    document.head.appendChild(st);
+    var btn=document.createElement('button'); btn.id='gn-assist-btn'; btn.textContent='🤖'; btn.title='Assistente Gás Network'; document.body.appendChild(btn);
+    var p=document.createElement('div'); p.id='gn-assist-panel';
+    p.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--gn-border);background:linear-gradient(135deg,#4338ca,#7c5cff);color:#fff;"><div style="font-weight:800;">🤖 Assistente Gás Network</div><button id="gn-assist-x" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">×</button></div>'
+      +'<div id="gn-assist-msgs"></div>'
+      +'<div style="border-top:1px solid var(--gn-border);padding:8px;display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;">'
+      +'<textarea id="gn-assist-in" rows="1" placeholder="Peça algo: emitir documento, agendar, lista de compras, relatório..." style="flex:1;min-width:140px;padding:9px;border:1px solid var(--gn-border);border-radius:9px;resize:none;font-size:13px;background:var(--gn-input,#1f2430);color:var(--gn-text,#eee);"></textarea>'
+      +'<button id="gn-assist-img" title="Anexar imagem" style="background:#0e7490;color:#fff;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;">📷</button>'
+      +'<button id="gn-assist-send" style="background:#16a34a;color:#fff;border:none;border-radius:9px;padding:9px 13px;cursor:pointer;font-weight:700;">➤</button>'
+      +'<input type="file" id="gn-assist-file" accept="image/*" style="display:none;">'
+      +'<div style="width:100%;font-size:11px;color:var(--gn-dim);margin-top:2px;">🧠 <a href="#" id="gn-assist-mem" style="color:#7c5cff;">Guardar arquivo/foto na memória do assistente</a><input type="file" id="gn-assist-memfile" multiple style="display:none;"></div>'
+      +'</div>';
+    document.body.appendChild(p);
+    btn.onclick=function(){ p.style.display = p.style.display==='flex'?'none':'flex'; if(p.style.display==='flex'){ renderMsgs(); var i=document.getElementById('gn-assist-in'); if(i) i.focus(); } };
+    document.getElementById('gn-assist-x').onclick=function(){ p.style.display='none'; };
+    document.getElementById('gn-assist-send').onclick=send;
+    document.getElementById('gn-assist-in').addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); send(); } });
+    var imgBtn=document.getElementById('gn-assist-img'), fileInp=document.getElementById('gn-assist-file');
+    imgBtn.onclick=function(){ fileInp.click(); };
+    fileInp.onchange=function(){ if(fileInp.files&&fileInp.files[0]){ _pendingImg=fileInp.files[0]; imgBtn.textContent='📷✓'; } };
+    document.getElementById('gn-assist-mem').onclick=function(e){ e.preventDefault(); document.getElementById('gn-assist-memfile').click(); };
+    document.getElementById('gn-assist-memfile').onchange=memUpload;
+    renderMsgs();
+  }
+  function renderMsgs(){
+    var box=document.getElementById('gn-assist-msgs'); if(!box) return; var h=hist();
+    if(!h.length){ box.innerHTML='<div class="gn-am a">Olá, Matheus! Sou seu assistente. Posso ajudar a emitir documentos, agendar, montar lista de compras, gerar relatórios e responder dúvidas. Me diga o que precisa — se faltar algo, eu pergunto.</div>'; return; }
+    box.innerHTML=h.map(function(m){ return '<div class="gn-am '+(m.r==='u'?'u':'a')+'">'+esc(m.t)+(m.abrir?('<br><button onclick="gnAssistAbrir(\''+m.abrir+'\')" style="margin-top:6px;background:#7c5cff;color:#fff;border:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:12px;">Abrir '+esc(m.abrirLbl||m.abrir)+'</button>'):'')+'</div>'; }).join('');
+    box.scrollTop=box.scrollHeight;
+  }
+  window.gnAssistAbrir=function(tab){ try{ if(typeof goTab==='function') goTab(tab); var p=document.getElementById('gn-assist-panel'); if(p) p.style.display='none'; }catch(e){} };
+  function send(){
+    var inp=document.getElementById('gn-assist-in'); var txt=(inp.value||'').trim(); if(!txt && !_pendingImg) return;
+    var h=hist(); h.push({r:'u',t:txt||'(imagem enviada)'}); saveHist(h); inp.value=''; renderMsgs();
+    var co={}; try{ co=(typeof gnCO==='function')?gnCO():{}; }catch(e){}
+    var sys='Você é o assistente virtual da '+(co.fantasia||'Gás Network')+' (engenharia/instalações de gás). Fale em português do Brasil, prático e amigável. '
+      +'Telas do app: age=Agenda, novo=Nova Proposta/Orçamento, os=Nota de Serviço, rec=Recibo, laudo=Laudo de Estanqueidade, docrap=Documento Rápido, fin=Financeiro, compras=Lista de Compras, cli=Clientes, prod=Materiais, arquivos=Arquivos e Mídia, ped=Pedidos, tarefas=Tarefas. '
+      +'Quando o usuário quiser executar algo, ajude e leve à tela certa. Se faltar informação, PERGUNTE de forma curta. '
+      +'Memória sobre o usuário/empresa: '+JSON.stringify(mem()).slice(0,2000)+'. '
+      +'DEVOLVA SOMENTE um JSON: {"fala":"sua resposta","abrir":null,"lembrar":null}. "abrir"=id de uma tela (ou null). "lembrar"=fato curto pra guardar (ou null).';
+    function done(j){ var hh=hist(); hh.push({r:'a', t:(j&&j.fala)||'(sem resposta)', abrir:(j&&j.abrir)||null, abrirLbl:(j&&j.abrir&&TABLBL[j.abrir])||(j&&j.abrir)}); saveHist(hh); if(j&&j.lembrar){ var mm=mem(); mm.push(String(j.lembrar)); saveMem(mm); } renderMsgs(); }
+    function go(imgURL){ (typeof gnAIVision==='function'?gnAIVision(sys,txt,imgURL):gnAI(sys,txt)).then(done).catch(function(e){ var hh=hist(); hh.push({r:'a',t:'Tive um problema pra responder agora ('+(e&&e.message||e)+'). Tenta de novo?'}); saveHist(hh); renderMsgs(); }); }
+    if(_pendingImg){ var f=_pendingImg; _pendingImg=null; var ib=document.getElementById('gn-assist-img'); if(ib) ib.textContent='📷'; var r=new FileReader(); r.onload=function(e){ go(String(e.target.result||'')); }; r.readAsDataURL(f); }
+    else { go(''); }
+  }
+  function memUpload(){
+    var inp=document.getElementById('gn-assist-memfile'); if(!inp.files||!inp.files.length) return;
+    if(typeof GN_CLOUD2==='undefined'||!GN_CLOUD2){ if(typeof toast==='function') toast('Nuvem indisponível.','er'); return; }
+    var files=Array.prototype.slice.call(inp.files); var i=0,ok=0;
+    var hh=hist(); hh.push({r:'a',t:'⏳ Guardando '+files.length+' arquivo(s) na minha memória (Drive)...'}); saveHist(hh); renderMsgs();
+    (function next(){
+      if(i>=files.length){ var h2=hist(); h2.push({r:'a',t:'🧠 Pronto! Guardei '+ok+' arquivo(s) na memória. Vou usar isso pra te ajudar melhor.'}); saveHist(h2); renderMsgs(); inp.value=''; return; }
+      var f=files[i++]; if(f.size>100*1024*1024){ next(); return; }
+      var tipo=(String(f.type||'').indexOf('video')>=0)?'Vídeos':((String(f.type||'').indexOf('image')>=0)?'Fotos':'Documentos');
+      var r=new FileReader(); r.onload=function(e){ var b64=String(e.target.result||'').split(',')[1]||''; fetch(GN_CLOUD2,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveDoc',base64:b64,filename:f.name,mime:(f.type||''),cliente:'Cérebro do Assistente',tipo:tipo,numero:''})}).then(function(){ok++;}).catch(function(){}).then(function(){ var mm=mem(); mm.push('Arquivo na memória: '+f.name); saveMem(mm); setTimeout(next,200); }); }; r.onerror=function(){ next(); }; r.readAsDataURL(f);
+    })();
+  }
+  if(document.readyState==='complete') setTimeout(build,1200); else window.addEventListener('load',function(){ setTimeout(build,1200); });
 })();
 </script>
 </body>
