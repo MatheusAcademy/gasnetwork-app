@@ -13,7 +13,7 @@
   for(var k in D){ if(k.indexOf('gn_')===0){ try{ localStorage.setItem(k, JSON.stringify(D[k])); }catch(e){} } }
   localStorage.setItem('gn_autosync','off');
   localStorage.setItem('gn_migrado_v1','1');
-  console.log('[Gás Network] Dados do Agenda Boa carregados na 1ª abertura.');
+  console.log('[Gás Network] Dados carregados na 1ª abertura. (build 24/05 v2)');
 }catch(e){ console.warn('migracao', e); } })();
 </script>
 <title>Orçamentos — Gás Network Engenharia</title>
@@ -897,35 +897,14 @@ textarea.fi{resize:vertical;}
   </div>
   <div id="pane-laudo" style="display:none;">
     <div class="eyebrow">Engenharia</div>
-    <div class="pgtitle" style="margin-bottom:4px;">Laudo Técnico</div>
-    <div class="pgsub" style="margin-bottom:14px;">Gere um laudo técnico profissional em PDF — já com a sua <strong>logo, assinatura, cabeçalho e rodapé</strong>. Abre corretamente no celular, PC e Google Drive.</div>
-
-    <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">
-        <div><label style="font-size:12px;color:var(--gn-dim);">Cliente</label><input id="lau-cli" list="cli-datalist" placeholder="Nome do cliente" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div><label style="font-size:12px;color:var(--gn-dim);">CPF/CNPJ</label><input id="lau-doc" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Local / endereço vistoriado</label><input id="lau-local" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div><label style="font-size:12px;color:var(--gn-dim);">Data da vistoria/execução</label><input id="lau-dataexec" type="date" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div><label style="font-size:12px;color:var(--gn-dim);">Data de emissão</label><input id="lau-dataemis" type="date" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div><label style="font-size:12px;color:var(--gn-dim);">Nº da ART (se houver)</label><input id="lau-art" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Objetivo do laudo</label><input id="lau-obj" placeholder="Ex.: Teste de estanqueidade da instalação de gás" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Descrição da vistoria</label><textarea id="lau-vistoria" rows="3" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></textarea></div>
-        <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Metodologia e equipamentos</label><textarea id="lau-metodo" rows="2" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></textarea></div>
-        <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Normas técnicas aplicáveis</label><input id="lau-normas" placeholder="Ex.: ABNT NBR 15526; NBR 13523" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Constatações / Resultado</label><textarea id="lau-result" rows="3" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></textarea></div>
-        <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Não conformidades (se houver)</label><textarea id="lau-naoconf" rows="2" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></textarea></div>
-        <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Recomendações</label><textarea id="lau-recom" rows="2" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></textarea></div>
-        <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Conclusão técnica</label><textarea id="lau-conclusao" rows="2" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></textarea></div>
-      </div>
-      <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
-        <button onclick="laudoGerar(false)" style="background:#4338ca;color:#fff;border:none;padding:11px 16px;border-radius:9px;cursor:pointer;font-weight:700;">📄 Gerar Laudo (PDF)</button>
-        <button onclick="laudoGerar(true)" style="background:#16a34a;color:#fff;border:none;padding:11px 16px;border-radius:9px;cursor:pointer;font-weight:700;">☁️ Gerar e salvar na nuvem</button>
-        <button onclick="laudoLimpar()" style="background:var(--gn-card,#eee);color:var(--gn-text,#333);border:1px solid var(--gn-border,#ddd);padding:11px 16px;border-radius:9px;cursor:pointer;font-weight:600;">Limpar</button>
-      </div>
-    </div>
-
-    <div class="pgtitle" style="font-size:17px;margin:18px 0 4px;">Laudo de Estanqueidade</div>
+    <div class="pgtitle" style="margin-bottom:4px;">Laudo de Estanqueidade</div>
     <div class="pgsub" style="margin-bottom:12px;">Modelo técnico completo (NBR 15526). Preencha os parâmetros do ensaio e gere o laudo já com a sua logo, cabeçalho, assinatura e rodapé.</div>
+    <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
+      <label style="font-size:12px;color:var(--gn-dim);font-weight:700;">✨ Descreva o laudo com suas palavras (a IA preenche e monta no padrão)</label>
+      <div style="font-size:11.5px;color:var(--gn-dim);margin:3px 0 6px;">Pode escrever do jeito que quiser, formal ou informal. Ex.: "fiz teste de estanqueidade na padaria do João, GLP, 4 pontos de consumo, 3 etapas, testei a partir do abrigo de gás, deu tudo certo aprovado, recomendei trocar a mangueira do fogão". A IA entende e preenche os campos abaixo.</div>
+      <textarea id="lae-ia-txt" rows="4" placeholder="Descreva aqui o laudo (informal ou formal)..." style="width:100%;padding:11px;border:1px solid var(--gn-border);border-radius:10px;font-size:13.5px;line-height:1.5;"></textarea>
+      <button id="lae-ia-btn" type="button" onclick="laeIA()" style="margin-top:8px;background:linear-gradient(90deg,#7c5cff,#4338ca);color:#fff;border:none;padding:10px 16px;border-radius:9px;cursor:pointer;font-weight:700;">✨ Preencher e montar com IA</button>
+    </div>
     <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">
         <div><label style="font-size:12px;color:var(--gn-dim);">Cliente / Razão social</label><input id="lae-cli" list="cli-datalist" oninput="if(typeof drCliAuto==='function'){}" placeholder="Nome do cliente" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
@@ -967,7 +946,10 @@ textarea.fi{resize:vertical;}
       </div>
     </div>
 
-    <div class="pgtitle" style="font-size:17px;margin:18px 0 4px;">Relatório de Vistoria Técnica</div>
+  </div>
+  <div id="pane-relvist" style="display:none;">
+    <div class="eyebrow">Ferramentas</div>
+    <div class="pgtitle" style="margin-bottom:4px;">Relatório de Vistoria Técnica</div>
     <div class="pgsub" style="margin-bottom:12px;">Relatório robusto de vistoria de instalação de gás — identificação, dados da instalação, irregularidades, recomendações com valor, garantia e responsabilidade técnica. Sai com capa, logo, cabeçalho institucional e fotos.</div>
     <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
       <div style="font-size:12px;color:var(--gn-dim);font-weight:700;margin-bottom:6px;">Identificação</div>
@@ -1023,10 +1005,6 @@ textarea.fi{resize:vertical;}
       </div>
     </div>
 
-    <details style="margin-top:6px;">
-      <summary style="cursor:pointer;font-weight:600;color:var(--gn-dim);padding:8px 0;">▸ Abrir modelo antigo de Laudo de Estanqueidade (formulário em iframe)</summary>
-      <iframe id="laudo-frame" title="Laudo de Estanqueidade" style="width:100%;border:1px solid var(--b1);border-radius:14px;background:#fff;min-height:82vh;margin-top:10px;"></iframe>
-    </details>
   </div>
   <div id="pane-docrap" style="display:none;">
     <div class="eyebrow">Ferramentas</div>
@@ -1144,6 +1122,17 @@ textarea.fi{resize:vertical;}
     <div class="eyebrow">Operação</div>
     <div class="pgtitle" style="margin-bottom:4px;">Tarefas</div>
     <div class="pgsub" style="margin-bottom:14px;">Suas tarefas internas: comprar material, retornar cliente, conferir orçamento... defina prioridade e vencimento.</div>
+
+    <div style="background:rgba(124,92,255,.12);border:1px solid rgba(124,92,255,.30);border-radius:14px;padding:14px;margin-bottom:14px;">
+      <div style="font-weight:700;color:#c4b5fd;margin-bottom:4px;">✨ Escreva tudo de uma vez (IA organiza)</div>
+      <div style="font-size:13px;color:var(--gn-dim);margin-bottom:8px;">Digite o que precisa fazer, do jeito que vier à cabeça. A IA separa sozinha em <b>Tarefas</b>, <b>Agenda</b> (compromissos/visitas) e <b>Compras</b> (material/estoque). Ex.: "comprar 20m de mangueira urgente, ligar pro Sr. Pedro amanhã, visita técnica na casa da Maria sexta 14h".</div>
+      <textarea id="tar-ia-txt" rows="4" placeholder="Escreva suas tarefas, compromissos e compras numa lista livre..." style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--gn-border);border-radius:10px;font-size:13px;resize:vertical;"></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <button id="tar-ia-btn" onclick="tarIAtexto()" style="background:#7c3aed;color:#fff;border:none;padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:700;">✨ Interpretar e distribuir</button>
+        <button onclick="(function(){var t=document.getElementById('tar-ia-txt');if(t)t.value='';})()" style="background:var(--gn-surface2,#1f2937);color:#fff;border:none;padding:9px 14px;border-radius:8px;cursor:pointer;">Limpar</button>
+      </div>
+    </div>
+
     <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">
         <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Título</label><input id="tar-tit" placeholder="Ex.: Comprar mangueira para o pedido X" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
@@ -1262,6 +1251,15 @@ textarea.fi{resize:vertical;}
       <button id="ped-tab-status" class="ped-vt" onclick="pedSetView('status')">🗂️ Quadro por status (Kanban)</button>
       <button onclick="pwOpen()" style="margin-left:auto;background:linear-gradient(135deg,#7c5cff,#4338ca);color:#fff;border:none;border-radius:9px;padding:10px 16px;font-weight:700;cursor:pointer;">＋ Novo Pedido</button>
     </div>
+    <div style="background:rgba(124,92,255,.12);border:1px solid rgba(124,92,255,.30);border-radius:14px;padding:14px;margin-bottom:16px;">
+      <div style="font-weight:700;color:#c4b5fd;margin-bottom:4px;">✨ Novo pedido por texto (IA preenche os quadrantes)</div>
+      <div style="font-size:13px;color:var(--gn-dim);margin-bottom:8px;">Escreva do jeito que quiser — formal ou informal. A IA interpreta e abre o Novo Pedido já com cliente, serviços, valores e forma de pagamento preenchidos. Ex.: "orçamento pro João, instalação de 12m de tubo, 2 pontos, 1.800 reais, metade na entrada".</div>
+      <textarea id="ped-ia-txt" rows="4" placeholder="Descreva o pedido em uma ou várias linhas..." style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--gn-border);border-radius:10px;font-size:13px;resize:vertical;"></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <button id="ped-ia-btn" onclick="pedIAtexto()" style="background:#7c3aed;color:#fff;border:none;padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:700;">✨ Interpretar e preencher</button>
+        <button onclick="(function(){var t=document.getElementById('ped-ia-txt');if(t)t.value='';})()" style="background:var(--gn-surface2,#1f2937);color:#fff;border:none;padding:9px 14px;border-radius:8px;cursor:pointer;">Limpar</button>
+      </div>
+    </div>
     <div id="ped-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px;"></div>
     <div id="ped-list"></div>
     <div id="ped-kanban" style="display:none;"></div>
@@ -1319,9 +1317,8 @@ textarea.fi{resize:vertical;}
       </select>
       <button onclick="finAdd('receita')" style="background:#16a34a;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;">+ Recebimento</button>
       <button onclick="finAdd('custo')" style="background:#dc2626;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;">+ Custo</button>
-      <button onclick="finAdd('aplicacao')" style="background:#6d28d9;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;">+ Aplicação</button>
-      <button onclick="finAdd('resgate')" style="background:#0891b2;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;">+ Resgate</button>
       <button onclick="finImportHist()" style="background:#2563eb;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;">↻ Histórico</button>
+      <button onclick="finHistDia()" title="Ver o histórico por dia e restaurar" style="background:#0e7490;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;">📅 Histórico por dia</button>
     </div>
 
     <div style="background:rgba(124,92,255,.12);border:1px solid rgba(124,92,255,.30);border-radius:14px;padding:14px;margin-bottom:18px;">
@@ -1349,8 +1346,7 @@ textarea.fi{resize:vertical;}
 
     <div id="fin-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:10px;"></div>
     <div style="font-size:12px;color:var(--gn-dim);background:rgba(100,116,139,.10);border:1px solid var(--gn-border);border-radius:10px;padding:10px 12px;margin-bottom:20px;line-height:1.5;">
-      💰 <b>"Saldo estimado (banco)"</b> tenta chegar no saldo REAL das contas: soma TODAS as movimentações dos extratos (entradas − despesas − pró-labore − fatura de cartão − aplicações + resgates), <b>acumulado de todo o histórico</b>, e desconsidera transferências entre C6 e Asaas (se anulam). Para bater certinho, informe o saldo inicial: <button onclick="gnSetSaldoInicial()" style="background:#0891b2;color:#fff;border:none;padding:5px 10px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;">⚙ Definir saldo inicial</button> <span id="fin-saldoini-txt" style="color:var(--gn-dim);"></span><br>
-      Já o <b>"Resultado real (banco)"</b> = Faturamento real − Despesas no período — é um indicador de resultado, <u>não</u> o saldo.
+      💡 Toque em qualquer card acima para abrir a lista detalhada daquele valor (editável, com documentos por cliente). O <b>Lucro líquido</b> é calculado sozinho: faturamento − despesas no período. <span id="fin-saldoini-txt" style="display:none;"></span>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-bottom:20px;">
@@ -1939,7 +1935,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // TABS
 // ══════════════════════════════════════════════
 function goTab(t) {
-  ['inicio','ped','age','tec','novo','hist','laudo','fin','cli','svc','rec','os','prod','rel','chk','ctr','cfg','imp','pro','docrap','hoje','tarefas','cob','atend','forn','compras','chamados','posvenda'].forEach(id => {
+  ['inicio','ped','age','tec','novo','hist','laudo','relvist','fin','cli','svc','rec','os','prod','rel','chk','ctr','cfg','imp','pro','docrap','hoje','tarefas','cob','atend','forn','compras','chamados','posvenda'].forEach(id => {
     var p=document.getElementById('pane-'+id); if(p) p.style.display = id===t?'block':'none';
     var tb=document.getElementById('tab-'+id); if(tb) tb.classList.toggle('on', id===t);
   });
@@ -2068,6 +2064,40 @@ function renderHoje(){
 function tarGet(){ try{ return JSON.parse(localStorage.getItem('gn_tarefas')||'[]'); }catch(e){ return []; } }
 function tarSaveAll(a){ try{ localStorage.setItem('gn_tarefas', JSON.stringify(a)); }catch(e){} }
 function tarAdd(){ var t=((document.getElementById('tar-tit')||{}).value||'').trim(); if(!t){ toast('Informe o título da tarefa','er'); return; } var a=tarGet(); a.unshift({id:'t'+Date.now(), titulo:t, prioridade:(document.getElementById('tar-prio')||{}).value||'Média', venc:(document.getElementById('tar-venc')||{}).value||'', cliente:(document.getElementById('tar-cli')||{}).value||'', status:'Aberta', criadoEm:new Date().toISOString()}); tarSaveAll(a); ['tar-tit','tar-venc','tar-cli'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); renderTar(); toast('Tarefa adicionada','ok'); }
+async function tarIAtexto(){
+  var txt=((document.getElementById('tar-ia-txt')||{}).value||'').trim();
+  if(!txt){ toast('Escreva suas tarefas primeiro.','er'); return; }
+  if(typeof gnAI!=='function'){ toast('IA indisponível agora.','er'); return; }
+  var btn=document.getElementById('tar-ia-btn'); var old; if(btn){ old=btn.textContent; btn.textContent='✨ Organizando...'; btn.disabled=true; }
+  var hoje=new Date().toISOString().slice(0,10);
+  var sys='Você é o assistente da Gás Network. A partir de um texto livre com várias pendências, separe em três grupos e DEVOLVA SOMENTE um JSON válido, sem comentários, no formato: '
+    +'{"tarefas":[{"titulo":"","prioridade":"Baixa|Média|Alta|Urgente","venc":"AAAA-MM-DD ou \\"\\"","cliente":""}], '
+    +'"agenda":[{"titulo":"","cliente":"","data":"AAAA-MM-DD","hora":"HH:MM","obs":""}], '
+    +'"compras":[{"material":"","qtd":"","forn":"","valor":""}]}. '
+    +'Regras: "agenda" = compromissos, visitas técnicas, reuniões ou qualquer coisa com data/hora marcada. '
+    +'"compras" = comprar/repor material, estoque, ferramentas. "tarefas" = o resto (ligar, conferir, enviar, etc.). '
+    +'A data de hoje é '+hoje+'. Converta "amanhã", "sexta", "semana que vem" para AAAA-MM-DD. Se não houver hora, use "09:00". '
+    +'Prioridade: marque "Urgente"/"Alta" só se o texto indicar urgência; senão "Média". NÃO invente itens. Use [] quando um grupo não tiver nada. Responda em português do Brasil.';
+  try{
+    var j=await gnAI(sys, txt);
+    var nT=0,nA=0,nC=0;
+    // tarefas
+    var tars=Array.isArray(j.tarefas)?j.tarefas:[];
+    if(tars.length){ var a=tarGet(); tars.forEach(function(t){ if(!t||!t.titulo) return; a.unshift({id:'t'+Date.now()+'_'+(nT++), titulo:String(t.titulo), prioridade:(['Baixa','Média','Alta','Urgente'].indexOf(t.prioridade)>=0?t.prioridade:'Média'), venc:String(t.venc||''), cliente:String(t.cliente||''), status:'Aberta', criadoEm:new Date().toISOString()}); }); tarSaveAll(a); }
+    // agenda
+    var ags=Array.isArray(j.agenda)?j.agenda:[];
+    ags.forEach(function(g){ if(!g||!g.titulo) return; var c={ id:'a'+Date.now()+'_'+(nA++), titulo:String(g.titulo), cliente:String(g.cliente||''), data:String(g.data||hoje), hora:String(g.hora||'09:00'), horaFim:'', obs:String(g.obs||''), criadoEm:new Date().toISOString() }; try{ gnStoreUpsert('agenda', c); if(typeof ageCloudCalendar==='function') ageCloudCalendar(c); }catch(e){} });
+    // compras
+    var cps=Array.isArray(j.compras)?j.compras:[];
+    if(cps.length){ var ka=comprasGet(); cps.forEach(function(k){ if(!k||!k.material) return; ka.unshift({id:'k'+Date.now()+'_'+(nC++), material:String(k.material), qtd:String(k.qtd||''), forn:String(k.forn||''), valor:String(k.valor||''), status:'Necessário comprar', criadoEm:new Date().toISOString()}); }); comprasSaveAll(ka); }
+    // sincroniza
+    try{ if(typeof gnCloud2PushKey==='function'){ if(nT) gnCloud2PushKey('gn_tarefas'); if(nA) gnCloud2PushKey('gn_agenda'); if(nC) gnCloud2PushKey('gn_compras'); } }catch(e){}
+    try{ renderTar(); }catch(e){} try{ if(typeof renderAge==='function') renderAge(); }catch(e){} try{ if(typeof renderCompras==='function') renderCompras(); }catch(e){}
+    var t2=document.getElementById('tar-ia-txt'); if(t2) t2.value='';
+    toast('✨ Pronto! '+nT+' tarefa(s), '+nA+' compromisso(s) na agenda e '+nC+' item(ns) de compra.','ok');
+  }catch(e){ toast('Não consegui organizar: '+(e&&e.message||e),'er'); }
+  finally{ if(btn){ btn.textContent=old||'✨ Interpretar e distribuir'; btn.disabled=false; } }
+}
 function tarToggle(id){ var a=tarGet(); a.forEach(function(x){ if(x.id===id) x.status=(x.status==='Concluída'?'Aberta':'Concluída'); }); tarSaveAll(a); renderTar(); }
 function tarDel(id){ if(!confirm('Excluir esta tarefa?')) return; tarSaveAll(tarGet().filter(function(x){return x.id!==id;})); renderTar(); }
 function tarPrioCor(p){ return {'Baixa':'#64748b','Média':'#0891b2','Alta':'#f59e0b','Urgente':'#dc2626'}[p]||'#64748b'; }
@@ -3292,6 +3322,35 @@ function laudoEstGerar(cloud){
   }catch(e){ console.warn('[laudoEst] save', e); }
   toast('✓ Laudo de estanqueidade gerado.','ok');
 }
+// ✨ IA: interpreta um texto livre (formal/informal) e preenche o laudo de estanqueidade
+async function laeIA(){
+  var txt=(document.getElementById('lae-ia-txt')||{}).value||'';
+  if(!txt.trim()){ toast('Escreva a descrição do laudo primeiro.','er'); return; }
+  if(typeof gnAI!=='function'){ toast('IA indisponível (backend não carregado).','er'); return; }
+  var btn=document.getElementById('lae-ia-btn'); var old; if(btn){ old=btn.textContent; btn.textContent='✨ Interpretando...'; btn.disabled=true; }
+  var sys='Você organiza um LAUDO DE ESTANQUEIDADE de instalação de gás da Gás Network. '
+    +'Receba um texto livre (pode ser informal) e DEVOLVA SOMENTE um JSON válido no formato: '
+    +'{"cliente":{"nome":"","doc":"","tel":"","end":""}, "dataTesteISO":"AAAA-MM-DD ou vazio", '
+    +'"etapas":"2 ou 3", "gas":"GN ou GLP", "ponto":"de onde foi feito o teste (ex.: do abrigo de gás)", '
+    +'"qtdPontos": number, "resultado":"aprovado ou reprovado", "recomendacoes":"", "escopo":"", "extra":""}. '
+    +'Regras: interprete a intenção; se não houver a informação, deixe vazio/null. '
+    +'etapas: 2 se mencionar visual+coluna, 3 se mencionar bourdon/alta pressão (padrão 2). '
+    +'gas: GLP por padrão se não estiver claro. resultado: "aprovado" salvo se citar vazamento/reprovado. '
+    +'Responda em português do Brasil.';
+  try{
+    var j=await gnAI(sys, txt);
+    function set(id,v){ var e=document.getElementById(id); if(e && v!=null && v!=='') e.value=v; }
+    if(j.cliente){ set('lae-cli',j.cliente.nome); set('lae-doc',j.cliente.doc); set('lae-tel',j.cliente.tel); set('lae-end',j.cliente.end); }
+    if(j.dataTesteISO) set('lae-data', j.dataTesteISO);
+    set('lae-ponto', j.ponto); if(j.qtdPontos) set('lae-qtd', j.qtdPontos);
+    set('lae-recom', j.recomendacoes); set('lae-escopo', j.escopo); set('lae-extra', j.extra);
+    var et=(String(j.etapas).indexOf('3')>=0)?'3':'2'; var rEt=document.querySelector('input[name=lae-et][value="'+et+'"]'); if(rEt) rEt.checked=true;
+    var gas=(String(j.gas).toUpperCase().indexOf('GN')>=0)?'GN':'GLP'; var rG=document.querySelector('input[name=lae-gas][value="'+gas+'"]'); if(rG) rG.checked=true;
+    var res=(String(j.resultado||'').toLowerCase().indexOf('repro')>=0)?'fail':'ok'; var rR=document.querySelector('input[name=lae-res][value="'+res+'"]'); if(rR) rR.checked=true;
+    toast('✨ Preenchido! Revise os campos e clique em Gerar Laudo.','ok');
+  }catch(e){ toast('Não foi possível interpretar: '+e.message,'er'); }
+  finally{ if(btn){ btn.textContent=old||'✨ Preencher e montar com IA'; btn.disabled=false; } }
+}
 
 // ═══ RELATÓRIO DE VISTORIA TÉCNICA (formulário guiado dedicado) ═══
 var rvFotos=[];
@@ -3363,7 +3422,8 @@ function drParse(txt){
   function limpaTit(t){ return t.replace(/^#{1,3}\s+/,'').replace(/^\d+\s*[\.\)\-]\s+/,'').replace(/[:：]\s*$/,'').trim(); }
   lines.forEach(function(ln){ if(isHead(ln)){ if(cur) blocos.push(cur); cur={titulo:limpaTit(ln), texto:''}; } else { if(!cur) cur={titulo:'', texto:''}; cur.texto+=(cur.texto?'\n':'')+ln; } });
   if(cur) blocos.push(cur);
-  return blocos.map(function(b){ return {titulo:b.titulo, texto:(b.texto||'').replace(/\n{3,}/g,'\n\n').trim()}; }).filter(function(b){ return b.titulo || b.texto; });
+  function limpaMd(s){ return String(s||'').replace(/\*\*/g,'').replace(/\*/g,'').replace(/(^|\n)\s*#{1,6}\s*/g,'$1').replace(/`/g,'').replace(/^\s*[-•]\s?/gm,'• '); }
+  return blocos.map(function(b){ return {titulo:limpaMd(b.titulo).trim(), texto:limpaMd((b.texto||'').replace(/\n{3,}/g,'\n\n')).trim()}; }).filter(function(b){ return b.titulo || b.texto; });
 }
 // Itens extraídos pela IA (entram na tabela do PDF, valores no lugar certo)
 var drItensIA=null;
@@ -3594,12 +3654,12 @@ function gnCor(){ var c=gnCfg(); return c.cor||'#7c5cff'; }
 // Dados compartilhados por toda a equipe + auto-save de documentos no Drive.
 // ══════════════════════════════════════════════
 var GN_CLOUD2 = 'https://script.google.com/macros/s/AKfycbycnK4Fx0J4QphoLr-LQJPkh04RTy6zbBto-Sqlgr306GqjggZkKhyOsJXypeprS0Loww/exec';
-var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg'];
+var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod'];
 var _gnSynced = {};        // último valor conhecido por chave (string)
 var _gnSyncBusy = false;
 var _gnSyncOn = true;
 function gnSyncStatus(txt,cls){ var el=document.getElementById('gn-sync-badge'); if(el){ el.textContent=txt; el.style.background=(cls==='er'?'#fb7185':(cls==='ok'?'#16a34a':'#64748b')); } }
-function gnRefreshUI(){ ['renderPed','renderFin','renderCli','renderTarefas','renderAtend','renderForn','renderCompras','renderChamados','renderSvc','renderEstoque','renderInicio','renderResumo','renderHoje','renderCob','renderProx','renderAgenda','updCount','renderPed2','renderFunil'].forEach(function(fn){ try{ if(typeof window[fn]==='function') window[fn](); }catch(e){} }); }
+function gnRefreshUI(){ ['renderPed','renderFin','renderCli','renderTarefas','renderAtend','renderForn','renderCompras','renderChamados','renderSvc','renderEstoque','renderInicio','renderResumo','renderHoje','renderCob','renderProx','renderAgenda','renderRec','renderOs','renderCtr','renderProd','renderHist','updCount','renderPed2','renderFunil'].forEach(function(fn){ try{ if(typeof window[fn]==='function') window[fn](); }catch(e){} }); }
 function gnCloud2Pull(cb){
   if(!_gnSyncOn || !GN_CLOUD2){ if(cb)cb(false); return; }
   try{
@@ -3787,6 +3847,15 @@ function pedSyncFinance(numero, entry){
   finSaveAll(arr); if(typeof finCloudPush==='function') finCloudPush(rec);
 }
 function pedEditar(numero){ var h=pedHist(); var i=h.findIndex(function(e){ return e.numero===numero; }); if(i<0){ toast('Pedido sem dados','er'); return; } if(typeof editarHist==='function') editarHist(i); else if(typeof goTab==='function') goTab('novo'); }
+function pedExcluir(numero){
+  if(!confirm('Excluir este pedido? (remove o pedido e o lançamento financeiro ligado a ele)')) return;
+  try{ var h=pedHist().filter(function(e){ return e.numero!==numero; }); localStorage.setItem('gn_hist', JSON.stringify(h)); }catch(e){}
+  try{ var ov=pedOverlay(); delete ov[numero]; pedSaveOverlay(ov); }catch(e){}
+  try{ if(typeof finData==='function'){ var f=finData().filter(function(x){ return x.origem!==('ped:'+numero) && x.origem!==numero; }); finSaveAll(f); } }catch(e){}
+  try{ if(typeof gnCloud2PushKey==='function'){ gnCloud2PushKey('gn_hist'); gnCloud2PushKey('gn_ped'); gnCloud2PushKey('gn_fin'); } }catch(e){}
+  try{ renderPed(); }catch(e){} try{ if(typeof renderFin==='function') renderFin(); }catch(e){} try{ if(typeof updCount==='function') updCount(); }catch(e){} try{ if(typeof renderInicio==='function') renderInicio(); }catch(e){}
+  toast('✓ Pedido excluído.','ok');
+}
 
 function pedDoc(numero){
   var st=pedGet(numero); var e=pedEntry(numero); if(!e){ toast('Pedido não encontrado','er'); return; }
@@ -3834,7 +3903,8 @@ function renderPed(){
   var cards=document.getElementById('ped-cards');
   if(cards){
     function cd(t,v,c){ return '<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-top:3px solid '+c+';border-radius:12px;padding:10px 12px;"><div style="font-size:11px;color:var(--gn-dim);">'+t+'</div><div style="font-size:15px;font-weight:800;color:var(--gn-text);margin-top:3px;">'+v+'</div></div>'; }
-    var resumo=cd('Pedidos',h.length,'#7c5cff')+cd('Recebido',gnBRL(vReceb),'#16a34a')+cd('A receber',gnBRL(vReceber),'#34d399')+cd('Em atraso',gnBRL(vAtraso),'#fbbf24');
+    // Tela de Pedidos foca no operacional — valores ($) ficam só no Financeiro.
+    var resumo=cd('Pedidos',h.length,'#7c5cff');
     // funil por status (clicável)
     var funil='<div style="grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;margin-top:2px;">';
     funil+='<button onclick="pedFiltrarStatus(\'\')" style="border:1px solid '+(pedStatusFiltro===''?'#7c5cff':'var(--gn-border,#ddd)')+';background:'+(pedStatusFiltro===''?'rgba(124,92,255,.18)':'transparent')+';color:var(--gn-text,#333);border-radius:20px;padding:5px 11px;cursor:pointer;font-size:12px;font-weight:600;">Todos ('+h.length+')</button>';
@@ -3860,22 +3930,22 @@ function renderPed(){
     return '<div style="border:1px solid var(--gn-border);border-left:4px solid '+pedCor(st.status)+';border-radius:12px;padding:12px 14px;margin-bottom:8px;">'
       + '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">'
       + '<div class="ped-info" data-n="'+gnEsc(e.numero)+'" style="min-width:0;flex:1;cursor:pointer;" title="Abrir / editar pedido">'
-        + '<div style="font-weight:700;color:var(--gn-text);">'+gnEsc(e.cliente||'Cliente')+' · <span style="color:#16a34a;">'+gnBRL(e.valor)+'</span></div>'
+        + '<div style="font-weight:700;color:var(--gn-text);">'+gnEsc(e.cliente||'Cliente')+'</div>'
         + '<div style="font-size:12px;color:var(--gn-dim);">'+gnEsc(e.numero||'')+' · '+(e.data||'')+' · '+gnEsc(st.doc||'')+(e.servicos?(' · '+gnEsc(String(e.servicos).slice(0,38))):'')+'</div>'
         + (alerts?('<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">'+alerts+'</div>'):'')
       + '</div>'
       + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">'
       + '<select class="ped-doc" data-n="'+gnEsc(e.numero)+'" title="Tipo de documento" style="padding:6px;border:1px solid var(--gn-border);border-radius:7px;font-size:12px;font-weight:600;">'+optD+'</select>'
       + '<select class="ped-st" data-n="'+gnEsc(e.numero)+'" title="Status" style="padding:6px;border:1px solid var(--gn-border);border-radius:7px;font-size:12px;color:'+pedCor(st.status)+';font-weight:600;">'+optS+'</select>'
-      + '<select class="ped-pg" data-n="'+gnEsc(e.numero)+'" title="Pagamento" style="padding:6px;border:1px solid var(--gn-border);border-radius:7px;font-size:12px;color:'+pedCorPg(st.pagamento)+';font-weight:600;">'+optP+'</select>'
       + '<button class="ped-edit" data-n="'+gnEsc(e.numero)+'" style="background:rgba(124,92,255,.20);color:var(--gn-text);border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;">Editar</button>'
       + '<button class="ped-wa" data-n="'+gnEsc(e.numero)+'" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;">WhatsApp</button>'
       + '<button class="ped-pdf" data-n="'+gnEsc(e.numero)+'" style="background:#4338ca;color:#fff;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;">PDF</button>'
+      + '<button class="ped-del" data-n="'+gnEsc(e.numero)+'" title="Excluir pedido" style="background:rgba(251,113,133,.16);color:#fb7185;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:13px;font-weight:700;">✕</button>'
       + '</div></div></div>';
   }).join('');
+  Array.prototype.forEach.call(list.querySelectorAll('.ped-del'), function(b){ b.onclick=function(){ pedExcluir(b.getAttribute('data-n')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.ped-doc'), function(s){ s.onchange=function(){ pedSet(s.getAttribute('data-n'),'doc',s.value); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.ped-st'), function(s){ s.onchange=function(){ pedSet(s.getAttribute('data-n'),'status',s.value); }; });
-  Array.prototype.forEach.call(list.querySelectorAll('.ped-pg'), function(s){ s.onchange=function(){ pedSet(s.getAttribute('data-n'),'pagamento',s.value); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.ped-edit'), function(b){ b.onclick=function(){ pedEditar(b.getAttribute('data-n')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.ped-info'), function(b){ b.onclick=function(){ pedDetalhe(b.getAttribute('data-n')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.ped-wa'), function(b){ b.onclick=function(){ pedWhats(b.getAttribute('data-n')); }; });
@@ -3917,7 +3987,34 @@ function pwEnsureModal(){
    +'</div>';
   document.body.appendChild(d);
 }
-function pwOpen(prefill){ pwEnsureModal(); pw={tipo:'',status:'Pendente',doc:'Orçamento',cli:{nome:'',cpf:'',tel:'',end:''},svcs:[],mats:[],desconto:0,acrescimo:0,forma:'',pagStatus:'A receber',agendar:false,ageData:'',ageHora:'09:00',docs:[]}; if(prefill&&typeof prefill==='object'){ if(prefill.nome) pw.cli.nome=prefill.nome; if(prefill.tel) pw.cli.tel=prefill.tel; if(prefill.servico) pw.svcs=[{desc:prefill.servico,qtd:1,vu:0}]; } pwStep=0; document.getElementById('pw-modal').style.display='block'; pwRender(); }
+function pwOpen(prefill){ pwEnsureModal(); pw={tipo:'',status:'Pendente',doc:'Orçamento',cli:{nome:'',cpf:'',tel:'',end:''},svcs:[],mats:[],desconto:0,acrescimo:0,forma:'',pagStatus:'A receber',agendar:false,ageData:'',ageHora:'09:00',docs:[]}; if(prefill&&typeof prefill==='object'){ if(prefill.nome) pw.cli.nome=prefill.nome; if(prefill.tel) pw.cli.tel=prefill.tel; if(prefill.cpf) pw.cli.cpf=prefill.cpf; if(prefill.end) pw.cli.end=prefill.end; if(prefill.tipo) pw.tipo=prefill.tipo; if(prefill.status) pw.status=prefill.status; if(prefill.doc) pw.doc=prefill.doc; if(prefill.forma) pw.forma=prefill.forma; if(Array.isArray(prefill.svcs)&&prefill.svcs.length) pw.svcs=prefill.svcs; else if(prefill.servico) pw.svcs=[{desc:prefill.servico,qtd:1,vu:0}]; if(Array.isArray(prefill.mats)&&prefill.mats.length) pw.mats=prefill.mats; } pwStep=prefill&&prefill.startStep||0; document.getElementById('pw-modal').style.display='block'; pwRender(); }
+async function pedIAtexto(){
+  var txt=((document.getElementById('ped-ia-txt')||{}).value||'').trim();
+  if(!txt){ toast('Escreva a descrição do pedido primeiro.','er'); return; }
+  if(typeof gnAI!=='function'){ toast('IA indisponível agora. Use o + Novo Pedido.','er'); return; }
+  var btn=document.getElementById('ped-ia-btn'); var old; if(btn){ old=btn.textContent; btn.textContent='✨ Interpretando...'; btn.disabled=true; }
+  var sys='Você é o assistente da Gás Network (engenharia/instalações de gás). A partir de um texto livre (formal ou informal) descrevendo um pedido, DEVOLVA SOMENTE um JSON válido, sem comentários, no formato: '
+    +'{"tipo":"Orçamento|Ordem de Serviço|Proposta comercial|Venda simples|Contrato|Recibo|Relatório técnico|Laudo|Visita técnica|Manutenção", '
+    +'"cliente":{"nome":"","cpf":"","tel":"","end":""}, '
+    +'"servicos":[{"desc":"","qtd":1,"vu":0}], '
+    +'"materiais":[{"desc":"","qtd":1,"vu":0}], '
+    +'"forma_pagamento":""}. '
+    +'Regras: qtd e vu (valor unitário) sempre NÚMERO (ex.: 1800.00), nunca string. Se o usuário deu só um valor total e um único serviço, ponha esse valor em vu com qtd 1. '
+    +'NÃO invente dados ausentes: use "" ou 0. Se o tipo não estiver claro, use "Orçamento". Responda em português do Brasil.';
+  try{
+    var j=await gnAI(sys, txt);
+    var svcs=(Array.isArray(j.servicos)?j.servicos:[]).map(function(s){ return {desc:String(s.desc||''),qtd:Number(s.qtd)||1,vu:Number(s.vu)||0}; }).filter(function(s){ return s.desc||s.vu; });
+    var mats=(Array.isArray(j.materiais)?j.materiais:[]).map(function(s){ return {desc:String(s.desc||''),qtd:Number(s.qtd)||1,vu:Number(s.vu)||0}; }).filter(function(s){ return s.desc||s.vu; });
+    var cl=j.cliente||{};
+    var tobj=(typeof PW_TIPOS!=='undefined')?(PW_TIPOS.filter(function(o){ return o.t===j.tipo; })[0]):null;
+    var prefill={ nome:cl.nome||'', cpf:cl.cpf||'', tel:cl.tel||'', end:cl.end||'', forma:j.forma_pagamento||'', svcs:svcs, mats:mats, startStep:1 };
+    if(tobj){ prefill.tipo=tobj.t; prefill.status=tobj.status; prefill.doc=tobj.doc; }
+    pwOpen(prefill);
+    toast('✨ Pedido interpretado! Revise cada etapa e salve.','ok');
+    var t=document.getElementById('ped-ia-txt'); if(t) t.value='';
+  }catch(e){ toast('Não consegui interpretar: '+(e&&e.message||e),'er'); }
+  finally{ if(btn){ btn.textContent=old||'✨ Interpretar e preencher'; btn.disabled=false; } }
+}
 function pwClose(){ var m=document.getElementById('pw-modal'); if(m) m.style.display='none'; }
 function pwPrev(){ if(pwStep>0){ pwSync(); pwStep--; pwRender(); } }
 function pwNext(){ if(!pwSync()) return; if(pwStep<PW_STEPS.length-1){ pwStep++; pwRender(); } else { pwSave(false); } }
@@ -4245,7 +4342,58 @@ var finCharts = {};
 var finPulled = false;
 var finCats = ['Material','Combustível','Pedágio','Estacionamento','Funcionário','Comissão','Ferramentas','EPI','Publicidade','Telefone','Internet','Aluguel','Impostos','Taxa de cartão','Manutenção de veículo','Alimentação','Recebimento','Aplicação','Resgate','Outros'];
 function finData(){ try{ return JSON.parse(localStorage.getItem('gn_fin')||'[]'); }catch(e){ return []; } }
-function finSaveAll(arr){ localStorage.setItem('gn_fin', JSON.stringify(arr)); }
+function finSnapPush(prev){
+  // Guarda uma "fotografia" do financeiro ANTES de alterar, para poder voltar.
+  try{
+    var snaps=JSON.parse(localStorage.getItem('gn_fin_snaps')||'[]');
+    snaps.unshift({ ts:Date.now(), iso:new Date().toISOString(), data:prev });
+    if(snaps.length>40) snaps=snaps.slice(0,40);
+    localStorage.setItem('gn_fin_snaps', JSON.stringify(snaps));
+  }catch(e){}
+}
+function finSaveAll(arr){
+  try{ finSnapPush(JSON.parse(localStorage.getItem('gn_fin')||'[]')); }catch(e){}
+  localStorage.setItem('gn_fin', JSON.stringify(arr));
+}
+function finHistDia(){
+  var snaps=[]; try{ snaps=JSON.parse(localStorage.getItem('gn_fin_snaps')||'[]'); }catch(e){}
+  var m=document.getElementById('fin-hist-modal');
+  if(!m){ m=document.createElement('div'); m.id='fin-hist-modal'; m.style.cssText='position:fixed;inset:0;z-index:10060;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;'; document.body.appendChild(m); m.onclick=function(ev){ if(ev.target===m) m.style.display='none'; }; }
+  // agrupa snapshots por dia
+  var byDay={};
+  snaps.forEach(function(s){ var d=(s.iso||'').slice(0,10); (byDay[d]=byDay[d]||[]).push(s); });
+  var days=Object.keys(byDay).sort().reverse();
+  var inner='<div style="background:var(--gn-bg,#15161c);border:1px solid var(--gn-border,rgba(255,255,255,.12));border-radius:16px;max-width:680px;width:100%;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.5);">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><div style="font-weight:800;font-size:18px;color:var(--gn-text);">📅 Histórico do financeiro por dia</div><button onclick="document.getElementById(\'fin-hist-modal\').style.display=\'none\'" style="background:transparent;border:none;color:var(--gn-dim);font-size:24px;cursor:pointer;">×</button></div>'
+    +'<div style="font-size:12px;color:var(--gn-dim);margin-bottom:12px;">Cada alteração no financeiro guarda uma cópia. Aqui você vê por dia e pode <b>restaurar</b> uma versão anterior se algo foi apagado ou lançado errado.</div>';
+  if(!days.length){ inner+='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Ainda não há histórico. Assim que você editar/excluir/lançar algo, as versões anteriores aparecem aqui.</div>'; }
+  else{
+    days.forEach(function(d){
+      var arr=byDay[d];
+      var br=d.split('-'); var dlabel=br.length===3?(br[2]+'/'+br[1]+'/'+br[0]):d;
+      inner+='<div style="margin-bottom:14px;"><div style="font-weight:700;color:var(--gn-text);margin-bottom:6px;">'+dlabel+' <span style="font-size:12px;color:var(--gn-dim);font-weight:400;">('+arr.length+' versão(ões))</span></div>';
+      arr.forEach(function(s){
+        var hora=(s.iso||'').slice(11,16);
+        var qtd=(s.data&&s.data.length)||0;
+        var tot=0; try{ (s.data||[]).forEach(function(x){ tot+=Number(x.valor)||0; }); }catch(e){}
+        inner+='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 11px;border:1px solid var(--gn-border);border-radius:9px;margin-bottom:5px;"><div style="font-size:13px;color:var(--gn-text);">'+hora+' · <b>'+qtd+'</b> lançamento(s) · '+finBRL(tot)+'</div><button onclick="finRestoreSnap('+s.ts+')" style="background:#0e7490;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:600;">↩ Restaurar</button></div>';
+      });
+      inner+='</div>';
+    });
+  }
+  inner+='</div>';
+  m.innerHTML=inner; m.style.display='flex';
+}
+function finRestoreSnap(ts){
+  var snaps=[]; try{ snaps=JSON.parse(localStorage.getItem('gn_fin_snaps')||'[]'); }catch(e){}
+  var s=snaps.filter(function(x){ return x.ts===ts; })[0];
+  if(!s){ if(window.toast) toast('Versão não encontrada.','er'); return; }
+  if(!confirm('Restaurar esta versão do financeiro? O estado atual será substituído (mas também fica guardado no histórico).')) return;
+  finSaveAll(s.data||[]); // guarda o atual como snapshot e grava o restaurado
+  try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_fin'); }catch(e){}
+  try{ var mm=document.getElementById('fin-hist-modal'); if(mm) mm.style.display='none'; }catch(e){}
+  renderFin(); if(window.toast) toast('✓ Versão restaurada.','ok');
+}
 function finBRL(n){ n=Number(n)||0; return 'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function finHoje(){ return new Date().toISOString().slice(0,10); }
 function finToISO(s){ if(!s) return ''; var m=String(s).match(/(\d{2})\/(\d{2})\/(\d{4})/); if(m) return m[3]+'-'+m[2]+'-'+m[1]; if(/^\d{4}-\d{2}-\d{2}/.test(String(s))) return String(s).slice(0,10); return ''; }
@@ -4664,6 +4812,17 @@ function finCalc(){
     // aplicacao/resgate e interna NÃO entram em receita nem custo (só movimentação) — tratados à parte.
   });
   var rec=recManual+recBanco;
+  // Faturamento por SERVIÇOS EXECUTADOS no período: soma das O.S. concluídas (gn_os) com data no período.
+  var svcExec=0;
+  try{
+    var oss=JSON.parse(localStorage.getItem('gn_os')||'[]');
+    oss.forEach(function(o){
+      var st=String(o.status||'').toLowerCase();
+      var ok=(st.indexOf('conclu')>=0||st.indexOf('execut')>=0||st.indexOf('finaliz')>=0||st.indexOf('entreg')>=0);
+      var dt=o.data||o.dataConclusao||o.dataExec||'';
+      if(ok && finInPeriodo(dt,p)) svcExec+=Number(o.valor)||0;
+    });
+  }catch(e){}
   var investido=0; all.forEach(function(x){ var v=Number(x.valor)||0; if(x.tipo==='aplicacao') investido+=v; else if(x.tipo==='resgate') investido-=v; });
   // SALDO ESTIMADO em conta: soma TODAS as movimentações reais do banco (fonte=banco), acumulado de todo o histórico,
   // + saldo inicial. Considera tudo (despesas, pró-labore, fatura de cartão, aplicações). NÃO considera transferências internas (C6<->Asaas se anulam).
@@ -4674,7 +4833,7 @@ function finCalc(){
     else if(x.tipo==='custo'||x.tipo==='fatura'||x.tipo==='aplicacao') saldoBanco-=v;
     // interna: ignora
   });
-  return { arr:arr, rec:rec, recManual:recManual, recBanco:recBanco, arec:arec, atraso:atraso, custoPago:custoPago, custoPrev:custoPrev, interna:interna, total:rec+arec+atraso, result:rec-custoPago, investido:investido, saldoBanco:saldoBanco, saldoIni:saldoIni };
+  return { arr:arr, rec:rec, recManual:recManual, recBanco:recBanco, svcExec:svcExec, arec:arec, atraso:atraso, custoPago:custoPago, custoPrev:custoPrev, interna:interna, total:rec+arec+atraso, result:rec-custoPago, investido:investido, saldoBanco:saldoBanco, saldoIni:saldoIni };
 }
 function finCard(t,v,c){ return '<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-left:4px solid '+c+';border-radius:12px;padding:14px;"><div style="font-size:12px;color:var(--gn-dim);">'+t+'</div><div style="font-size:18px;font-weight:700;color:var(--gn-text);margin-top:4px;">'+finBRL(v)+'</div></div>'; }
 
@@ -4685,13 +4844,10 @@ function renderFin(){
   if(cards){ cards.innerHTML=
     finCard('Faturamento manual (equipe)', d.recManual, '#16a34a') +
     finCard('Faturamento real (banco)', d.recBanco, '#2563eb') +
+    finCard('Faturamento (serviços executados)', d.svcExec, '#0e7490') +
     finCard('A receber', d.arec, '#22c55e') + finCard('Em atraso', d.atraso, '#f59e0b') +
     finCard('Despesas (custos pagos)', d.custoPago, '#dc2626') +
-    finCard('Lucro líquido (manual)', (d.recManual-d.custoPago), (d.recManual-d.custoPago)>=0?'#16a34a':'#dc2626') +
-    finCard('Resultado real (banco)', (d.recBanco-d.custoPago), (d.recBanco-d.custoPago)>=0?'#16a34a':'#dc2626') +
-    finCard('💰 Saldo estimado (banco)', d.saldoBanco, d.saldoBanco>=0?'#0891b2':'#dc2626') +
-    finCard('Aplicado (caixa)', d.investido, '#6d28d9') +
-    (d.interna?finCard('Movimentações internas', d.interna, '#64748b'):''); }
+    finCard('Lucro líquido', (d.rec-d.custoPago), (d.rec-d.custoPago)>=0?'#16a34a':'#dc2626'); }
   var sit=document.getElementById('fin-saldoini-txt'); if(sit) sit.textContent='(saldo inicial atual: '+finBRL(d.saldoIni||0)+')';
   var list=document.getElementById('fin-list');
   if(list){
@@ -4723,7 +4879,7 @@ function renderFin(){
 
 function finFindIdx(id){ var a=finData(); for(var i=0;i<a.length;i++){ if(a[i].id===id) return i; } return -1; }
 function finTogglePago(id){ var arr=finData(); var i=finFindIdx(id); if(i>=0){ arr[i].status='pago'; finSaveAll(arr); finCloudPush(arr[i]); renderFin(); } }
-function finDel(id){ if(!confirm('Excluir este lançamento? (apaga só deste aparelho)')) return; var arr=finData().filter(function(x){ return x.id!==id; }); finSaveAll(arr); renderFin(); }
+function finDel(id){ if(!confirm('Excluir este lançamento?')) return; var arr=finData().filter(function(x){ return x.id!==id; }); finSaveAll(arr); try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_fin'); }catch(e){} renderFin(); }
 function finEdit(id){
   var arr=finData(); var i=finFindIdx(id); if(i<0) return; var x=arr[i];
   var desc=prompt('Descrição:', x.desc); if(desc===null) return;
@@ -5783,15 +5939,15 @@ function renderInicio(){
 // ══════════════════════════════════════════════
 (function(){
   var GROUPS=[
-    ['Principal', [['inicio','Inicio','Início'], ['hoje','Hoje','Hoje'], ['ped','Ped','Pedidos'], ['tarefas','Tar','Tarefas'], ['age','Age','Agenda'], ['tec','Tec','Técnico em Campo']]],
-    ['Ferramentas', [['docrap','Doc','Documento Rápido'], ['novo','Prop','Nova Proposta'], ['rec','Rec','Recibos'], ['os','OS','Ordens de Serviço'], ['laudo','Laudo','Laudo']]],
+    ['Principal', [['inicio','Inicio','Início'], ['docrap','Doc','Documento Rápido'], ['hoje','Hoje','Hoje'], ['ped','Ped','Pedidos'], ['tarefas','Tar','Tarefas'], ['age','Age','Agenda'], ['tec','Tec','Técnico em Campo']]],
+    ['Ferramentas', [['novo','Prop','Nova Proposta'], ['rec','Rec','Recibos'], ['os','OS','Ordens de Serviço'], ['laudo','Laudo','Laudo de Estanqueidade'], ['relvist','Rel','Relatório de Vistoria']]],
     ['Comercial', [['atend','Atend','Atendimentos & Funil'], ['posvenda','PV','Pós-venda'], ['chamados','Cham','Chamados técnicos']]],
     ['Gestão', [['fin','Fin','Financeiro'], ['cob','Cob','Cobranças']]],
     ['Suprimentos', [['forn','Forn','Fornecedores'], ['compras','Compras','Compras']]],
     ['Cadastros', [['cli','Cli','Clientes'], ['svc','Svc','Serviços'], ['prod','Prod','Materiais'], ['ctr','Ctr','Contratos']]],
     ['Sistema', [['imp','Imp','Importar / Migração'], ['cfg','Cfg','Configurações']]]
   ];
-  var ICON={inicio:'🏠',hoje:'☀️',ped:'📋',tarefas:'✅',age:'📅',novo:'✨',rec:'🧾',os:'📝',ctr:'📄',laudo:'🔬',cli:'👥',svc:'🛠️',prod:'📦',fin:'💰',cob:'📢',atend:'📞',posvenda:'⭐',chamados:'🛎️',forn:'🏭',compras:'🛒',tec:'🔧',cfg:'⚙️',imp:'📥',docrap:'⚡'};
+  var ICON={inicio:'🏠',hoje:'☀️',ped:'📋',tarefas:'✅',age:'📅',novo:'✨',rec:'🧾',os:'📝',ctr:'📄',laudo:'🔬',relvist:'📑',cli:'👥',svc:'🛠️',prod:'📦',fin:'💰',cob:'📢',atend:'📞',posvenda:'⭐',chamados:'🛎️',forn:'🏭',compras:'🛒',tec:'🔧',cfg:'⚙️',imp:'📥',docrap:'⚡'};
   function build(){
     if(document.getElementById('gn-side')) return;
     var side=document.createElement('nav'); side.id='gn-side';
@@ -5907,6 +6063,28 @@ function renderInicio(){
       ],
       build:function(r,m,i){ return { id:uid('p',i), nome:r[m.nome]||'', categoria:r[m.categoria]||'', unidade:r[m.unidade]||'', custo:parseNum(r[m.custo]), venda:parseNum(r[m.venda]), estoque:parseNum(r[m.estoque]), minimo:parseNum(r[m.minimo]), fornecedor:r[m.fornecedor]||'' }; }
     },
+    ferramentas:{ label:'Ferramentas', icon:'🧰', desc:'Inventário de ferramentas: nome, marca, quantidade, estado…', store:'arr', key:'prod',
+      fields:[
+        {f:'nome', l:'Nome', al:['nome','ferramenta','equipamento','item','descricao'], req:true},
+        {f:'fornecedor', l:'Marca/Fornecedor', al:['marca','fornecedor','fabricante']},
+        {f:'estoque', l:'Quantidade', al:['quantidade','qtd','qtde','estoque','unidades'], num:true},
+        {f:'unidade', l:'Estado/Unidade', al:['estado','condicao','unidade','un','situacao']},
+        {f:'custo', l:'Valor', al:['valor','custo','preco','valor de compra'], num:true},
+        {f:'categoria', l:'Categoria', al:['categoria','tipo','grupo']}
+      ],
+      build:function(r,m,i){ return { id:uid('f',i), nome:r[m.nome]||'', categoria:(r[m.categoria]||'Ferramenta'), unidade:r[m.unidade]||'', custo:parseNum(r[m.custo]), venda:0, estoque:parseNum(r[m.estoque]), minimo:0, fornecedor:r[m.fornecedor]||'' }; }
+    },
+    lista:{ label:'Nova lista (livre)', icon:'📝', desc:'Importe qualquer planilha: nome, categoria, valor, quantidade, observação. Vai para Materiais.', store:'arr', key:'prod',
+      fields:[
+        {f:'nome', l:'Nome/Item', al:['nome','item','descricao','produto','material','titulo'], req:true},
+        {f:'categoria', l:'Categoria', al:['categoria','tipo','grupo','classificacao']},
+        {f:'venda', l:'Valor', al:['valor','preco','venda','preco de venda','total'], num:true},
+        {f:'estoque', l:'Quantidade', al:['quantidade','qtd','qtde','estoque','saldo'], num:true},
+        {f:'unidade', l:'Unidade', al:['unidade','un','medida']},
+        {f:'fornecedor', l:'Obs/Fornecedor', al:['observacao','obs','fornecedor','notas','detalhes']}
+      ],
+      build:function(r,m,i){ return { id:uid('l',i), nome:r[m.nome]||'', categoria:(r[m.categoria]||'Lista importada'), unidade:r[m.unidade]||'', custo:0, venda:parseNum(r[m.venda]), estoque:parseNum(r[m.estoque]), minimo:0, fornecedor:r[m.fornecedor]||'' }; }
+    },
     recibos:{ label:'Recibos', icon:'🧾', desc:'Número, pagador, valor, forma, referência…', store:'arr', key:'rec',
       fields:[
         {f:'nome', l:'Cliente/Pagador', al:['cliente','nome','pagador','recebido de'], req:true},
@@ -5962,7 +6140,7 @@ function renderInicio(){
         {f:'adicionais', l:'Informações adicionais', al:['adicionais','informacoes adicionais']}
       ] }
   };
-  var ORDER=['clientes','pedidos','compromissos','servicos','materiais','recibos','recebiveis','vencidos','custos','perfil'];
+  var ORDER=['clientes','pedidos','compromissos','servicos','materiais','ferramentas','lista','recibos','recebiveis','vencidos','custos','perfil'];
 
   function renderCards(){
     var g=document.getElementById('imp-grid'); if(!g) return;
@@ -6645,6 +6823,7 @@ function renderInicio(){
     custos:{t:'🔴 Despesas / Custos', note:'Saídas de dinheiro.'},
     fatmanual:{t:'🟢 Faturamento manual (equipe)', note:'Recebimentos lançados manualmente pela equipe (inclui o histórico do Agenda Boa). É o que vocês reconhecem como recebido na hora.'},
     fatbanco:{t:'🔵 Faturamento real (banco)', note:'Entradas que caíram de fato na conta (extratos Asaas, C6...). Serve para comparar com o manual.'},
+    svcexec:{t:'🩵 Faturamento (serviços executados)', note:'Soma das Ordens de Serviço concluídas/executadas no período (independente de já ter sido recebido). Mostra o quanto a equipe produziu de serviço no período.'},
     investido:{t:'🟣 Aplicado em caixa', note:'Dinheiro aplicado/investido — só movimentação, não é gasto nem lucro.'},
     interna:{t:'⚪ Movimentações internas', note:'Transferências entre contas da própria empresa (Gás Network, e entre C6 ↔ Asaas). Não é gasto nem faturamento, só movimentação interna.'},
     fatura:{t:'🟧 Pagamento de fatura de cartão', note:'Saídas do banco para pagar a fatura do cartão. Entram no cálculo do SALDO, mas não contam como despesa (as compras do cartão são lançadas à parte).'},
@@ -6690,7 +6869,9 @@ function renderInicio(){
     var tb=document.getElementById('gn-drill-toolbar'); if(!tb) return;
     if(DRILL==='clientes'){ tb.innerHTML='<input id="gn-drill-search" oninput="gnDrillList()" placeholder="🔍 Buscar..." style="width:100%;padding:8px;border:1px solid var(--gn-border);border-radius:8px;box-sizing:border-box;">'; return; }
     if(DRILL==='orcamentos'){ tb.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input id="gn-drill-search" oninput="gnDrillList()" placeholder="🔍 Buscar..." style="flex:1;min-width:150px;padding:8px;border:1px solid var(--gn-border);border-radius:8px;box-sizing:border-box;"><select onchange="gnDrillPer(this.value)" style="padding:8px;border:1px solid var(--gn-border);border-radius:8px;">'+perOpts()+'</select></div>'; return; }
-    var bulk=(DRILL==='areceber'||DRILL==='atraso')?'<button onclick="gnDrillReceberTodos()" style="background:#16a34a;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">✓ Receber todos</button>':'';
+    var podeReceber=(DRILL==='areceber'||DRILL==='atraso');
+    var bulk=podeReceber?'<button onclick="gnDrillReceberTodos()" style="background:#16a34a;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">✓ Receber todos</button>':'';
+    var recSel=podeReceber?'<button onclick="gnDrillRecSel()" style="background:#16a34a;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;">✓ Receber selecionados</button>':'';
     tb.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
       +'<input id="gn-drill-search" oninput="gnDrillList()" placeholder="🔍 Buscar cliente/descrição..." style="flex:1;min-width:160px;padding:8px;border:1px solid var(--gn-border);border-radius:8px;box-sizing:border-box;">'
       +'<select onchange="gnDrillPer(this.value)" title="Período" style="padding:8px;border:1px solid var(--gn-border);border-radius:8px;">'+perOpts()+'</select>'
@@ -6704,8 +6885,8 @@ function renderInicio(){
       +'<button onclick="gnDrillSelN(20)" title="Marcar os 20 primeiros da lista" style="background:#374151;color:#fff;border:none;padding:8px 11px;border-radius:8px;cursor:pointer;font-size:13px;">20</button>'
       +'<button onclick="gnDrillSelN(30)" title="Marcar os 30 primeiros da lista" style="background:#374151;color:#fff;border:none;padding:8px 11px;border-radius:8px;cursor:pointer;font-size:13px;">30</button>'
       +'<button onclick="gnDrillSelN(50)" title="Marcar os 50 primeiros da lista" style="background:#374151;color:#fff;border:none;padding:8px 11px;border-radius:8px;cursor:pointer;font-size:13px;">50</button>'
-      +'<button onclick="gnDrillRecSel()" style="background:#16a34a;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;">✓ Receber selec.</button>'
-      +'<button onclick="gnDrillDelSel()" style="background:#dc2626;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;">🗑 Excluir selec.</button>'
+      +recSel
+      +'<button onclick="gnDrillDelSel()" style="background:#dc2626;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;">🗑 Excluir selecionados</button>'
       +'</div>';
   }
   window.gnDrillSort=function(s){ DSORT=s; renderToolbar(); renderList(); };
@@ -6716,6 +6897,13 @@ function renderInicio(){
     document.getElementById('gn-drill-title').textContent=(DEFS[DRILL]||{t:'Detalhes'}).t;
     document.getElementById('gn-drill-note').innerHTML=(DEFS[DRILL]||{note:''}).note;
     if(DRILL==='orcamentos'){ var h=gj('gn_hist').filter(function(e){ return (!q||((e.cliente||'')+' '+(e.numero||'')).toLowerCase().indexOf(q)>=0) && inPer(e.data); }); window.__drillOrc=h; body.innerHTML=!h.length?'<div style="color:var(--gn-dim);padding:12px;">Nenhum orçamento.</div>':h.slice(0,150).map(function(e,i){ return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 11px;border:1px solid var(--gn-border);border-radius:9px;margin-bottom:6px;"><div style="min-width:0;"><div style="font-weight:600;color:var(--gn-text);">'+esc(e.cliente||"Cliente")+'</div><div style="font-size:12px;color:var(--gn-dim);">'+esc(e.numero||"")+" · "+fmtBR(e.data)+'</div></div><div style="display:flex;align-items:center;gap:8px;white-space:nowrap;"><span style="font-weight:700;color:#2563eb;">'+BRL(e.valor)+'</span><button onclick="gnOSFromOrcIdx('+i+')" style="background:#7c5cff;color:#fff;border:none;border-radius:6px;padding:5px 9px;cursor:pointer;font-size:12px;font-weight:600;">🔧 Gerar O.S.</button></div></div>'; }).join(''); return; }
+    if(DRILL==='svcexec'){
+      var oss=gj('gn_os').filter(function(o){ var st=String(o.status||'').toLowerCase(); var ok=(st.indexOf('conclu')>=0||st.indexOf('execut')>=0||st.indexOf('finaliz')>=0||st.indexOf('entreg')>=0); return ok && inPer(o.data||o.dataConclusao||o.dataExec||''); });
+      if(q) oss=oss.filter(function(o){ return ((o.nome||o.cliente||'')+' '+(o.numero||'')).toLowerCase().indexOf(q)>=0; });
+      var totos=oss.reduce(function(s,o){ return s+(Number(o.valor)||0); },0);
+      body.innerHTML='<div style="font-size:13px;color:var(--gn-dim);margin-bottom:8px;">Total executado: <b style="color:var(--gn-text);">'+BRL(totos)+'</b> · '+oss.length+' O.S.</div>'+(!oss.length?'<div style="color:var(--gn-dim);padding:12px;">Nenhuma O.S. concluída no período.</div>':oss.slice(0,200).map(function(o){ return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--gn-border);border-radius:9px;margin-bottom:6px;"><div style="min-width:0;"><div style="font-weight:600;color:var(--gn-text);">'+esc(o.nome||o.cliente||'Cliente')+'</div><div style="font-size:12px;color:var(--gn-dim);">'+esc(o.numero||'')+' · '+fmtBR(o.data||o.dataConclusao||o.dataExec||'')+' · '+esc(o.status||'')+'</div></div><span style="font-weight:700;color:#0e7490;white-space:nowrap;">'+BRL(o.valor)+'</span></div>'; }).join(''));
+      return;
+    }
     if(DRILL==='clientes'){ var cl=gj('gn_cli').filter(function(c){ return !q||((c.nome||'')+' '+(c.cidade||'')+' '+(c.tel||'')).toLowerCase().indexOf(q)>=0; }); body.innerHTML=!cl.length?'<div style="color:var(--gn-dim);padding:12px;">Nenhum cliente.</div>':cl.slice(0,300).map(function(c){ var f=String(c.whatsapp||c.tel||'').replace(/\D/g,''); return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--gn-border);border-radius:9px;margin-bottom:6px;"><div><div style="font-weight:600;color:var(--gn-text);">'+esc(c.nome||"")+'</div><div style="font-size:12px;color:var(--gn-dim);">'+esc([c.cpf,c.cidade,c.tel].filter(Boolean).join(" · "))+'</div></div><div style="display:flex;gap:6px;white-space:nowrap;">'+(c.id?'<button onclick="gnDrillCli(\''+c.id+'\')" style="background:#0e7490;color:#fff;border:none;border-radius:6px;padding:5px 9px;cursor:pointer;font-size:12px;">📑 Ficha</button>':'')+(f?'<a href="https://wa.me/55'+f+'" target="_blank" style="background:#25d366;color:#fff;text-decoration:none;border-radius:6px;padding:5px 9px;font-size:12px;font-weight:600;">WhatsApp</a>':'')+'</div></div>'; }).join(''); return; }
     var list=baseList();
     if(q) list=list.filter(function(x){ return ((x.cliente||'')+' '+(x.desc||'')+' '+(x.categoria||'')).toLowerCase().indexOf(q)>=0; });
@@ -6766,7 +6954,8 @@ function renderInicio(){
   function labelToFilter(t){ t=(t||'').toLowerCase();
     if(/em atraso/.test(t)) return 'atraso';
     if(/a receber/.test(t)) return 'areceber';
-    if(/lucro|resultado/.test(t)) return 'lucro';
+    if(/lucro l[íi]quido|lucro|resultado/.test(t)) return 'lucro';
+    if(/servi[çc]os executados/.test(t)) return 'svcexec';
     if(/faturamento manual/.test(t)) return 'fatmanual';
     if(/faturamento real/.test(t)) return 'fatbanco';
     if(/receita total|faturamento/.test(t)) return 'receita';
@@ -6965,7 +7154,8 @@ function renderInicio(){
   function migrateLegacy(){ try{ var old=JSON.parse(localStorage.getItem('gn_fin_del')||'[]'); if(old.length){ var tb=tomb(); var ch=false; old.forEach(function(id){ if(!tb[id]){ tb[id]=Date.now(); ch=true; } }); if(ch) saveTomb(tb); } }catch(e){} }
   function syncAll(){ if(!on()) return; try{cliCloudPull();}catch(e){} try{svcCloudPull();}catch(e){} try{finCloudPull();}catch(e){} ['agenda','prod','rec','os','ctr','cfg'].forEach(function(k){ try{gnStorePull(k);}catch(e){} }); loadTomb(); }
   window.gnSyncForce=function(){ window.__gnManualSync=true; try{cliCloudPull();}catch(e){} try{svcCloudPull();}catch(e){} try{finCloudPull();}catch(e){} ['agenda','prod','rec','os','ctr','cfg'].forEach(function(k){ try{gnStorePull(k);}catch(e){} }); loadTomb(); setTimeout(function(){ window.__gnManualSync=false; },5000); };
-  function hook(){ migrateLegacy(); wrapDel(); if(localStorage.getItem('gn_autosync')==null) localStorage.setItem('gn_autosync','on'); purge(); syncAll(); setInterval(syncAll, 15000); }
+  // Sincronização ANTIGA desativada — agora tudo passa pelo backend novo (gnCloud2), evitando conflito de "apago e volta".
+  function hook(){ try{ localStorage.setItem('gn_autosync','off'); }catch(e){} }
   if(document.readyState==='complete') setTimeout(hook,2200); else window.addEventListener('load',function(){ setTimeout(hook,2200); });
 })();
 </script>
