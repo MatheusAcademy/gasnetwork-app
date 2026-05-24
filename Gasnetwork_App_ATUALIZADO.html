@@ -3662,6 +3662,16 @@ input:focus, select:focus, textarea:focus{ outline:none; border-color:#7c5cff !i
   #fin-list, #ped-list{ -webkit-overflow-scrolling:touch; }
   /* Wizard de novo pedido ocupa a tela toda */
   #pw-modal>div{ margin:8px auto !important; }
+  /* ----- Cabeçalho enxuto no celular (corrige bagunça/desproporção) ----- */
+  .hdr{ height:auto !important; min-height:52px; padding:6px 14px 6px 60px !important; gap:8px !important; flex-wrap:nowrap; }
+  #hdr-logo{ display:none !important; }                 /* esconde a logo extra no celular (sobra o nome) */
+  .hdr-brand{ min-width:0; flex:1; }
+  .hdr-brand .nm{ font-size:1rem !important; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hdr-brand .sub{ font-size:.58rem !important; line-height:1.25; }
+  #gn-search{ display:none !important; }                /* no celular a busca é o botão 🔍 flutuante */
+  .hdr .hsp{ display:none; }
+  #gn-search-btn{ right:58px !important; top:13px !important; width:40px !important; height:40px !important; } /* à esquerda do sino, sem sobrepor */
+  #gn-bell{ font-size:22px !important; }
 }
 
 /* ===== CORREÇÃO DE CONTRASTE — superfícies que sobraram do tema claro ===== */
