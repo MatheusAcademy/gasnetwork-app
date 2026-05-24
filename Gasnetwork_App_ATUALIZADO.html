@@ -3829,7 +3829,8 @@ function gnUploadArquivo(tipo, inputId){
   function next(){
     if(i>=files.length){ gnArqLog('✅ Concluído! '+files.length+' arquivo(s) salvos em Gás Network App › '+cli+' › '+tipo+'.'); inp.value=''; toast('☁️ '+files.length+' arquivo(s) enviados para a nuvem.','ok'); return; }
     var f=files[i++];
-    if(f.size>40*1024*1024){ gnArqLog('✗ '+f.name+' ignorado (maior que 40MB).'); next(); return; }
+    if(f.size>100*1024*1024){ gnArqLog('✗ '+f.name+' ('+Math.round(f.size/1048576)+'MB) acima de 100MB — não enviado. Salve esse vídeo direto numa pasta do Drive.'); next(); return; }
+    if(f.size>45*1024*1024){ gnArqLog('⏳ '+f.name+' é grande ('+Math.round(f.size/1048576)+'MB) — pode demorar; se o Google recusar, tente um vídeo menor.'); }
     var r=new FileReader();
     r.onload=function(e){
       var b64=String(e.target.result||'').split(',')[1]||'';
