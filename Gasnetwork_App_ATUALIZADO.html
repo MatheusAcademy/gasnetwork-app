@@ -1542,6 +1542,8 @@ textarea.fi{resize:vertical;}
     <div style="font-size:12px;color:var(--gn-dim);margin-bottom:6px;">Registro do processamento:</div>
     <pre id="bulk-log" style="background:#0f1626;color:#cbd5e1;border:1px solid var(--gn-border);border-radius:10px;padding:12px;font-size:11.5px;max-height:300px;overflow:auto;white-space:pre-wrap;margin:0;"></pre>
     <div style="font-size:12px;color:var(--gn-dim);margin-top:10px;">Depois de processar, abra <b>🔄 Renovação de Laudos</b> para ver tudo classificado (vencidos / a vencer / em dia) e disparar as mensagens. Dica: para muitos arquivos, processe em lotes (ex.: 100 por vez).</div>
+    <div style="font-weight:800;color:var(--gn-text);margin:18px 0 8px;">📜 Histórico de importações <span style="font-size:11px;color:var(--gn-dim);font-weight:600;">(salvo para sempre — vira memória do banco e do assistente)</span></div>
+    <div id="bulk-hist"></div>
   </div>
 
   <div id="pane-nf" style="display:none;">
@@ -1904,9 +1906,11 @@ textarea.fi{resize:vertical;}
       <div style="font-size:12px;color:var(--gn-dim);margin-bottom:8px;">Exporte uma cópia de TUDO (clientes, laudos/serviços, pedidos, financeiro, agenda, tarefas, modelos e configurações) num arquivo. Guarde-o em local seguro (Drive, e-mail, pen drive). Se precisar, importe para restaurar. Faça backup com frequência — é a garantia do seu banco de clientes.</div>
       <div id="cfg-backup-info" style="font-size:11.5px;color:var(--gn-dim);margin-bottom:10px;"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button onclick="gnExportarBackup()" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:700;">⬇ Exportar backup</button>
+        <button onclick="gnBackupNuvem()" style="background:#7c5cff;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:700;">☁ Backup na nuvem agora</button>
+        <button onclick="gnExportarBackup()" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:700;">⬇ Exportar (arquivo)</button>
         <label style="background:#0e7490;color:#fff;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:700;">⬆ Importar backup<input type="file" accept=".json,application/json" onchange="gnImportarBackup(this)" style="display:none;"></label>
       </div>
+      <div style="font-size:11px;color:var(--gn-dim);margin-top:8px;">O backup na nuvem é feito <b>automaticamente</b> (a cada ~12h) numa pasta "Backups do Sistema" no seu Google Drive. Use "Exportar" para guardar também uma cópia no seu computador.</div>
     </div>
 
     <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
@@ -4080,7 +4084,7 @@ function gnCor(){ var c=gnCfg(); return c.cor||'#7c5cff'; }
 // Dados compartilhados por toda a equipe + auto-save de documentos no Drive.
 // ══════════════════════════════════════════════
 var GN_CLOUD2 = 'https://script.google.com/macros/s/AKfycbycnK4Fx0J4QphoLr-LQJPkh04RTy6zbBto-Sqlgr306GqjggZkKhyOsJXypeprS0Loww/exec';
-var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user'];
+var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user','gn_upload_hist'];
 var _gnSynced = {};        // último valor conhecido por chave (string)
 var _gnSyncBusy = false;
 var _gnSyncOn = true;
@@ -9260,6 +9264,13 @@ function gnCompromissosAmanha(){
   out.sort(function(a,b){ return (a.hora||'').localeCompare(b.hora||''); });
   return out;
 }
+function gnCompromissosHoje(){
+  var out=[]; var hoje=new Date(); var hISO=hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-'+String(hoje.getDate()).padStart(2,'0');
+  var arr=[]; try{ arr=(typeof gnStoreGet==='function')?gnStoreGet('agenda'):JSON.parse(localStorage.getItem('gn_agenda')||'[]'); }catch(e){}
+  arr.forEach(function(c){ if(String(c.data||'').slice(0,10)===hISO) out.push(c); });
+  out.sort(function(a,b){ return (a.hora||'').localeCompare(b.hora||''); });
+  return out;
+}
 function gnConfirmarWhats(cliente, titulo, data, hora){
   var num=''; if(typeof docsFone==='function') num=docsFone(cliente);
   var dataBR=(String(data).indexOf('-')>0)?String(data).split('-').reverse().join('/'):data;
@@ -9296,10 +9307,10 @@ function gnAvisos(){
       }
     }
   }catch(e){}
-  var ca=gnCompromissosAmanha();
+  var ca=(typeof gnCompromissosHoje==='function')?gnCompromissosHoje():[];
   if(ca.length){
     html+='<div style="background:rgba(37,99,235,.10);border:1px solid #2563eb;border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
-      +'<div style="font-weight:800;color:#2563eb;margin-bottom:6px;">📅 Amanhã você tem '+ca.length+' compromisso(s)</div>';
+      +'<div style="font-weight:800;color:#2563eb;margin-bottom:6px;">📅 Hoje você tem '+ca.length+' compromisso(s)</div>';
     html+=ca.map(function(c){
       return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--gn-border);">'
         +'<span style="color:var(--gn-text);"><strong>'+(c.hora||'--:--')+'</strong> · '+gnEsc(c.titulo||'')+(c.cliente?(' · '+gnEsc(c.cliente)):'')+'</span>'
@@ -9372,14 +9383,16 @@ function gnAvisos(){
       }
     }
   }catch(e){}
-  // Lembrete automático de backup (segurança dos dados)
+  // Lembrete de backup — só aparece se o backup (nuvem ou arquivo) estiver atrasado
   try{
-    var lb=localStorage.getItem('gn_last_backup')||''; var diasB=lb?Math.floor((Date.now()-new Date(lb).getTime())/86400000):999;
+    var lbL=localStorage.getItem('gn_last_backup')||''; var lbC=localStorage.getItem('gn_last_backup_cloud')||'';
+    var ult=Math.max(lbL?new Date(lbL).getTime():0, lbC?new Date(lbC).getTime():0);
+    var diasB=ult?Math.floor((Date.now()-ult)/86400000):999;
     var temDados=false; try{ temDados=(JSON.parse(localStorage.getItem('gn_cli')||'[]').length>0)||(JSON.parse(localStorage.getItem('gn_renov')||'[]').length>0); }catch(e){}
     if(temDados && diasB>=7){
       html+='<div style="background:rgba(22,163,74,.10);border:1px solid #16a34a;border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
-        +'<div style="font-weight:800;color:#16a34a;margin-bottom:4px;">💾 '+(lb?('Seu último backup foi há '+diasB+' dias'):'Você ainda não fez backup dos dados')+'</div>'
-        +'<div style="font-size:12.5px;color:var(--gn-text);margin-bottom:8px;">Proteja seu banco de clientes: exporte uma cópia de segurança (leva 1 clique).</div>'
+        +'<div style="font-weight:800;color:#16a34a;margin-bottom:4px;">💾 '+(ult?('Seu último backup foi há '+diasB+' dias'):'Ainda não há backup dos dados')+'</div>'
+        +'<div style="font-size:12.5px;color:var(--gn-text);margin-bottom:8px;">O backup na nuvem é automático, mas convém conferir. Faça um agora pra garantir.</div>'
         +'<button onclick="goTab(\'cfg\')" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 13px;cursor:pointer;font-weight:700;font-size:12.5px;">Fazer backup agora →</button></div>';
     }
   }catch(e){}
@@ -9780,7 +9793,7 @@ function docsWhatsUm(store, id){
     if(window.__gnProativoFeito) return; window.__gnProativoFeito=true;
     var avisos=[];
     try{ if(typeof gnLaudosVencendo==='function'){ var lv=gnLaudosVencendo(30); if(lv.length){ avisos.push('🔔 '+lv.length+' laudo(s) a vencer/vencido(s) — ex.: '+lv.slice(0,3).map(function(l){return l.cliente;}).join(', ')+'. Quer oferecer renovação?'); } } }catch(e){}
-    try{ if(typeof gnCompromissosAmanha==='function'){ var ca=gnCompromissosAmanha(); if(ca.length){ avisos.push('📅 Amanhã você tem '+ca.length+' compromisso(s): '+ca.slice(0,3).map(function(c){return (c.hora||'')+' '+(c.titulo||'');}).join(' · ')+'.'); } } }catch(e){}
+    try{ if(typeof gnCompromissosHoje==='function'){ var ca=gnCompromissosHoje(); if(ca.length){ avisos.push('📅 Hoje você tem '+ca.length+' compromisso(s): '+ca.slice(0,3).map(function(c){return (c.hora||'')+' '+(c.titulo||'');}).join(' · ')+'.'); } } }catch(e){}
     try{ if(typeof gnStoreGet==='function'){ var prod=gnStoreGet('prod')||[]; var low=prod.filter(function(c){ return (Number(c.minimo)||0)>0 && (Number(c.estoque)||0)<=(Number(c.minimo)||0); }); if(low.length) avisos.push('📦 '+low.length+' material(is) abaixo do estoque mínimo. Quer ver a lista de compras?'); } }catch(e){}
     if(!avisos.length) return;
     var hh=hist(); hh.push({r:'a', t:'Oi, Matheus! Antes de começar, um resumo rápido:\n\n'+avisos.join('\n')}); saveHist(hh);
@@ -10119,7 +10132,10 @@ function docsWhatsUm(store, id){
   }
   function arquivos(){ var out=[]; var a=document.getElementById('bulk-folder'); var b=document.getElementById('bulk-files'); if(a&&a.files) out=out.concat(Array.prototype.slice.call(a.files)); if(b&&b.files) out=out.concat(Array.prototype.slice.call(b.files)); return out; }
   window.bulkInfo=function(){ var n=arquivos().length; var el=document.getElementById('bulk-count'); if(el) el.textContent=n?(n+' arquivo(s) selecionado(s)'):''; };
-  window.bulkInit=function(){ try{ bulkInfo(); }catch(e){} };
+  window.renderBulkHist=function(){ var box=document.getElementById('bulk-hist'); if(!box) return; var uh=[]; try{ uh=JSON.parse(localStorage.getItem('gn_upload_hist')||'[]'); }catch(e){} if(!Array.isArray(uh)||!uh.length){ box.innerHTML='<div style="color:var(--gn-dim);padding:10px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhuma importação ainda. Cada vez que você processar documentos, fica registrado aqui — permanentemente.</div>'; return; }
+    var totS=0,totC=0; uh.forEach(function(h){ totS+=(h.servicos||0)+(h.linhasPlanilha||0); totC+=(h.clientesNovos||0); });
+    box.innerHTML='<div style="font-size:12px;color:var(--gn-dim);margin-bottom:8px;">'+uh.length+' importação(ões) · acumulado: <b style="color:var(--gn-text);">'+totS+'</b> serviços/laudos lidos · <b style="color:var(--gn-text);">'+totC+'</b> clientes novos.</div>'+uh.slice(0,100).map(function(h){ var d=''; try{ d=new Date(h.em).toLocaleString('pt-BR'); }catch(e){ d=h.em||''; } return '<div style="padding:9px 12px;border:1px solid var(--gn-border);border-left:4px solid #7c5cff;border-radius:10px;margin-bottom:6px;"><div style="font-weight:700;color:var(--gn-text);font-size:12.5px;">📥 '+d+'</div><div style="font-size:12px;color:var(--gn-dim);">'+(h.arquivos||0)+' arquivo(s) · '+((h.servicos||0)+(h.linhasPlanilha||0))+' serviço(s)/laudo(s) · '+(h.clientesNovos||0)+' cliente(s) novo(s)'+(h.drive?(' · '+h.drive+' no Drive'):'')+(h.naoLidos?(' · '+h.naoLidos+' não lido(s)'):'')+'</div></div>'; }).join(''); };
+  window.bulkInit=function(){ try{ bulkInfo(); }catch(e){} try{ renderBulkHist(); }catch(e){} };
   function _wait(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
   function _isDoc(f){ var n=(f.name||'').toLowerCase(); return /\.(pdf|docx|xlsx|xls|csv)$/.test(n); }
   function _isSheet(f){ return /\.(xlsx|xls|csv)$/.test((f.name||'').toLowerCase()); }
@@ -10243,6 +10259,9 @@ function docsWhatsUm(store, id){
     window.__bulkCancel=false; window.__bulkPaused=false;
     // alimenta a memória do assistente (cérebro) com o resumo da importação
     try{ var mm=JSON.parse(localStorage.getItem('gn_assist_mem')||'[]'); if(!Array.isArray(mm)) mm=[]; mm.push('Importação em massa ('+new Date().toLocaleDateString('pt-BR')+'): li documentos/planilhas e atualizei a base — '+nRen+' serviço(s)/laudo(s) na memória e '+nCli+' cliente(s) novo(s). Para detalhes, consulte clientes/laudos/serviços.'); localStorage.setItem('gn_assist_mem', JSON.stringify(mm.slice(-250))); if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_assist_mem'); }catch(e){}
+    // histórico permanente de importações (nunca apaga) — base de dados + memória do assistente
+    if(!window.__bulkCancel){ try{ var uh=JSON.parse(localStorage.getItem('gn_upload_hist')||'[]'); if(!Array.isArray(uh)) uh=[]; uh.unshift({ em:new Date().toISOString(), arquivos:files.length, servicos:nRen, clientesNovos:nCli, linhasPlanilha:nRows, ignorados:nIgnore, naoLidos:nFail, drive:nDrv }); localStorage.setItem('gn_upload_hist', JSON.stringify(uh.slice(0,2000))); if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_upload_hist'); }catch(e){} }
+    try{ if(typeof renderBulkHist==='function') renderBulkHist(); }catch(e){}
     try{ if(typeof renderRenov==='function') renderRenov(); }catch(e){}
     try{ if(typeof renderCli==='function') renderCli(); }catch(e){}
     try{ if(typeof renderTarefasHub==='function') renderTarefasHub(); }catch(e){}
@@ -10334,6 +10353,72 @@ function hubTarAdd(){ var inp=document.getElementById('tarhub-tit'); var v=inp?(
 function hubTarToggle(id){ var a=(typeof tarGet==='function')?tarGet():[]; a.forEach(function(x){ if(x.id===id) x.status=(x.status==='Concluída'?'Aberta':'Concluída'); }); if(typeof tarSaveAll==='function') tarSaveAll(a); try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_tarefas'); }catch(e){} renderTarefasHub(); }
 function hubTarDel(id){ var a=((typeof tarGet==='function')?tarGet():[]).filter(function(x){return x.id!==id;}); if(typeof tarSaveAll==='function') tarSaveAll(a); try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_tarefas'); }catch(e){} renderTarefasHub(); }
 window.renderTarefasHub=renderTarefasHub; window.hubFazerNotinha=hubFazerNotinha; window.hubTarAdd=hubTarAdd; window.hubTarToggle=hubTarToggle; window.hubTarDel=hubTarDel;
+</script>
+<script>
+// ══════════════════════════════════════════════
+// ═══ BACKUP — automático na nuvem (Google Drive) + export/import manual ═══
+// ══════════════════════════════════════════════
+function gnBackupDump(){ var dump={ _app:'GasNetwork', _versao:1, _data:new Date().toISOString(), dados:{} }; for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if(k && k.indexOf('gn_')===0 && k!=='gn_last_backup' && k!=='gn_last_backup_cloud'){ try{ dump.dados[k]=localStorage.getItem(k); }catch(e){} } } return dump; }
+function gnExportarBackup(){
+  try{
+    var dump=gnBackupDump(); var blob=new Blob([JSON.stringify(dump)],{type:'application/json'});
+    var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='GasNetwork_backup_'+new Date().toISOString().slice(0,10)+'.json'; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){ URL.revokeObjectURL(url); },2000);
+    try{ localStorage.setItem('gn_last_backup', new Date().toISOString()); }catch(e){}
+    if(typeof toast==='function') toast('✓ Backup exportado ('+Object.keys(dump.dados).length+' conjuntos). Guarde o arquivo em local seguro.','ok');
+    try{ gnBackupInfo(); }catch(e){}
+  }catch(e){ if(typeof toast==='function') toast('Falha ao exportar: '+(e&&e.message||e),'er'); }
+}
+function gnImportarBackup(input){
+  var f=input&&input.files&&input.files[0]; if(!f) return;
+  var r=new FileReader(); r.onload=function(e){
+    try{
+      var dump=JSON.parse(String(e.target.result||'')); var d=(dump&&dump.dados)?dump.dados:dump;
+      if(!d || typeof d!=='object'){ if(typeof toast==='function') toast('Arquivo de backup inválido.','er'); input.value=''; return; }
+      var ks=Object.keys(d).filter(function(k){ return k.indexOf('gn_')===0; });
+      if(!ks.length){ if(typeof toast==='function') toast('Nenhum dado do app neste arquivo.','er'); input.value=''; return; }
+      if(!confirm('Importar o backup vai SUBSTITUIR os dados atuais por '+ks.length+' conjunto(s)'+(dump._data?(' de '+new Date(dump._data).toLocaleString('pt-BR')):'')+'. Recomendo exportar o estado atual antes. Continuar?')){ input.value=''; return; }
+      ks.forEach(function(k){ try{ localStorage.setItem(k, d[k]); }catch(e2){} });
+      if(typeof toast==='function') toast('✓ Backup importado! Recarregando...','ok');
+      setTimeout(function(){ location.reload(); }, 1200);
+    }catch(err){ if(typeof toast==='function') toast('Erro ao ler o backup: '+(err&&err.message||err),'er'); }
+    input.value='';
+  };
+  r.onerror=function(){ if(typeof toast==='function') toast('Não consegui ler o arquivo.','er'); };
+  r.readAsText(f);
+}
+function gnBackupNuvem(silent){
+  try{
+    if(typeof GN_CLOUD2==='undefined' || !GN_CLOUD2){ if(!silent && typeof toast==='function') toast('Nuvem indisponível agora. Use "Exportar (arquivo)" como alternativa.','er'); return; }
+    var dump=gnBackupDump(); var json=JSON.stringify(dump);
+    var b64=''; try{ b64=btoa(unescape(encodeURIComponent(json))); }catch(e){ b64=''; }
+    if(!b64){ if(!silent && typeof toast==='function') toast('Não consegui preparar o backup.','er'); return; }
+    var fn='GasNetwork_backup_'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.json';
+    if(!silent && typeof toast==='function') toast('☁ Enviando backup para o seu Google Drive...','in');
+    fetch(GN_CLOUD2,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveDoc',base64:b64,filename:fn,mime:'application/json',cliente:'Backups do Sistema',tipo:'Backup',numero:''})})
+      .then(function(){ try{ localStorage.setItem('gn_last_backup_cloud', new Date().toISOString()); }catch(e){} if(!silent && typeof toast==='function') toast('☁ Backup salvo na pasta "Backups do Sistema" no seu Drive.','ok'); try{ gnBackupInfo(); }catch(e){} })
+      .catch(function(){ if(!silent && typeof toast==='function') toast('Falha ao enviar o backup para a nuvem.','er'); });
+  }catch(e){ if(!silent && typeof toast==='function') toast('Falha no backup: '+(e&&e.message||e),'er'); }
+}
+function gnBackupInfo(){
+  var el=document.getElementById('cfg-backup-info'); if(!el) return;
+  var lbC=''; var lbL=''; try{ lbC=localStorage.getItem('gn_last_backup_cloud')||''; lbL=localStorage.getItem('gn_last_backup')||''; }catch(e){}
+  var parts=[];
+  if(lbC){ parts.push('☁ Nuvem: <b style="color:#16a34a;">'+new Date(lbC).toLocaleString('pt-BR')+'</b>'); } else { parts.push('☁ Nuvem: <b style="color:#b45309;">ainda não enviado</b> (será automático em instantes)'); }
+  if(lbL){ parts.push('💾 Arquivo: '+new Date(lbL).toLocaleDateString('pt-BR')); }
+  el.innerHTML=parts.join(' &nbsp;·&nbsp; ');
+}
+// Backup automático na nuvem: ao abrir, se passou de ~12h desde o último e há dados, envia sozinho
+function gnAutoBackupNuvem(){
+  try{
+    if(typeof GN_CLOUD2==='undefined' || !GN_CLOUD2) return;
+    var temDados=false; try{ temDados=(JSON.parse(localStorage.getItem('gn_cli')||'[]').length>0)||(JSON.parse(localStorage.getItem('gn_renov')||'[]').length>0)||(JSON.parse(localStorage.getItem('gn_hist')||'[]').length>0); }catch(e){}
+    if(!temDados) return;
+    var lbC=localStorage.getItem('gn_last_backup_cloud')||''; var horas=lbC?((Date.now()-new Date(lbC).getTime())/3600000):999;
+    if(horas>=12){ gnBackupNuvem(true); }
+  }catch(e){}
+}
+window.gnExportarBackup=gnExportarBackup; window.gnImportarBackup=gnImportarBackup; window.gnBackupNuvem=gnBackupNuvem; window.gnBackupInfo=gnBackupInfo; window.gnAutoBackupNuvem=gnAutoBackupNuvem;
+(function(){ function go(){ try{ gnAutoBackupNuvem(); }catch(e){} } if(document.readyState==='complete') setTimeout(go, 7000); else window.addEventListener('load', function(){ setTimeout(go, 7000); }); })();
 </script>
 </body>
 </html>
