@@ -11567,16 +11567,16 @@ window.gnNomeRuim=gnNomeRuim; window.docsRevisarNomes=docsRevisarNomes; window.d
 function _arqBRL(v){ v=Number(v)||0; return 'R$ '+v.toFixed(2).replace('.',','); }
 function _arqDBR(s){ s=String(s||''); var m=s.match(/(\d{4})-(\d{2})-(\d{2})/); return m?(m[3]+'/'+m[2]+'/'+m[1]):s; }
 function _arqSt(t){ var st=document.getElementById('docs-drive-status'); if(st) st.innerHTML=t; }
-async function gnArquivarServicosDrive(){
-  if(window.__arqRun){ if(typeof toast==='function') toast('Já está organizando no Drive...','in'); return; }
-  if(typeof GN_CLOUD2==='undefined' || !GN_CLOUD2){ alert('Google Drive não está configurado.'); return; }
-  var jp=window.jspdf; if(!jp || !jp.jsPDF){ alert('Gerador de PDF indisponível.'); return; }
+async function gnArquivarServicosDrive(silent){
+  if(window.__arqRun){ if(!silent && typeof toast==='function') toast('Já está organizando no Drive...','in'); return; }
+  if(typeof GN_CLOUD2==='undefined' || !GN_CLOUD2){ if(!silent) alert('Google Drive não está configurado.'); return; }
+  var jp=window.jspdf; if(!jp || !jp.jsPDF){ if(!silent) alert('Gerador de PDF indisponível.'); return; }
   var ren=[]; try{ ren=JSON.parse(localStorage.getItem('gn_renov')||'[]'); }catch(e){}
   var cli=[]; try{ cli=JSON.parse(localStorage.getItem('gn_cli')||'[]'); }catch(e){}
   var byNome={}; cli.forEach(function(c){ byNome[String(c.nome||'').toLowerCase().trim()]=c; });
   var pend=ren.filter(function(r){ return !r.arquivadoDrive && r.nome; });
-  if(!pend.length){ alert('Todos os serviços já estão arquivados no Drive. ✅'); return; }
-  if(!confirm('Vou gerar e enviar '+pend.length+' PDF(s) de serviço para a pasta de cada cliente no seu Google Drive (organizado por tipo de serviço). Roda em segundo plano e pode levar alguns minutos — deixe esta aba aberta. Continuar?')) return;
+  if(!pend.length){ if(!silent) alert('Todos os serviços já estão arquivados no Drive. ✅'); return; }
+  if(!silent && !confirm('Vou gerar e enviar '+pend.length+' PDF(s) de serviço para a pasta de cada cliente no seu Google Drive (organizado por tipo de serviço). Roda em segundo plano e pode levar alguns minutos — deixe esta aba aberta. Continuar?')) return;
   window.__arqRun=true; window.__arqCancel=false;
   var co=(typeof gnCO==='function')?gnCO():{}; var empresa=co.fantasia||co.marca||'Gás Network Engenharia';
   var ok=0, fail=0, total=pend.length;
@@ -11807,6 +11807,151 @@ window.gnImpUndo=gnImpUndo;
   function go(){ try{ if(!temNome()) mostrar(); }catch(e){} }
   if(document.readyState==='complete') setTimeout(go,800); else window.addEventListener('load', function(){ setTimeout(go,800); });
   window.gnPedirNome=mostrar; // permite reabrir manualmente, se precisar trocar o nome
+})();
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// ═══ RECONSTRUIR BASE A PARTIR DOS CSV DO SISTEMA ANTIGO ═══════
+// Lê export_clients.csv (nome real, telefone, endereço por ID) e
+// export_jobs.csv (serviço executado, data, valor, garantia) e
+// corrige a base: cada cliente é gravado pelo MESMO id, sobrescrevendo
+// o "lixo" (id usado como nome). Sincroniza na nuvem.
+// ══════════════════════════════════════════════════════════════
+(function(){
+  function parseCSV(text){
+    text=String(text||'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+    var rows=[],row=[],cur='',inq=false;
+    for(var i=0;i<text.length;i++){ var ch=text[i];
+      if(inq){ if(ch==='"'){ if(text[i+1]==='"'){ cur+='"'; i++; } else inq=false; } else cur+=ch; }
+      else { if(ch==='"') inq=true; else if(ch===','){ row.push(cur); cur=''; } else if(ch==='\n'){ row.push(cur); rows.push(row); row=[]; cur=''; } else cur+=ch; }
+    }
+    if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+    return rows;
+  }
+  function toObjs(text){ var rows=parseCSV(text); if(!rows.length) return []; var h=rows[0].map(function(x){return String(x).trim();}); var out=[]; for(var i=1;i<rows.length;i++){ var rw=rows[i]; if(!rw||(rw.length===1&&!String(rw[0]).trim())) continue; var o={}; for(var j=0;j<h.length;j++){ o[h[j]]=(rw[j]!=null?String(rw[j]).trim():''); } out.push(o); } return out; }
+  function uf(s){ var m=String(s||'').match(/\(([A-Z]{2})\)/); if(m) return m[1]; return String(s||'').trim(); }
+  function isoBR(s){ s=String(s||'').trim(); var m=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); if(m) return m[3]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2); var m2=s.match(/(\d{4})-(\d{2})-(\d{2})/); if(m2) return m2[0]; return ''; }
+  function brl(s){ s=String(s||'').replace(/[R$\s]/g,''); if(s.indexOf(',')>=0){ s=s.replace(/\./g,'').replace(',','.'); } var v=parseFloat(s); return isNaN(v)?0:v; }
+  function tel1(s){ return String(s||'').split(/[;\n]/)[0].trim(); }
+  function endCli(o){ var rua=[o.street, (o.streetNumber||o.number)].filter(Boolean).join(', '); var compl=(o.number && o.streetNumber && o.number!==o.streetNumber)?o.number:''; var p=[rua, compl, o.district].filter(Boolean).join(' - '); var cid=[o.city, uf(o.state)].filter(Boolean).join('/'); return [p, cid, (o.cep?('CEP '+o.cep):'')].filter(Boolean).join(', '); }
+  function servicoLabel(txt){ var t=String(txt||'').toLowerCase();
+    if(/estanqueidade|\blaudo\b/.test(t)) return 'Laudo de estanqueidade';
+    if(/aquecedor|manuten[çc]/.test(t)) return 'Manutenção de aquecedor';
+    if(/mangueira/.test(t)) return 'Troca de mangueira';
+    if(/resina/.test(t)) return 'Aplicação de resina';
+    if(/convers|cooktop|fog[aã]o|forno/.test(t)) return 'Instalação/conversão de fogão';
+    if(/tubula[çc]|rede de g[aá]s|\bpex\b|multicamada|metros de tub|prumada/.test(t)) return 'Construção de tubulação de gás';
+    if(/adequa[çc]/.test(t)) return 'Adequação de ponto';
+    if(/abrigo|medidor/.test(t)) return 'Instalação de abrigo/medidor';
+    if(/regulador/.test(t)) return 'Troca de regulador';
+    if(/instala/.test(t)) return 'Instalação de gás';
+    return 'Serviço de gás';
+  }
+  function fopTxt(o){ var L=[]; if(o['fop.pix']==='true')L.push('PIX'); if(o['fop.creditCard']==='true')L.push('Cartão de crédito'+(o.pc_installments&&Number(o.pc_installments)>1?(' '+o.pc_installments+'x'):'')); if(o['fop.debitCard']==='true')L.push('Cartão de débito'); if(o['fop.cash']==='true')L.push('Dinheiro'); if(o['fop.bankSlip']==='true')L.push('Boleto'); if(o['fop.bankTransfer']==='true')L.push('Transferência'); if(o['fop.cheque']==='true')L.push('Cheque'); return L.join(' + '); }
+
+  function readFile(file){ return new Promise(function(res){ var r=new FileReader(); r.onload=function(e){ res(String(e.target.result||'')); }; r.onerror=function(){ res(''); }; r.readAsText(file,'utf-8'); }); }
+
+  window.gnReconstruirBase=function(){
+    if(document.getElementById('gnrb-modal')) { document.getElementById('gnrb-modal').style.display='flex'; return; }
+    var d=document.createElement('div'); d.id='gnrb-modal';
+    d.style.cssText='position:fixed;inset:0;z-index:3200;background:rgba(6,9,18,.9);display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto;';
+    d.innerHTML='<div style="max-width:560px;width:100%;background:#161d31;border:1px solid #2a3350;border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.55);padding:22px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><div style="font-weight:800;color:#f1f5ff;font-size:17px;">🔧 Reconstruir base (CSV do sistema antigo)</div><button onclick="document.getElementById(\'gnrb-modal\').style.display=\'none\'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9fb0d0;">✕</button></div>'
+      +'<div style="font-size:13px;color:#9fb0d0;margin-bottom:14px;">Envie os arquivos exportados. O app corrige cada cliente pelo código (id), trazendo <b>nome, telefone e endereço corretos</b>, e registra os <b>serviços executados com datas</b>. Sincroniza na nuvem.</div>'
+      +'<div style="margin-bottom:12px;"><label style="font-size:12px;color:#cbd5e1;font-weight:700;">1) Clientes (export_clients.csv)</label><br><input type="file" id="gnrb-cli" accept=".csv,.txt" style="margin-top:5px;color:#f1f5ff;"></div>'
+      +'<div style="margin-bottom:12px;"><label style="font-size:12px;color:#cbd5e1;font-weight:700;">2) Serviços executados (export_jobs.csv)</label><br><input type="file" id="gnrb-jobs" accept=".csv,.txt" style="margin-top:5px;color:#f1f5ff;"></div>'
+      +'<div id="gnrb-status" style="font-size:12.5px;color:#9fb0d0;margin:8px 0;min-height:18px;"></div>'
+      +'<button id="gnrb-go" style="width:100%;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border:none;border-radius:10px;padding:13px;cursor:pointer;font-weight:800;font-size:15px;">Reconstruir base agora</button>'
+      +'</div>';
+    document.body.appendChild(d);
+    document.getElementById('gnrb-go').onclick=gnrbProcessar;
+  };
+
+  async function gnrbProcessar(){
+    var st=document.getElementById('gnrb-status'); function S(t){ if(st) st.innerHTML=t; }
+    var fCli=(document.getElementById('gnrb-cli')||{}).files; var fJobs=(document.getElementById('gnrb-jobs')||{}).files;
+    if((!fCli||!fCli.length) && (!fJobs||!fJobs.length)){ S('<span style="color:#fb7185;">Envie pelo menos o arquivo de clientes.</span>'); return; }
+    S('⏳ Lendo arquivos...');
+    var nCli=0,nJob=0;
+    try{
+      // ----- CLIENTES -----
+      var byId={};
+      if(fCli&&fCli.length){
+        var objs=toObjs(await readFile(fCli[0]));
+        var arr=[]; try{ arr=JSON.parse(localStorage.getItem('gn_cli')||'[]'); }catch(e){}
+        var mapa={}; arr.forEach(function(c){ if(c&&c.id) mapa[c.id]=c; });
+        objs.forEach(function(o){ if(!o.id) return; var nome=(o.name||o.corporateName||'').trim(); if(!nome) return;
+          var doc=(o.cnpj||o.cpf||'').trim(); var tipo=(o.clientType==='company'||o.cnpj)?'PJ':'PF';
+          var c=mapa[o.id]||{id:o.id}; c.nome=nome; c.tipo=tipo; c.cpf=doc; c.cnpj=o.cnpj||''; c.cep=o.cep||''; c.tel=tel1(o.phones)||c.tel||''; c.whatsapp=c.whatsapp||tel1(o.phones)||''; c.email=o.email||c.email||''; c.endereco=endCli(o); c.cidade=[o.city,uf(o.state)].filter(Boolean).join('/'); c.status=c.status||'ativo';
+          mapa[o.id]=c; byId[o.id]=nome; nCli++;
+        });
+        var novo=Object.keys(mapa).map(function(k){ return mapa[k]; });
+        localStorage.setItem('gn_cli', JSON.stringify(novo));
+        try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_cli'); }catch(e){}
+        S('✓ '+nCli+' cliente(s) corrigido(s). Processando serviços...');
+      }
+      // ----- SERVIÇOS EXECUTADOS (jobs) -----
+      if(fJobs&&fJobs.length){
+        var jobs=toObjs(await readFile(fJobs[0]));
+        var ren=[]; try{ ren=JSON.parse(localStorage.getItem('gn_renov')||'[]'); }catch(e){}
+        var jid={}, sig={};
+        ren.forEach(function(r){ if(r&&r.id) jid[r.id]=true; sig[(String(r.nome||'').toLowerCase().trim())+'|'+(r.data||'')+'|'+(Math.round(Number(r.valor)||0))]=true; });
+        jobs.forEach(function(o){
+          var jobId='rv_'+(o.id||(o.clientId+'_'+o.jobDate));
+          var nome=byId[o.clientId]||String(o.clientName||'').replace(/\s*\(cliente\)\s*$/i,'').trim(); if(!nome) return;
+          var desc=String(o['descriptions.description']||o.jobTitle||'').trim();
+          var data=isoBR(o.jobDate); var valor=brl(o.totalPrice||o['totalPriceJobDescriptions']);
+          var s=(nome.toLowerCase().trim())+'|'+data+'|'+Math.round(valor);
+          if(jid[jobId] || sig[s]) return; // anti-duplicação: por id E por conteúdo (cliente+data+valor)
+          var servico=servicoLabel(desc+' '+(o.jobTitle||''));
+          var r={ id:jobId, clientId:o.clientId||'', nome:nome, servico:servico, descricao:desc, data:data, valor:valor, formaPgto:fopTxt(o), _imp:'csv_jobs' };
+          ren.push(r); jid[jobId]=true; sig[s]=true; nJob++;
+        });
+        localStorage.setItem('gn_renov', JSON.stringify(ren));
+        try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_renov'); }catch(e){}
+      }
+      // limpa flags de seed e atualiza telas
+      try{ ['renderCli','renderRenov','renderDocsCliente','renderTarefasHub','renderInicio'].forEach(function(fn){ if(typeof window[fn]==='function') window[fn](); }); }catch(e){}
+      S('<span style="color:#34d399;font-weight:700;">✓ Concluído! '+nCli+' cliente(s) corrigido(s) e '+nJob+' serviço(s) executado(s) registrado(s).</span> A base já sincronizou na nuvem.<br><br>'
+        +'<button id="gnrb-drive" style="width:100%;background:#0e7490;color:#fff;border:none;border-radius:9px;padding:11px;cursor:pointer;font-weight:700;">📁 Salvar todos os PDFs no Google Drive (1 por serviço, na pasta do cliente)</button>'
+        +'<div style="font-size:11.5px;color:#9fb0d0;margin-top:6px;">Gera um comprovante em PDF de cada serviço (no template novo) e arquiva na pasta de cada cliente no seu Drive. Roda em segundo plano — pode deixar aberto.</div>');
+      try{ var db=document.getElementById('gnrb-drive'); if(db) db.onclick=function(){ if(typeof gnArquivarServicosDrive==='function'){ gnArquivarServicosDrive(); } else if(typeof toast==='function'){ toast('Função de Drive indisponível.','er'); } }; }catch(e){}
+      if(typeof toast==='function') toast('✓ Base reconstruída: '+nCli+' clientes, '+nJob+' serviços.','ok');
+    }catch(e){ S('<span style="color:#fb7185;">Erro: '+(e&&e.message||e)+'</span>'); }
+  }
+  // ── AUTOMÁTICO: ao abrir, busca os CSV no próprio repositório e reconstrói a base sozinho (1x por aparelho) ──
+  async function gnFetchTxt(rel){ try{ var base=location.href.split('?')[0].replace(/[^\/]*$/,''); var r=await fetch(base+rel,{cache:'no-store'}); if(r&&r.ok){ var t=await r.text(); if(t && t.charAt(0)!=='<') return t; } }catch(e){} return ''; }
+  async function gnAutoRebuild(){
+    try{
+      if(localStorage.getItem('gn_base_rebuilt')==='v1') return;
+      var cliText=await gnFetchTxt('export_clients.csv');
+      var jobsText=await gnFetchTxt('export_jobs.csv');
+      if(!cliText && !jobsText) return; // arquivos ainda não estão no repositório
+      var nCli=0,nJob=0,byId={};
+      if(cliText){
+        var objs=toObjs(cliText);
+        var arr=[]; try{ arr=JSON.parse(localStorage.getItem('gn_cli')||'[]'); }catch(e){}
+        var mapa={}; arr.forEach(function(c){ if(c&&c.id) mapa[c.id]=c; });
+        objs.forEach(function(o){ if(!o.id) return; var nome=(o.name||o.corporateName||'').trim(); if(!nome) return; var doc=(o.cnpj||o.cpf||'').trim(); var tipo=(o.clientType==='company'||o.cnpj)?'PJ':'PF'; var c=mapa[o.id]||{id:o.id}; c.nome=nome; c.tipo=tipo; c.cpf=doc; c.cnpj=o.cnpj||''; c.cep=o.cep||''; c.tel=tel1(o.phones)||c.tel||''; c.whatsapp=c.whatsapp||tel1(o.phones)||''; c.email=o.email||c.email||''; c.endereco=endCli(o); c.cidade=[o.city,uf(o.state)].filter(Boolean).join('/'); c.status=c.status||'ativo'; mapa[o.id]=c; byId[o.id]=nome; nCli++; });
+        localStorage.setItem('gn_cli', JSON.stringify(Object.keys(mapa).map(function(k){return mapa[k];})));
+        try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_cli'); }catch(e){}
+      }
+      if(jobsText){
+        var jobs=toObjs(jobsText);
+        var ren=[]; try{ ren=JSON.parse(localStorage.getItem('gn_renov')||'[]'); }catch(e){}
+        var jid={}, sig={}; ren.forEach(function(r){ if(r&&r.id) jid[r.id]=true; sig[(String(r.nome||'').toLowerCase().trim())+'|'+(r.data||'')+'|'+(Math.round(Number(r.valor)||0))]=true; });
+        jobs.forEach(function(o){ var jobId='rv_'+(o.id||(o.clientId+'_'+o.jobDate)); var nome=byId[o.clientId]||String(o.clientName||'').replace(/\s*\(cliente\)\s*$/i,'').trim(); if(!nome) return; var desc=String(o['descriptions.description']||o.jobTitle||'').trim(); var data=isoBR(o.jobDate); var valor=brl(o.totalPrice||o['totalPriceJobDescriptions']); var s=(nome.toLowerCase().trim())+'|'+data+'|'+Math.round(valor); if(jid[jobId]||sig[s]) return; ren.push({id:jobId,clientId:o.clientId||'',nome:nome,servico:servicoLabel(desc+' '+(o.jobTitle||'')),descricao:desc,data:data,valor:valor,formaPgto:fopTxt(o),_imp:'csv_jobs'}); jid[jobId]=true; sig[s]=true; nJob++; });
+        localStorage.setItem('gn_renov', JSON.stringify(ren));
+        try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_renov'); }catch(e){}
+      }
+      localStorage.setItem('gn_base_rebuilt','v1');
+      try{ ['renderCli','renderRenov','renderDocsCliente','renderTarefasHub','renderInicio'].forEach(function(fn){ if(typeof window[fn]==='function') window[fn](); }); }catch(e){}
+      if(typeof toast==='function' && (nCli||nJob)) toast('✓ Base atualizada automaticamente: '+nCli+' clientes, '+nJob+' serviços.','ok');
+      // Salva tudo no Drive automaticamente (silencioso, em segundo plano)
+      setTimeout(function(){ try{ if(typeof gnArquivarServicosDrive==='function') gnArquivarServicosDrive(true); }catch(e){} }, 6000);
+    }catch(e){}
+  }
+  if(document.readyState==='complete') setTimeout(gnAutoRebuild, 3500); else window.addEventListener('load', function(){ setTimeout(gnAutoRebuild, 3500); });
 })();
 </script>
 <script>
