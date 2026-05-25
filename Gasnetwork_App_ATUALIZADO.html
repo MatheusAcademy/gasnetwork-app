@@ -239,10 +239,9 @@ textarea.fi{resize:vertical;}
 <body>
 
 <header class="hdr">
-  <img id="hdr-logo" alt="Logo" style="display:none;height:40px;width:auto;max-width:190px;object-fit:contain;margin-right:14px;">
   <div class="hdr-brand">
-    <div class="nm">Gás Network Engenharia</div>
-    <div class="sub"><span class="sub-extra">Sistema de Orçamentos · Uso Interno · </span><span style="background:#16a34a;color:#fff;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">Versão 24/05 ✓</span> <span id="gn-sync-badge" style="background:#64748b;color:#fff;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">sincronizando…</span></div>
+    <div class="nm">Gás Network</div>
+    <div class="sub"><span id="gn-sync-badge" style="background:#64748b;color:#fff;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">sincronizando…</span></div>
   </div>
   <div class="hsp"></div>
   <div style="position:relative;margin-right:12px;">
@@ -1485,6 +1484,60 @@ textarea.fi{resize:vertical;}
     <div id="docs-list"></div>
   </div>
 
+  <div id="pane-nf" style="display:none;">
+    <div class="eyebrow">Documento fiscal</div>
+    <div class="pgtitle" style="margin-bottom:4px;">Nota Fiscal de Serviço (NFS-e)</div>
+    <div class="pgsub" style="margin-bottom:14px;">Emita a NFS-e direto do app, sem abrir o portal externo. Usa seu certificado A1 através de um gateway fiscal. Configure uma vez e depois é só escolher o cliente e emitir.</div>
+
+    <div id="nf-aviso" style="display:none;background:rgba(245,158,11,.10);border:1px solid #f59e0b;border-radius:12px;padding:12px 14px;margin-bottom:14px;color:var(--gn-text);font-size:13px;"></div>
+
+    <details id="nf-cfg-box" style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:14px 16px;margin-bottom:16px;">
+      <summary style="font-weight:700;color:var(--gn-text);cursor:pointer;">⚙️ Configuração fiscal (preencha uma vez)</summary>
+      <div style="font-size:12px;color:var(--gn-dim);margin:10px 0;">Seu certificado A1 fica guardado no gateway (PlugNotas/Focus NFe), nunca no app. Aqui você cola só o <strong>token</strong> e seus dados fiscais.</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">
+        <div><label style="font-size:12px;color:var(--gn-dim);">Gateway</label>
+          <select id="nf-cfg-prov" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"><option value="plugnotas">PlugNotas</option><option value="focusnfe">Focus NFe</option><option value="outro">Outro</option></select></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">Ambiente</label>
+          <select id="nf-cfg-amb" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"><option value="homologacao">Homologação (teste)</option><option value="producao">Produção (vale fiscal)</option></select></div>
+        <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Token / API key do gateway</label><input id="nf-cfg-token" type="password" placeholder="cole aqui o token do PlugNotas/Focus" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">CNPJ da empresa</label><input id="nf-cfg-cnpj" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">Inscrição Municipal</label><input id="nf-cfg-im" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">Cidade / UF</label><input id="nf-cfg-cidade" placeholder="Ex.: São Paulo/SP" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">Código IBGE do município</label><input id="nf-cfg-ibge" placeholder="Ex.: 3550308" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">Regime tributário</label>
+          <select id="nf-cfg-regime" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"><option value="simples">Simples Nacional</option><option value="normal">Regime Normal</option><option value="mei">MEI</option></select></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">Item lista de serviço (LC 116)</label><input id="nf-cfg-item" placeholder="Ex.: 07.02" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">Código de serviço municipal</label><input id="nf-cfg-codmun" placeholder="conforme sua prefeitura" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">Alíquota ISS (%)</label><input id="nf-cfg-iss" placeholder="Ex.: 5" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">Descrição padrão do serviço</label><input id="nf-cfg-descpad" placeholder="Ex.: Serviços de instalação e manutenção de gás" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">🔗 Link do seu emissor (Nota do Milhão)</label><input id="nf-cfg-portal" placeholder="Cole aqui a URL onde você emite hoje (ex.: https://...)" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+      </div>
+      <div style="margin-top:12px;"><button onclick="nfCfgSalvar()" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">Salvar configuração fiscal</button></div>
+    </details>
+
+    <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:16px;">
+      <div style="font-weight:700;color:var(--gn-text);margin-bottom:10px;">Emitir nova NFS-e</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+        <div><label style="font-size:12px;color:var(--gn-dim);">Cliente (tomador)</label><select id="nf-cli" onchange="nfPickCli()" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></select></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">Nome / razão social</label><input id="nf-nome" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">CPF / CNPJ do tomador</label><input id="nf-doc" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">E-mail (recebe a nota)</label><input id="nf-email" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Endereço do tomador</label><input id="nf-end" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">Valor do serviço (R$)</label><input id="nf-valor" placeholder="0,00" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Descrição do serviço</label><textarea id="nf-desc" rows="2" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></textarea></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
+        <button onclick="nfAbrirPortal()" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:700;">🏛️ Emitir no Nota do Milhão</button>
+        <button onclick="nfCopiarDados()" style="background:#0e7490;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">📋 Copiar dados</button>
+        <button onclick="nfLimpar()" style="background:var(--gn-surface2);color:var(--gn-text);border:none;padding:10px 16px;border-radius:8px;cursor:pointer;">Limpar</button>
+      </div>
+      <div style="font-size:11.5px;color:var(--gn-dim);margin-top:8px;">Ao clicar em <strong>Emitir no Nota do Milhão</strong>, abro o site do seu emissor numa nova aba — copio os dados do cliente/serviço pra você colar lá e concluir a emissão manualmente.</div>
+    </div>
+
+    <div style="font-weight:600;margin-bottom:8px;">Notas emitidas</div>
+    <div id="nf-list"></div>
+  </div>
+
   <div id="pane-cli" style="display:none;">
     <div class="eyebrow">Cadastro</div>
     <div class="pgtitle" style="margin-bottom:4px;">Clientes</div>
@@ -2079,7 +2132,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // TABS
 // ══════════════════════════════════════════════
 function goTab(t) {
-  ['inicio','ped','age','tec','novo','hist','laudo','relvist','fin','cli','svc','rec','os','prod','rel','chk','ctr','cfg','imp','pro','docrap','hoje','tarefas','cob','atend','forn','compras','chamados','posvenda','arquivos','contatos','docs'].forEach(id => {
+  ['inicio','ped','age','tec','novo','hist','laudo','relvist','fin','cli','svc','rec','os','prod','rel','chk','ctr','cfg','imp','pro','docrap','hoje','tarefas','cob','atend','forn','compras','chamados','posvenda','arquivos','contatos','docs','nf'].forEach(id => {
     var p=document.getElementById('pane-'+id); if(p) p.style.display = id===t?'block':'none';
     var tb=document.getElementById('tab-'+id); if(tb) tb.classList.toggle('on', id===t);
   });
@@ -2112,6 +2165,7 @@ function goTab(t) {
   if (t==='arquivos'){ try{ if(window.renderArquivos) renderArquivos(); }catch(e){} }
   if (t==='contatos'){ try{ if(window.renderContatos) renderContatos(); if(window.gnPullContatos) gnPullContatos(); }catch(e){} }
   if (t==='docs'){ try{ if(window.renderDocsCliente) renderDocsCliente(); }catch(e){} }
+  if (t==='nf'){ try{ if(window.renderNf) renderNf(); }catch(e){} }
   try{ if(window.notifBadge) notifBadge(); }catch(e){}
 }
 
@@ -3856,7 +3910,7 @@ function gnCor(){ var c=gnCfg(); return c.cor||'#7c5cff'; }
 // Dados compartilhados por toda a equipe + auto-save de documentos no Drive.
 // ══════════════════════════════════════════════
 var GN_CLOUD2 = 'https://script.google.com/macros/s/AKfycbycnK4Fx0J4QphoLr-LQJPkh04RTy6zbBto-Sqlgr306GqjggZkKhyOsJXypeprS0Loww/exec';
-var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod','gn_tomb'];
+var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod','gn_tomb','gn_nf'];
 var _gnSynced = {};        // último valor conhecido por chave (string)
 var _gnSyncBusy = false;
 var _gnSyncOn = true;
@@ -6489,7 +6543,7 @@ function renderInicio(){
 (function(){
   var GROUPS=[
     ['Principal', [['inicio','Inicio','Início'], ['docrap','Doc','Documento Rápido'], ['hoje','Hoje','Hoje'], ['ped','Ped','Pedidos'], ['tarefas','Tar','Tarefas'], ['age','Age','Agenda'], ['tec','Tec','Técnico em Campo']]],
-    ['⭐ Emitir (mais usados)', [['laudo','Laudo','Laudo de Estanqueidade'], ['os','NS','Nota de Serviço'], ['rec','Rec','Recibo']]],
+    ['⭐ Emitir (mais usados)', [['laudo','Laudo','Laudo de Estanqueidade'], ['os','NS','Nota de Serviço'], ['rec','Rec','Recibo'], ['nf','NF','Nota Fiscal (NFS-e)']]],
     ['Ferramentas', [['novo','Prop','Nova Proposta'], ['relvist','Rel','Relatório de Vistoria']]],
     ['Comercial', [['atend','Atend','Atendimentos & Funil'], ['posvenda','PV','Pós-venda'], ['chamados','Cham','Chamados técnicos']]],
     ['Gestão', [['fin','Fin','Financeiro'], ['cob','Cob','Cobranças'], ['arquivos','Arq','Arquivos & Mídia']]],
@@ -6497,7 +6551,7 @@ function renderInicio(){
     ['Cadastros', [['cli','Cli','Clientes'], ['contatos','Cont','Contatos'], ['docs','Docs','Documentos do Cliente'], ['svc','Svc','Serviços'], ['prod','Prod','Materiais'], ['ctr','Ctr','Contratos']]],
     ['Sistema', [['imp','Imp','Importar / Migração'], ['cfg','Cfg','Configurações']]]
   ];
-  var ICON={inicio:'🏠',hoje:'☀️',ped:'📋',tarefas:'✅',age:'📅',novo:'✨',rec:'🧾',os:'📝',ctr:'📄',laudo:'🔬',relvist:'📑',cli:'👥',contatos:'📇',docs:'🗂️',svc:'🛠️',prod:'📦',fin:'💰',cob:'📢',arquivos:'📁',atend:'📞',posvenda:'⭐',chamados:'🛎️',forn:'🏭',compras:'🛒',tec:'🔧',cfg:'⚙️',imp:'📥',docrap:'⚡'};
+  var ICON={inicio:'🏠',hoje:'☀️',ped:'📋',tarefas:'✅',age:'📅',novo:'✨',rec:'🧾',os:'📝',ctr:'📄',laudo:'🔬',relvist:'📑',cli:'👥',contatos:'📇',docs:'🗂️',nf:'🏛️',svc:'🛠️',prod:'📦',fin:'💰',cob:'📢',arquivos:'📁',atend:'📞',posvenda:'⭐',chamados:'🛎️',forn:'🏭',compras:'🛒',tec:'🔧',cfg:'⚙️',imp:'📥',docrap:'⚡'};
   function build(){
     if(document.getElementById('gn-side')) return;
     var side=document.createElement('nav'); side.id='gn-side';
@@ -7942,6 +7996,107 @@ function renderInicio(){
 </script>
 <script>
 // ══════════════════════════════════════════════
+// ═══ NOTA FISCAL DE SERVIÇO (NFS-e) via gateway fiscal + certificado A1 ═══
+// ══════════════════════════════════════════════
+function nfV(id){ var e=document.getElementById(id); return e?(e.value||'').trim():''; }
+function nfSetV(id,v){ var e=document.getElementById(id); if(e&&v!=null) e.value=v; }
+function nfCfg(){ try{ return JSON.parse(localStorage.getItem('gn_nf_cfg')||'{}'); }catch(e){ return {}; } }
+function nfCfgSalvar(){
+  var c={ prov:nfV('nf-cfg-prov'), amb:nfV('nf-cfg-amb'), token:nfV('nf-cfg-token'), cnpj:nfV('nf-cfg-cnpj'), im:nfV('nf-cfg-im'), cidade:nfV('nf-cfg-cidade'), ibge:nfV('nf-cfg-ibge'), regime:nfV('nf-cfg-regime'), item:nfV('nf-cfg-item'), codmun:nfV('nf-cfg-codmun'), iss:nfV('nf-cfg-iss'), descpad:nfV('nf-cfg-descpad'), portal:nfV('nf-cfg-portal') };
+  try{ localStorage.setItem('gn_nf_cfg', JSON.stringify(c)); }catch(e){}
+  if(typeof toast==='function') toast('✓ Configuração fiscal salva neste aparelho.','ok');
+  renderNf();
+}
+function nfCfgLoad(){
+  var c=nfCfg();
+  ['prov','amb','cnpj','im','cidade','ibge','regime','item','codmun','iss','descpad','token','portal'].forEach(function(k){ var el=document.getElementById('nf-cfg-'+k); if(el && c[k]!=null && el.value==='' ) el.value=c[k]; });
+}
+function nfData(){ try{ return JSON.parse(localStorage.getItem('gn_nf')||'[]'); }catch(e){ return []; } }
+function nfSaveAll(a){ try{ localStorage.setItem('gn_nf', JSON.stringify(a)); }catch(e){} try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_nf'); }catch(e){} }
+function nfClientes(){ try{ return JSON.parse(localStorage.getItem('gn_cli')||'[]'); }catch(e){ return []; } }
+function nfFillCli(){
+  var sel=document.getElementById('nf-cli'); if(!sel) return; var cur=sel.value;
+  var cls=nfClientes().slice().sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
+  sel.innerHTML='<option value="">— digitar manualmente —</option>'+cls.map(function(c){ return '<option value="'+c.id+'">'+gnEsc(c.nome||'')+'</option>'; }).join('');
+  if(cur) sel.value=cur;
+}
+function nfPickCli(){ var id=nfV('nf-cli'); var c=nfClientes().filter(function(x){ return x.id===id; })[0]; if(c){ nfSetV('nf-nome',c.nome||''); nfSetV('nf-doc',c.cpf||c.cnpj||''); nfSetV('nf-email',c.email||''); nfSetV('nf-end',[c.endereco,c.cidade].filter(Boolean).join(' - ')); } }
+function nfLimpar(){ ['nf-nome','nf-doc','nf-email','nf-end','nf-valor','nf-desc'].forEach(function(id){ nfSetV(id,''); }); nfSetV('nf-cli',''); }
+function nfEmitir(){
+  var cfg=nfCfg();
+  if(!cfg.token){ if(typeof toast==='function') toast('Configure o token do gateway primeiro (⚙️ Configuração fiscal).','er'); var b=document.getElementById('nf-cfg-box'); if(b) b.open=true; return; }
+  var nome=nfV('nf-nome'); var valor=(typeof gnParseVal==='function')?gnParseVal(nfV('nf-valor')):(parseFloat((nfV('nf-valor')||'').replace(/\./g,'').replace(',','.'))||0);
+  var desc=nfV('nf-desc')||cfg.descpad||'';
+  if(!nome){ if(typeof toast==='function') toast('Informe o tomador (cliente).','er'); return; }
+  if(!valor){ if(typeof toast==='function') toast('Informe o valor do serviço.','er'); return; }
+  var payload={ action:'emitirNFSe', cfg:cfg, tomador:{ nome:nome, doc:nfV('nf-doc'), email:nfV('nf-email'), end:nfV('nf-end') }, servico:{ descricao:desc, valor:valor } };
+  var entry={ id:'nf'+Date.now(), nome:nome, doc:nfV('nf-doc'), email:nfV('nf-email'), valor:valor, desc:desc, amb:(cfg.amb||'homologacao'), data:new Date().toISOString().slice(0,10), status:'enviando', criadoEm:new Date().toISOString() };
+  var arr=nfData(); arr.unshift(entry); nfSaveAll(arr); renderNf();
+  if(typeof toast==='function') toast('🏛️ Enviando NFS-e para o gateway...','in');
+  if(typeof GN_CLOUD2==='undefined'||!GN_CLOUD2){ entry.status='erro'; entry.msg='Back-end indisponível.'; nfSaveAll(arr); renderNf(); return; }
+  fetch(GN_CLOUD2,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)})
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if(j && j.ok){ entry.status='autorizada'; entry.numero=j.numero||j.numeroNfse||''; entry.protocolo=j.protocolo||''; entry.pdf=j.pdf||j.linkPdf||''; entry.xml=j.xml||''; if(typeof toast==='function') toast('✅ NFS-e autorizada!','ok'); }
+      else { entry.status='erro'; entry.msg=(j&&(j.error||j.mensagem||j.message))||'Falha na emissão.'; if(typeof toast==='function') toast('❌ '+entry.msg,'er'); }
+      nfSaveAll(arr); renderNf();
+    })
+    .catch(function(e){ entry.status='aguardando-conector'; entry.msg='O conector fiscal ainda não foi publicado no back-end. Assim que você tiver o token do gateway, eu finalizo e publico essa parte.'; nfSaveAll(arr); renderNf(); });
+}
+function nfCopiarDados(silent){
+  var nome=nfV('nf-nome'), doc=nfV('nf-doc'), email=nfV('nf-email'), end=nfV('nf-end'), valor=nfV('nf-valor'), desc=nfV('nf-desc');
+  if(!nome && !valor && !desc){ if(!silent && typeof toast==='function') toast('Preencha o cliente e o serviço primeiro.','er'); return; }
+  var txt='Tomador: '+nome+(doc?(' | CPF/CNPJ: '+doc):'')+(email?(' | E-mail: '+email):'')+(end?(' | Endereço: '+end):'')+'\nServiço: '+desc+'\nValor: R$ '+valor;
+  try{ if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt); if(!silent && typeof toast==='function') toast('📋 Dados copiados! Cole no emissor.','ok'); return; } }catch(e){}
+  if(!silent && typeof toast==='function') toast('Dados: '+txt,'in');
+}
+function nfAbrirPortal(){
+  var cfg=nfCfg(); var url=(cfg.portal||'').trim();
+  nfCopiarDados(true);
+  if(!url){ if(typeof toast==='function') toast('Cole o link do seu emissor (Nota do Milhão) na ⚙️ Configuração fiscal e salve.','er'); var b=document.getElementById('nf-cfg-box'); if(b) b.open=true; return; }
+  if(!/^https?:\/\//i.test(url)) url='https://'+url;
+  window.open(url,'_blank');
+  if(typeof toast==='function') toast('🏛️ Abri o Nota do Milhão numa nova aba. Copiei os dados do serviço — é só colar e emitir.','ok');
+}
+function nfBaixar(id){ var n=nfData().filter(function(x){return x.id===id;})[0]; if(n&&n.pdf){ window.open(n.pdf,'_blank'); } else if(typeof toast==='function'){ toast('PDF disponível só após a autorização da nota.','er'); } }
+function nfWhats(id){ var n=nfData().filter(function(x){return x.id===id;})[0]; if(!n) return; var num=''; if(typeof docsFone==='function') num=docsFone(n.nome); var msg='Olá, '+(n.nome||'')+'! Segue sua Nota Fiscal de Serviço'+(n.numero?(' nº '+n.numero):'')+(n.valor?(' no valor de '+gnBRL(n.valor)):'')+'.'+(n.pdf?(' '+n.pdf):''); window.open('https://wa.me/'+num+'?text='+encodeURIComponent(msg),'_blank'); }
+function nfCancelar(id){
+  var arr=nfData(); var n=arr.filter(function(x){return x.id===id;})[0]; if(!n) return;
+  if(!confirm('Cancelar esta NFS-e? (o cancelamento também precisa ser transmitido à prefeitura)')) return;
+  var cfg=nfCfg();
+  if(typeof GN_CLOUD2!=='undefined' && GN_CLOUD2 && n.status==='autorizada'){
+    fetch(GN_CLOUD2,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'cancelarNFSe',cfg:cfg,id:n.id,numero:n.numero,protocolo:n.protocolo})}).then(function(r){return r.json();}).then(function(j){ n.status=(j&&j.ok)?'cancelada':'erro'; if(j&&!j.ok) n.msg=(j.error||j.mensagem||'Falha no cancelamento'); nfSaveAll(arr); renderNf(); }).catch(function(){ n.status='cancelada'; nfSaveAll(arr); renderNf(); });
+  } else { n.status='cancelada'; nfSaveAll(arr); renderNf(); }
+}
+function renderNf(){
+  var cfg=nfCfg();
+  var aviso=document.getElementById('nf-aviso');
+  if(aviso){
+    if(!(cfg.portal||'').trim()){ aviso.style.display='block'; aviso.innerHTML='🔗 <strong>Configure o link do seu emissor.</strong> Em "⚙️ Configuração fiscal", cole a URL do <strong>Nota do Milhão</strong> (onde você emite hoje) e salve. Depois, o botão "Emitir no Nota do Milhão" abre o site direto — já copiando os dados do cliente/serviço pra você colar lá.'; }
+    else { aviso.style.display='none'; }
+  }
+  nfCfgLoad(); nfFillCli();
+  if(!document.getElementById('nf-desc').value && cfg.descpad) document.getElementById('nf-desc').value=cfg.descpad;
+  var list=document.getElementById('nf-list'); if(!list) return;
+  var arr=nfData().slice().sort(function(a,b){ return (b.criadoEm||'').localeCompare(a.criadoEm||''); });
+  if(!arr.length){ list.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhuma NFS-e emitida ainda.</div>'; return; }
+  var cor={'autorizada':'#16a34a','enviando':'#2563eb','erro':'#dc2626','cancelada':'#6b7280','aguardando-conector':'#b45309'};
+  var lbl={'autorizada':'Autorizada','enviando':'Enviando...','erro':'Erro','cancelada':'Cancelada','aguardando-conector':'Aguardando conector'};
+  list.innerHTML=arr.map(function(n){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--gn-border);border-left:4px solid '+(cor[n.status]||'#888')+';border-radius:10px;margin-bottom:6px;">'
+      +'<div style="min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(n.nome||'')+(n.valor?(' · <span style="color:#16a34a;">'+gnBRL(n.valor)+'</span>'):'')+(n.amb==='homologacao'?' <span style="font-size:10px;background:#fef3c7;color:#b45309;border-radius:8px;padding:1px 6px;">teste</span>':'')+'</div>'
+      +'<div style="font-size:12px;color:var(--gn-dim);">'+(n.numero?('NFS-e '+gnEsc(n.numero)+' · '):'')+((n.data||'').split('-').reverse().join('/'))+' · <span style="color:'+(cor[n.status]||'#888')+';font-weight:600;">'+(lbl[n.status]||n.status)+'</span></div>'
+      +(n.msg?('<div style="font-size:11.5px;color:#b45309;margin-top:3px;">'+gnEsc(n.msg)+'</div>'):'')+'</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+      +(n.pdf?('<button onclick="nfBaixar(\''+n.id+'\')" style="background:#4338ca;color:#fff;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;">PDF</button>'):'')
+      +'<button onclick="nfWhats(\''+n.id+'\')" style="background:#e7f5ec;color:#16a34a;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;">WhatsApp</button>'
+      +(n.status==='autorizada'?('<button onclick="nfCancelar(\''+n.id+'\')" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;">Cancelar</button>'):'')
+      +'</div></div>';
+  }).join('');
+}
+</script>
+<script>
+// ══════════════════════════════════════════════
 // ═══ MELHORIAS v3: PWA, compartilhar, modelos, avisos, gráfico, backup ═══
 // ══════════════════════════════════════════════
 
@@ -8353,22 +8508,22 @@ function docsWhatsUm(store, id){
 // ══════════════════════════════════════════════
 (function(){
   function mem(){ try{ return JSON.parse(localStorage.getItem('gn_assist_mem')||'[]'); }catch(e){ return []; } }
-  function saveMem(a){ try{ localStorage.setItem('gn_assist_mem', JSON.stringify(a.slice(-60))); }catch(e){} }
+  function saveMem(a){ try{ var u=[]; a.forEach(function(x){ x=String(x||'').trim(); if(x && u.indexOf(x)<0) u.push(x); }); localStorage.setItem('gn_assist_mem', JSON.stringify(u.slice(-250))); }catch(e){} }
   function hist(){ try{ return JSON.parse(localStorage.getItem('gn_assist_hist')||'[]'); }catch(e){ return []; } }
-  function saveHist(a){ try{ localStorage.setItem('gn_assist_hist', JSON.stringify(a.slice(-40))); }catch(e){} }
+  function saveHist(a){ try{ localStorage.setItem('gn_assist_hist', JSON.stringify(a.slice(-200))); }catch(e){} }
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   var TABLBL={age:'Agenda',novo:'Nova Proposta',os:'Nota de Serviço',rec:'Recibo',laudo:'Laudo de Estanqueidade',docrap:'Documento Rápido',fin:'Financeiro',compras:'Compras',cli:'Clientes',prod:'Materiais',arquivos:'Arquivos & Mídia',ped:'Pedidos',tarefas:'Tarefas',docs:'Documentos do Cliente',contatos:'Contatos'};
   var _pendingImg=null;
   function build(){
     if(document.getElementById('gn-assist-btn')) return;
-    var st=document.createElement('style'); st.textContent='#gn-assist-btn{position:fixed;left:18px;bottom:18px;z-index:1200;width:56px;height:56px;border-radius:50%;border:none;background:linear-gradient(135deg,#7c5cff,#4338ca);color:#fff;font-size:26px;cursor:pointer;box-shadow:0 6px 18px rgba(124,92,255,.5);} #gn-assist-panel{position:fixed;left:18px;bottom:84px;z-index:1200;width:370px;max-width:94vw;height:520px;max-height:74vh;background:var(--gn-bg,#15161c);border:1px solid var(--gn-border,rgba(255,255,255,.14));border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.55);display:none;flex-direction:column;overflow:hidden;} #gn-assist-msgs{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px;} .gn-am{max-width:85%;padding:9px 12px;border-radius:12px;font-size:13.5px;line-height:1.4;white-space:pre-wrap;} .gn-am.u{align-self:flex-end;background:#4338ca;color:#fff;border-bottom-right-radius:4px;} .gn-am.a{align-self:flex-start;background:var(--gn-card,#222);color:var(--gn-text,#eee);border:1px solid var(--gn-border);border-bottom-left-radius:4px;} @media(max-width:680px){#gn-assist-panel{left:8px;right:8px;width:auto;}}';
+    var st=document.createElement('style'); st.textContent='#gn-assist-btn{position:fixed;left:18px;bottom:18px;z-index:1200;width:56px;height:56px;border-radius:50%;border:none;background:linear-gradient(135deg,#7c5cff,#4338ca);color:#fff;font-size:26px;cursor:pointer;box-shadow:0 6px 18px rgba(124,92,255,.5);} #gn-assist-panel{position:fixed;left:18px;bottom:84px;z-index:1200;width:370px;max-width:94vw;height:640px;max-height:86vh;background:var(--gn-bg,#15161c);border:1px solid var(--gn-border,rgba(255,255,255,.14));border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.55);display:none;flex-direction:column;overflow:hidden;} #gn-assist-msgs{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px;} .gn-am{max-width:85%;padding:9px 12px;border-radius:12px;font-size:13.5px;line-height:1.4;white-space:pre-wrap;} .gn-am.u{align-self:flex-end;background:#4338ca;color:#fff;border-bottom-right-radius:4px;} .gn-am.a{align-self:flex-start;background:var(--gn-card,#222);color:var(--gn-text,#eee);border:1px solid var(--gn-border);border-bottom-left-radius:4px;} @media(max-width:680px){#gn-assist-panel{left:8px;right:8px;width:auto;height:88vh;max-height:88vh;bottom:74px;} #gn-assist-in{min-height:150px !important;}}';
     document.head.appendChild(st);
     var btn=document.createElement('button'); btn.id='gn-assist-btn'; btn.textContent='🤖'; btn.title='Assistente Gás Network'; document.body.appendChild(btn);
     var p=document.createElement('div'); p.id='gn-assist-panel';
     p.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--gn-border);background:linear-gradient(135deg,#4338ca,#7c5cff);color:#fff;"><div style="font-weight:800;">🤖 Assistente Gás Network</div><button id="gn-assist-x" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">×</button></div>'
       +'<div id="gn-assist-msgs"></div>'
       +'<div style="border-top:1px solid var(--gn-border);padding:8px;display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;">'
-      +'<textarea id="gn-assist-in" rows="1" placeholder="Peça algo: emitir documento, agendar, lista de compras, relatório..." style="flex:1;min-width:140px;padding:9px;border:1px solid var(--gn-border);border-radius:9px;resize:none;font-size:13px;background:var(--gn-input,#1f2430);color:var(--gn-text,#eee);"></textarea>'
+      +'<textarea id="gn-assist-in" rows="8" placeholder="Peça algo: emitir documento, agendar, lista de compras, relatório..." style="flex:1 1 100%;min-width:140px;min-height:175px;max-height:45vh;padding:10px;border:1px solid var(--gn-border);border-radius:9px;resize:vertical;font-size:14px;line-height:1.45;background:var(--gn-input,#1f2430);color:var(--gn-text,#eee);"></textarea>'
       +'<button id="gn-assist-img" title="Anexar imagem" style="background:#0e7490;color:#fff;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;">📷</button>'
       +'<button id="gn-assist-send" style="background:#16a34a;color:#fff;border:none;border-radius:9px;padding:9px 13px;cursor:pointer;font-weight:700;">➤</button>'
       +'<input type="file" id="gn-assist-file" accept="image/*" style="display:none;">'
@@ -8399,32 +8554,31 @@ function docsWhatsUm(store, id){
     var co={}; try{ co=(typeof gnCO==='function')?gnCO():{}; }catch(e){}
     var hoje=new Date().toISOString().slice(0,10);
     var clientesNomes=''; try{ clientesNomes=(JSON.parse(localStorage.getItem('gn_cli')||'[]')).map(function(c){return c.nome;}).filter(Boolean).slice(0,60).join(', '); }catch(e){}
-    var sys='Você é o assistente virtual da '+(co.fantasia||'Gás Network')+' (engenharia/instalações de gás). Fale em português do Brasil, prático e amigável. A data de hoje é '+hoje+'. '
-      +'Você NÃO apenas orienta: você EXECUTA tarefas no app. Pode emitir documentos (recibo, nota de serviço, laudo técnico, orçamento), agendar compromissos (entram no Google Agenda), montar lista de compras de materiais, e abrir telas. '
-      +'Telas do app: age=Agenda, novo=Nova Proposta/Orçamento, os=Nota de Serviço, rec=Recibo, laudo=Laudo de Estanqueidade/Técnico, docrap=Documento Rápido, fin=Financeiro, compras=Lista de Compras, cli=Clientes, contatos=Contatos, docs=Documentos do Cliente (todos os docs de um cliente, com envio em lote no WhatsApp), prod=Materiais, arquivos=Arquivos e Mídia, ped=Pedidos, tarefas=Tarefas. '
+    var _H=hist(); var ctx=_H.slice(Math.max(0,_H.length-16), _H.length-1).map(function(m){ return (m.r==='u'?'Usuário':'Assistente')+': '+String(m.t||'').replace(/\s+/g,' ').slice(0,320); }).join('\n');
+    var sys='Você é o ASSISTENTE VIRTUAL e o "sábio do gás" da '+(co.fantasia||'Gás Network')+' (engenharia/instalações de gás). Fale em português do Brasil, prático, inteligente e amigável. A data de hoje é '+hoje+'. '
+      +'LEIA TODO O HISTÓRICO ABAIXO antes de responder: entenda o contexto e NUNCA repita perguntas já respondidas nem ignore o que o usuário já disse.\n'
+      +(ctx?('===== HISTÓRICO DA CONVERSA =====\n'+ctx+'\n===== FIM DO HISTÓRICO =====\n'):'')
+      +'VOCÊ MESMO GERA OS DOCUMENTOS (PDF pronto), exatamente como os geradores do app — recibo, nota de serviço, orçamento, laudo técnico e laudo de estanqueidade — todos no layout e na numeração corretos, prontos para BAIXAR aqui na conversa. NUNCA mande o usuário "ir para a tela" para gerar; você gera por ele. '
+      +'REGRA DE OURO (confirmação obrigatória): NUNCA gere/envie um documento sem o usuário CONFIRMAR, mesmo que ele mande várias mensagens. Fluxo: (1) entenda o pedido lendo a conversa; (2) responda com um resumo curto do que vai gerar (tipo, cliente, serviço, valor) e pergunte "Posso gerar? (responda ok)"; (3) só inclua "acao" DEPOIS que o usuário confirmar (ok/sim/pode/manda/gera/isso/beleza). Enquanto ele não confirmar, "acao" = null. Quando confirmar, devolva a acao e não pergunte de novo. '
+      +'OBEDIÊNCIA: nunca exija dados nem fique pedindo informação. Para orçamento e a maioria dos documentos NENHUM campo é obrigatório — gere com o que o usuário deu. Se ele disser "não precisa", obedeça. '
+      +'INTELIGÊNCIA: interprete textos bagunçados, com erros de digitação e fora de ordem; identifique sozinho nome, CPF/CNPJ, telefone, e-mail, endereço, CEP, valor e serviço, e organize certinho. Aprenda com a conversa e guarde fatos úteis (nome de cliente, preferências, dados da empresa) em "lembrar". '
       +(clientesNomes?('Clientes já cadastrados: '+clientesNomes+'. '):'')
-      +'Memória sobre o usuário/empresa: '+JSON.stringify(mem()).slice(0,1500)+'. '
-      +'COMO AGIR (MUITO IMPORTANTE): Você é uma IA prestativa e OBEDIENTE, como um assistente de verdade. NUNCA discuta, NUNCA exija informações e NUNCA fique repetindo pedido de dados. Se o usuário disser que não precisa de algum dado, ou pedir para gerar sem certa informação, OBEDEÇA e gere assim mesmo, com o que ele forneceu. '
-      +'Para ORÇAMENTO/PROPOSTA e a maioria dos documentos NENHUM campo é obrigatório — gere com o que houver. Só o LAUDO se beneficia de mais detalhes (cliente e objetivo), mas ainda assim não exija: se faltar, gere com o que tem. '
-      +'Só faça UMA pergunta curta se for realmente impossível agir (ex.: pediu "emite um recibo" sem nenhum nome nem valor). Fora isso, AJA e crie a ação. '
-      +'Seja inteligente para interpretar textos bagunçados, com erros de digitação e fora de ordem: identifique sozinho o que é nome, CPF/CNPJ, telefone, e-mail, endereço, CEP, valor e serviço, e organize tudo certinho, corrigindo e complementando o que faltar. '
-      +'Quando o usuário informar um CEP, coloque-o no campo "cep" da ação — o sistema busca o endereço completo (rua e bairro) na internet automaticamente. Converta datas relativas ("sexta","amanhã") para AAAA-MM-DD com base em hoje. Valores sempre em número (ex.: 350.00). '
-      +'Se o usuário pedir para incluir mais informações no documento, coloque-as nos campos correspondentes. '
-      +'DEVOLVA SOMENTE um JSON válido com este formato: {"fala":"sua resposta ao usuário","abrir":null,"lembrar":null,"acao":null}. '
-      +'"abrir" = id de tela para abrir (ou null). "lembrar" = fato curto para guardar na memória (ou null). '
-      +'"acao" = null OU um objeto {"tipo":"recibo|nota_servico|laudo|orcamento|agendar|compras","dados":{...}}. '
-      +'Campos de "dados" por tipo: '
+      +'Memória de longo prazo: '+JSON.stringify(mem()).slice(0,1200)+'. '
+      +'Quando o usuário informar um CEP, coloque no campo "cep" da ação — o sistema completa o endereço (rua, bairro, cidade) pela internet. Converta datas relativas ("sexta","amanhã") para AAAA-MM-DD com base em hoje. Valores sempre em número (ex.: 320.00). '
+      +'Telas (para o campo "abrir", quando fizer sentido): age=Agenda, novo=Orçamento, os=Nota de Serviço, rec=Recibo, laudo=Laudo, fin=Financeiro, compras=Compras, cli=Clientes, contatos=Contatos, docs=Documentos do Cliente, prod=Materiais, nf=Nota Fiscal, ped=Pedidos, tarefas=Tarefas. '
+      +'DEVOLVA SOMENTE um JSON válido: {"fala":"sua resposta","abrir":null,"lembrar":null,"acao":null}. '
+      +'"acao" = null OU {"tipo":"recibo|nota_servico|orcamento|laudo|laudo_estanqueidade|agendar|compras|consulta","dados":{...}}. '
+      +'Campos por tipo: '
       +'recibo:{nome,valor,forma,ref,cpf,data}; '
       +'nota_servico:{nome,end,valor,desc,exec,mat,status,data}; '
+      +'orcamento:{nome,cpf,cep,end,obra,resp,tel,email,obj,escopo,valor,servicos:[{descricao,quantidade,valor_unitario}]}; '
       +'laudo:{cliente,objetivo,local,vistoria,metodo,normas,resultado,naoconf,recomendacoes,conclusao,art,doc,dataemis,dataexec}; '
-      +'orcamento:{nome,cpf,cep,end,obra,resp,tel,email,obj,escopo}; '
+      +'laudo_estanqueidade:{cliente,data,escopo,qtdPontos,ponto,recomendacoes,doc,end,tel}; '
       +'agendar:{titulo,cliente,data,hora,horaFim,obs,servico}; '
       +'compras:{itens:[{material,qtd}]}; '
       +'consulta:{entidade,periodo,limite,ordem}. '
-      +'VOCÊ TAMBÉM CONSULTA E ANALISA OS DADOS DO APP. Quando o usuário pedir rankings, listas, totais ou análises (ex.: "os 20 clientes que mais me deram lucro mês passado", "quanto faturei essa semana", "o que falta comprar", "meus próximos compromissos"), devolva acao {tipo:"consulta", dados:{entidade, periodo, limite, ordem}}. '
-      +'entidade = clientes (faturamento/lucro por cliente) | orcamentos | financeiro | materiais | agenda. periodo = hoje|semana|mes|mespassado|ano|tudo. limite = nº de itens (ex.: 20). ordem = desc|asc. '
-      +'Interprete o pedido em linguagem natural e preencha esses campos sozinho (ex.: "mês passado"→periodo:"mespassado", "20 clientes"→limite:20, "que mais lucraram"→ordem:"desc"). '
-      +'Quando criar uma ação, em "fala" confirme de forma curta o que está fazendo (ex.: "Emitindo o recibo de R$ 350 para João...").';
+      +'Para orçamento: se o usuário citar 1 serviço e um valor (ex.: "instalação e conversão de cooktop, 320"), monte servicos:[{descricao:"Instalação e conversão de cooktop",quantidade:1,valor_unitario:320}]. '
+      +'CONSULTAS/ANÁLISES (NÃO precisam de confirmação): para rankings/listas/totais (ex.: "os 20 clientes que mais lucraram mês passado", "quanto faturei essa semana", "o que falta comprar", "próximos compromissos"), use acao {tipo:"consulta", dados:{entidade,periodo,limite,ordem}}. entidade=clientes|orcamentos|financeiro|materiais|agenda; periodo=hoje|semana|mes|mespassado|ano|tudo; ordem=desc|asc; "20 clientes"→limite:20, "mês passado"→periodo:"mespassado", "que mais lucraram"→ordem:"desc".';
     function done(j){
       var hh=hist();
       var falaMsg=(j&&j.fala)||'(sem resposta)';
@@ -8485,14 +8639,31 @@ function docsWhatsUm(store, id){
   function _emitOrcamento(d){
     d=d||{};
     function setv(id,v){ var el=document.getElementById(id); if(el && v!=null && v!=='') el.value=v; }
-    setv('f-nome',d.nome); setv('f-cpf',d.cpf); setv('f-end-cliente',d.end); setv('f-end-obra',d.obra); setv('f-responsavel',d.resp); setv('f-tel',d.tel); setv('f-email',d.email); setv('f-obj',d.obj); setv('f-escopo',d.escopo);
-    if(typeof goTab==='function') goTab('novo');
-    // CEP -> endereço completo (automático, via internet)
-    if(d.cep && typeof gnCEPLookup==='function'){
-      gnCEPLookup(d.cep).then(function(r){ if(r){ var el=document.getElementById('f-end-cliente'); var cur=el?(el.value||''):''; if(!cur || cur===(d.end||'')){ if(el) el.value=r.full; } if(typeof toast==='function') toast('📍 Endereço preenchido pelo CEP.','ok'); } });
-    }
-    var quem=d.nome?(' de '+d.nome):'';
-    return {ok:true, abrir:'novo', msg:'📝 Pronto, abri o Orçamento'+quem+' com o que você me passou. É só conferir os serviços e o valor na tela e gerar o PDF. 👍'};
+    setv('f-nome',d.nome); setv('f-cpf',d.cpf); setv('f-end-cliente',d.end); setv('f-end-obra',d.obra); setv('f-responsavel',d.resp); setv('f-tel',d.tel); setv('f-email',d.email);
+    setv('f-obj', d.obj||d.objetivo||''); setv('f-escopo', d.escopo||'');
+    // monta os serviços e calcula o total (mesma estrutura da tela de orçamento)
+    try{
+      var lista=document.getElementById('svc-list'); if(lista) lista.innerHTML='';
+      var servs=d.servicos||d.itens;
+      if(!servs || !servs.length){ var desc=d.servico||d.descricao||d.obj||'Serviço'; servs=[{descricao:desc, quantidade:1, valor_unitario:(Number(d.valor)||0)}]; }
+      if(typeof addSvcRow==='function'){ servs.forEach(function(s){ addSvcRow({ descricao:(s.descricao||s.desc||s.nome||''), quantidade:(Number(s.quantidade||s.qtd)||1), valor_unitario:(Number(s.valor_unitario||s.vu||s.valor)||0) }); }); }
+      if(typeof recalcTotal==='function') recalcTotal();
+    }catch(e){}
+    if(d.cep && typeof gnCEPLookup==='function'){ gnCEPLookup(d.cep).then(function(r){ if(r){ var el=document.getElementById('f-end-cliente'); if(el && (!el.value||el.value===(d.end||''))) el.value=r.full; } }); }
+    var okGen=false; try{ if(typeof gerarPDF==='function'){ gerarPDF(); okGen=true; } }catch(e){}
+    if(!okGen){ if(typeof goTab==='function') goTab('novo'); return {ok:false, abrir:'novo', msg:'Preparei o orçamento na tela — confira e gere por lá.'}; }
+    var vtot=Number(d.valor)||0; if(!vtot && d.servicos){ try{ d.servicos.forEach(function(s){ vtot+=(Number(s.valor_unitario||s.vu||s.valor)||0)*(Number(s.quantidade||s.qtd)||1); }); }catch(e){} }
+    return {ok:true, msg:'✅ Orçamento'+(d.nome?(' de '+d.nome):'')+' gerado'+(vtot?(' ('+_brl(vtot)+')'):'')+' e baixado, com numeração e layout padrão. Quer que eu mande no WhatsApp também?'};
+  }
+  function _emitLaudoEst(d){
+    d=d||{};
+    if(!d.cliente && !d.nome){ return {ok:false,msg:'Pra emitir o laudo de estanqueidade preciso pelo menos do nome do cliente. Pode confirmar?'}; }
+    function setv(id,v){ var el=document.getElementById(id); if(el && v!=null && v!=='') el.value=v; }
+    setv('lae-cli', d.cliente||d.nome); setv('lae-data', d.data||new Date().toISOString().slice(0,10));
+    setv('lae-doc', d.doc||d.cpf||''); setv('lae-end', d.end||d.endereco||''); setv('lae-tel', d.tel||'');
+    setv('lae-ponto', d.ponto||''); setv('lae-qtd', d.qtdPontos||d.pontos||''); setv('lae-escopo', d.escopo||''); setv('lae-recom', d.recomendacoes||'');
+    if(typeof laudoEstGerar==='function'){ try{ laudoEstGerar(false); }catch(e){ return {ok:false,msg:'Não consegui gerar: '+(e&&e.message||e)}; } return {ok:true, msg:'✅ Laudo de Estanqueidade de '+(d.cliente||d.nome)+' gerado e baixado, no modelo completo (capa, etapas e numeração). Quer que eu mande no WhatsApp?'}; }
+    return {ok:false, msg:'Gerador de estanqueidade indisponível.'};
   }
   function _agendar(d){
     d=d||{};
@@ -8529,6 +8700,7 @@ function docsWhatsUm(store, id){
       case 'recibo': return _emitRecibo(d);
       case 'nota_servico': case 'os': case 'ordem_servico': return _emitOS(d);
       case 'laudo': case 'laudo_tecnico': return _emitLaudo(d);
+      case 'laudo_estanqueidade': case 'estanqueidade': case 'laudo_est': return _emitLaudoEst(d);
       case 'orcamento': case 'proposta': return _emitOrcamento(d);
       case 'agendar': case 'agenda': case 'agendamento': return _agendar(d);
       case 'compras': case 'lista_compras': case 'materiais': return _addCompras(d);
