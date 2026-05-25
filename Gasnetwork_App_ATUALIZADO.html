@@ -1159,6 +1159,7 @@ textarea.fi{resize:vertical;}
     <div class="pgtitle" style="margin-bottom:4px;" id="ini-saud">&nbsp;</div>
     <script>(function(){try{var h=new Date().getHours();var s=h<12?'Bom dia':(h<18?'Boa tarde':'Boa noite');var nm='';try{var u=JSON.parse(localStorage.getItem('gn_user')||'{}');if(u&&u.nome)nm=', '+String(u.nome).split(' ')[0];}catch(e){}var el=document.getElementById('ini-saud');if(el)el.textContent=s+nm+'! 👋';}catch(e){}})();</script>
     <div class="pgsub" style="margin-bottom:16px;">Resumo do seu negócio. Toque num card para abrir os detalhes.</div>
+    <div id="ini-avisos"></div>
 
     <!-- CARD GRANDE DE PEDIDOS (item 4) -->
     <div id="ini-ped-hero" style="margin-bottom:16px;"></div>
@@ -1365,6 +1366,7 @@ textarea.fi{resize:vertical;}
 
     <div id="fin-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:10px;"></div>
     <div id="fin-meta" style="margin-bottom:10px;"></div>
+    <div id="fin-grafico" style="margin-bottom:12px;"></div>
     <div style="font-size:12px;color:var(--gn-dim);background:rgba(100,116,139,.10);border:1px solid var(--gn-border);border-radius:10px;padding:10px 12px;margin-bottom:20px;line-height:1.5;">
       💡 Toque em qualquer card acima para abrir a lista detalhada daquele valor (editável, com documentos por cliente). O <b>Lucro líquido</b> é calculado sozinho: faturamento − despesas no período. <span id="fin-saldoini-txt" style="display:none;"></span>
     </div>
@@ -1575,6 +1577,10 @@ textarea.fi{resize:vertical;}
         <div><label style="font-size:12px;color:var(--gn-dim);">Data</label><input id="rec-data" type="date" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
         <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Referente a</label><input id="rec-ref" placeholder="Ex.: Teste de estanqueidade e visita técnica" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
       </div>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--gn-border);">
+        <div style="font-size:12px;color:var(--gn-dim);margin-bottom:7px;">⚡ Modelos rápidos (preenchem o "Referente a"):</div>
+        <div id="rec-modelos" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+      </div>
       <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
         <button onclick="recPreview()" style="background:#0e7490;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">👁 Pré-visualizar</button>
         <button onclick="recGerar()" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">Gerar recibo (PDF) e salvar na nuvem</button>
@@ -1604,6 +1610,10 @@ textarea.fi{resize:vertical;}
         <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Solicitação / problema</label><textarea id="os-desc" rows="2" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></textarea></div>
         <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Serviço executado</label><textarea id="os-exec" rows="2" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></textarea></div>
         <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Materiais utilizados</label><input id="os-mat" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+      </div>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--gn-border);">
+        <div style="font-size:12px;color:var(--gn-dim);margin-bottom:7px;">⚡ Modelos rápidos (preenchem o serviço com 1 toque):</div>
+        <div id="os-modelos" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
       </div>
       <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
         <button onclick="osPreview()" style="background:#0e7490;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">👁 Pré-visualizar</button>
@@ -1772,6 +1782,22 @@ textarea.fi{resize:vertical;}
         <div><label style="font-size:12px;color:var(--gn-dim);">Responsável (assinatura)</label><input id="cfg-responsavel" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
         <div><label style="font-size:12px;color:var(--gn-dim);">Cor principal</label><input id="cfg-cor" type="color" value="#7c5cff" style="width:100%;height:42px;padding:4px;border:1px solid var(--gn-border);border-radius:8px;background:none;"></div>
       </div>
+    </div>
+
+    <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
+      <div style="font-weight:700;color:var(--gn-text);margin-bottom:4px;">💾 Backup e relatórios</div>
+      <div style="font-size:12px;color:var(--gn-dim);margin-bottom:12px;">Exporte uma cópia de segurança de tudo (clientes, financeiro, documentos, agenda) para um arquivo, ou restaure de um backup. Gere também o resumo do mês em PDF.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+        <button type="button" onclick="gnBackupExport()" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">💾 Exportar backup</button>
+        <label style="background:#0e7490;color:#fff;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">♻ Restaurar backup<input type="file" accept="application/json,.json" onchange="gnBackupImport(this)" style="display:none;"></label>
+        <button type="button" onclick="gnRelatorioMes()" style="background:#4338ca;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">📄 Relatório do mês (PDF)</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <label style="font-size:12px;color:var(--gn-dim);">Validade do laudo (meses):</label>
+        <input type="number" id="cfg-laudo-validade" min="1" max="60" style="width:80px;padding:7px 9px;border:1px solid var(--gn-border);border-radius:8px;" onchange="try{localStorage.setItem('gn_laudo_validade',String(Math.max(1,parseInt(this.value,10)||12)));if(typeof toast==='function')toast('✓ Validade do laudo salva','ok');}catch(e){}">
+        <span style="font-size:11.5px;color:var(--gn-dim);">usada para avisar laudos a vencer no Início</span>
+      </div>
+      <script>try{document.getElementById('cfg-laudo-validade').value=(localStorage.getItem('gn_laudo_validade')||'12');}catch(e){}</script>
     </div>
 
     <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
@@ -4611,7 +4637,7 @@ function ageGoogleURL(c){
 function ageGoogle(id){ var c=ageData().filter(function(x){ return x.id===id; })[0]; if(!c) return; window.open(ageGoogleURL(c),'_blank'); }
 function ageMes(delta){ ageRef.setMonth(ageRef.getMonth()+delta); renderAge(); }
 
-var gcalEvents=[]; var gcalPulled=false;
+var gcalEvents=[]; var gcalPulled=false; var ageDiaSel=null;
 function gnPullGoogleCal(){
   if(!GN_CLOUD2) return;
   // janela: 30 dias atrás até 90 dias à frente
@@ -4640,7 +4666,7 @@ function renderAge(){
     for(var i=0;i<prim;i++) html+='<div></div>';
     var hojeISO=new Date().toISOString().slice(0,10);
     for(var dia=1;dia<=ndias;dia++){ var iso=ano+'-'+String(mes+1).padStart(2,'0')+'-'+String(dia).padStart(2,'0'); var tem=porDia[dia]; var hoje=(iso===hojeISO);
-      html+='<div onclick="document.getElementById(\'age-data\').value=\''+iso+'\';window.scrollTo({top:0,behavior:\'smooth\'});" style="min-height:46px;border:1px solid '+(hoje?'#7c5cff':'var(--gn-border,#eee)')+';border-radius:8px;padding:4px 6px;cursor:pointer;background:'+(tem?'rgba(124,92,255,.12)':'transparent')+';">'
+      html+='<div onclick="ageAbrirDia(\''+iso+'\')" style="min-height:46px;border:1px solid '+(ageDiaSel===iso?'#16a34a':(hoje?'#7c5cff':'var(--gn-border,#eee)'))+';border-radius:8px;padding:4px 6px;cursor:pointer;background:'+(ageDiaSel===iso?'rgba(22,163,74,.15)':(tem?'rgba(124,92,255,.12)':'transparent'))+';">'
         +'<div style="font-size:12px;font-weight:600;color:var(--gn-text,#333);">'+dia+'</div>'
         +(tem?('<div style="font-size:10px;color:#7c5cff;font-weight:700;">'+tem.length+' comp.</div>'):'')+'</div>';
     }
@@ -4674,8 +4700,26 @@ function renderAge(){
   var amanha=new Date(hoje0); amanha.setDate(amanha.getDate()+1); var amanhaISO=amanha.getFullYear()+'-'+String(amanha.getMonth()+1).padStart(2,'0')+'-'+String(amanha.getDate()).padStart(2,'0');
   var fim=new Date(hoje0); fim.setDate(fim.getDate()+((7-hoje0.getDay())%7)); var fimISO=fim.getFullYear()+'-'+String(fim.getMonth()+1).padStart(2,'0')+'-'+String(fim.getDate()).padStart(2,'0');
   var DOW=['DOMINGO','SEGUNDA-FEIRA','TERÇA-FEIRA','QUARTA-FEIRA','QUINTA-FEIRA','SEXTA-FEIRA','SÁBADO'];
+  // ---- PAINEL DO DIA (ao clicar num dia do calendário) ----
+  var diaHTML='';
+  if(ageDiaSel){
+    var bAcao='border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:12.5px;font-weight:600;color:#fff;';
+    var itensDia=comp.filter(function(c){ return (c.data||'').slice(0,10)===ageDiaSel; }).sort(function(a,b){ return (a.hora||'').localeCompare(b.hora||''); });
+    var dtSel=new Date(ageDiaSel+'T00:00:00');
+    diaHTML='<div style="background:var(--gn-card);border:2px solid #7c5cff;border-radius:14px;padding:14px;margin-bottom:18px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">'
+      +'<div style="font-weight:800;font-size:16px;color:var(--gn-text);">📅 '+DOW[dtSel.getDay()]+' · '+ageDiaSel.split('-').reverse().join('/')+' <span style="font-size:12px;color:var(--gn-dim);font-weight:600;">('+itensDia.length+' compromisso(s))</span></div>'
+      +'<button onclick="ageFecharDia()" style="background:var(--gn-surface2);color:var(--gn-text);border:none;border-radius:8px;padding:7px 12px;cursor:pointer;font-size:12.5px;">✕ Fechar</button></div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">'
+      +'<button onclick="ageAddDia(\''+ageDiaSel+'\')" style="'+bAcao+'background:#16a34a;">➕ Adicionar neste dia</button>'
+      +'<button onclick="ageDiaCompartilhar(\''+ageDiaSel+'\')" style="'+bAcao+'background:#25d366;">📲 Compartilhar dia</button>'
+      +'<button onclick="ageDiaPDF(\''+ageDiaSel+'\')" style="'+bAcao+'background:#4338ca;">⬇ Baixar PDF do dia</button></div>';
+    if(!itensDia.length){ diaHTML+='<div style="color:var(--gn-dim);padding:12px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum compromisso neste dia. Use "Adicionar neste dia" para criar um.</div>'; }
+    else { diaHTML+=itensDia.map(function(c){ return ageItemHTML(c, true); }).join(''); }
+    diaHTML+='</div>';
+  }
   var semana=comp.filter(function(c){ var d=(c.data||'').slice(0,10); return d>=hojeISO && d<=fimISO; }).sort(function(a,b){ return ((a.data||'')+(a.hora||'')).localeCompare((b.data||'')+(b.hora||'')); });
-  var html='<div style="font-weight:800;color:var(--gn-text);font-size:17px;margin:0 0 8px;">📅 Hoje e esta semana</div>';
+  var html=diaHTML+'<div style="font-weight:800;color:var(--gn-text);font-size:17px;margin:0 0 8px;">📅 Hoje e esta semana</div>';
   if(!semana.length){ html+='<div style="color:var(--gn-dim);padding:12px;border:1px dashed var(--gn-border);border-radius:10px;margin-bottom:18px;">Nenhum compromisso de hoje até domingo. Aproveite! 🎉</div>'; }
   else {
     var cur='';
@@ -4686,15 +4730,49 @@ function renderAge(){
     });
     html+='<div style="height:18px;"></div>';
   }
-  // ---- SEÇÃO: TODOS DO MÊS ----
-  var doMes=comp.filter(function(c){ var dt=new Date((c.data||'')+'T00:00:00'); return dt.getFullYear()===ano && dt.getMonth()===mes; }).sort(function(a,b){ return ((a.data||'')+(a.hora||'')).localeCompare((b.data||'')+(b.hora||'')); });
-  html+='<div style="font-weight:800;color:var(--gn-text);font-size:15px;margin:6px 0 8px;border-top:1px solid var(--gn-border);padding-top:14px;">Todos os compromissos de '+AGE_MES[mes]+'</div>';
-  if(!doMes.length){ html+='<div style="color:var(--gn-dim);padding:12px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum compromisso neste mês.</div>'; }
-  else { html+=doMes.map(function(c){ return ageItemHTML(c, (c.data||'').slice(0,10)===hojeISO); }).join(''); }
+  // ---- SEÇÃO: PRÓXIMOS COMPROMISSOS (de hoje em diante, sem dias passados, agrupados por dia) ----
+  var prox=comp.filter(function(c){ return (c.data||'').slice(0,10)>=hojeISO; }).sort(function(a,b){ return ((a.data||'')+(a.hora||'')).localeCompare((b.data||'')+(b.hora||'')); });
+  html+='<div style="font-weight:800;color:var(--gn-text);font-size:15px;margin:6px 0 8px;border-top:1px solid var(--gn-border);padding-top:14px;">Todos os próximos compromissos</div>';
+  if(!prox.length){ html+='<div style="color:var(--gn-dim);padding:12px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum compromisso futuro. Use o botão + para agendar.</div>'; }
+  else {
+    var curp='';
+    prox.forEach(function(c){ var d=(c.data||'').slice(0,10);
+      if(d!==curp){ curp=d; var dt=new Date(d+'T00:00:00'); var lbl=(d===hojeISO?'HOJE':(d===amanhaISO?'AMANHÃ':DOW[dt.getDay()]))+' · '+d.split('-').reverse().join('/'); html+='<div style="font-size:12px;font-weight:800;color:#7c5cff;margin:12px 0 5px;letter-spacing:.04em;">'+lbl+'</div>'; }
+      html+=ageItemHTML(c, d===hojeISO);
+    });
+  }
   list.innerHTML=html;
   Array.prototype.forEach.call(list.querySelectorAll('.age-edit'), function(b){ b.onclick=function(){ ageEditar(b.getAttribute('data-id')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.age-gg'), function(b){ b.onclick=function(){ ageGoogle(b.getAttribute('data-id')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.age-del'), function(b){ b.onclick=function(){ ageDel(b.getAttribute('data-id')); }; });
+}
+// ─── Painel do dia (calendário clicável): abrir, fechar, adicionar, PDF, compartilhar ───
+function ageDiaItens(iso){
+  var arr=ageData().slice(); if(gcalEvents&&gcalEvents.length) arr=arr.concat(gcalEvents);
+  return arr.filter(function(c){ return (c.data||'').slice(0,10)===iso; }).sort(function(a,b){ return (a.hora||'').localeCompare(b.hora||''); });
+}
+function ageAbrirDia(iso){ ageDiaSel=iso; try{ var e=document.getElementById('age-data'); if(e) e.value=iso; }catch(_){} renderAge(); try{ var p=document.getElementById('age-list'); if(p&&p.scrollIntoView) p.scrollIntoView({behavior:'smooth',block:'start'}); }catch(_){} }
+function ageFecharDia(){ ageDiaSel=null; renderAge(); }
+function ageAddDia(iso){ try{ var e=document.getElementById('age-data'); if(e) e.value=iso; var t=document.getElementById('age-tit'); window.scrollTo({top:0,behavior:'smooth'}); if(t) t.focus(); }catch(_){} if(typeof toast==='function') toast('A data já está como '+iso.split('-').reverse().join('/')+'. Preencha o título e salve. 👆','ok'); }
+function ageDiaPDFDoc(iso){
+  if(typeof gnDocPDF!=='function') return null;
+  var itens=ageDiaItens(iso); var dStr=iso.split('-').reverse().join('/');
+  var linhas=itens.length?itens.map(function(c){ return (c.hora||'--:--')+(c.horaFim?('–'+c.horaFim):'')+'   '+(c.titulo||'(sem título)')+(c.cliente?(' — '+c.cliente):'')+(c.obs?('\n        '+c.obs):''); }).join('\n\n'):'Nenhum compromisso neste dia.';
+  var doc=gnDocPDF({ titulo:'AGENDA DO DIA', numero:dStr, data:dStr, cliente:null, total:null, blocos:[{titulo:'Compromissos ('+itens.length+')', texto:linhas}], rodape:'Agenda gerada pelo app Gás Network.' });
+  return doc?{doc:doc, itens:itens, dStr:dStr}:null;
+}
+function ageDiaPDF(iso){ var r=ageDiaPDFDoc(iso); if(!r){ if(typeof toast==='function') toast('Não consegui gerar o PDF.','er'); return; } var fn='Agenda '+r.dStr.replace(/\//g,'-')+'.pdf'; try{ r.doc.save(fn); }catch(e){} if(typeof toast==='function') toast('⬇ PDF da agenda do dia baixado.','ok'); }
+function ageDiaCompartilhar(iso){
+  var r=ageDiaPDFDoc(iso); if(!r){ if(typeof toast==='function') toast('Não consegui gerar o PDF.','er'); return; }
+  var fn='Agenda '+r.dStr.replace(/\//g,'-')+'.pdf';
+  var txt='📅 Agenda Gás Network — '+r.dStr+'\n'+(r.itens.length?r.itens.map(function(c){ return '• '+(c.hora||'--:--')+' '+(c.titulo||'')+(c.cliente?(' ('+c.cliente+')'):''); }).join('\n'):'Sem compromissos.');
+  if(typeof gnCanShareFiles==='function' && gnCanShareFiles()){
+    var f=(typeof gnDocToFile==='function')?gnDocToFile(r.doc, fn):null;
+    if(f && navigator.canShare({files:[f]})){ navigator.share({files:[f], title:'Agenda '+r.dStr, text:txt}).then(function(){ if(typeof toast==='function') toast('📲 Agenda do dia compartilhada.','ok'); }).catch(function(){}); return; }
+  }
+  try{ r.doc.save(fn); }catch(e){}
+  setTimeout(function(){ window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank'); }, 400);
+  if(typeof toast==='function') toast('📲 Baixei o PDF e abri o WhatsApp. É só anexar o arquivo.','ok');
 }
 
 </script>
@@ -5237,6 +5315,7 @@ function finCard(t,v,c){ return '<div style="background:var(--gn-card);border:1p
 
 function renderFin(){
   if(!finPulled){ finPulled=true; finCloudPull(); }
+  try{ if(typeof renderFinGrafico==='function') renderFinGrafico(); }catch(e){}
   var d=finCalc();
   var cards=document.getElementById('fin-cards');
   if(cards){ cards.innerHTML=
@@ -5779,6 +5858,7 @@ function recDel(id){ if(!confirm('Excluir este recibo?')) return; gnStoreDel('re
 
 function renderRec(){
   if(!recPulled){ recPulled=true; gnStorePull('rec', function(ch){ if(ch) renderRec(); }); }
+  try{ var _m=document.getElementById('rec-modelos'); if(_m && !_m.innerHTML && typeof gnModelosHTML==='function') _m.innerHTML=gnModelosHTML('recModelo'); }catch(e){}
   if(!document.getElementById('rec-data').value) document.getElementById('rec-data').value=new Date().toISOString().slice(0,10);
   recFillSelect();
   var list=document.getElementById('rec-list'); if(!list) return;
@@ -5895,6 +5975,7 @@ function osDel(id){
 
 function renderOs(){
   if(!osPulled){ osPulled=true; gnStorePull('os', function(ch){ if(ch) renderOs(); }); }
+  try{ var _m=document.getElementById('os-modelos'); if(_m && !_m.innerHTML && typeof gnModelosHTML==='function') _m.innerHTML=gnModelosHTML('osModelo'); }catch(e){}
   if(!document.getElementById('os-data').value) document.getElementById('os-data').value=new Date().toISOString().slice(0,10);
   osFillSelect();
   var list=document.getElementById('os-list'); if(!list) return;
@@ -6314,6 +6395,7 @@ function renderInicio(){
   // saudação
   var h=new Date().getHours(); var saud=h<12?'Bom dia':(h<18?'Boa tarde':'Boa noite');
   var _u=(typeof gnUser==='function')?gnUser():{}; var elS=document.getElementById('ini-saud'); if(elS) elS.textContent=saud+(_u&&_u.nome?(', '+_u.nome.split(' ')[0]):'')+'! 👋';
+  try{ if(typeof gnAvisos==='function') gnAvisos(); }catch(e){}
 
   var hist=iniGet('gn_hist'); var fin=iniGet('gn_fin'); var cli=iniGet('gn_cli');
   var selP=document.getElementById('ini-periodo'); var p=selP?selP.value:'ano';
@@ -7860,6 +7942,281 @@ function renderInicio(){
 </script>
 <script>
 // ══════════════════════════════════════════════
+// ═══ MELHORIAS v3: PWA, compartilhar, modelos, avisos, gráfico, backup ═══
+// ══════════════════════════════════════════════
+
+// ─── #2 PWA: app instalável (ícone + manifest + meta), sem arquivos extras ───
+(function(){
+  try{
+    var SVG='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4338ca"/><stop offset="1" stop-color="#7c5cff"/></linearGradient></defs><rect width="512" height="512" rx="104" fill="url(#g)"/><text x="256" y="338" font-family="Arial,Helvetica,sans-serif" font-size="248" font-weight="bold" fill="#ffffff" text-anchor="middle">GN</text></svg>');
+    function meta(n,c){ var m=document.createElement('meta'); m.setAttribute('name',n); m.setAttribute('content',c); document.head.appendChild(m); }
+    meta('theme-color','#4338ca'); meta('mobile-web-app-capable','yes'); meta('apple-mobile-web-app-capable','yes'); meta('apple-mobile-web-app-status-bar-style','black-translucent'); meta('apple-mobile-web-app-title','Gás Network');
+    var al=document.createElement('link'); al.rel='apple-touch-icon'; al.href=SVG; document.head.appendChild(al);
+    var fav=document.createElement('link'); fav.rel='icon'; fav.href=SVG; document.head.appendChild(fav);
+    var mani={ name:'Gás Network', short_name:'Gás Network', start_url:'.', scope:'.', display:'standalone', orientation:'portrait', background_color:'#15161c', theme_color:'#4338ca', icons:[{src:SVG,sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}] };
+    var blob=new Blob([JSON.stringify(mani)],{type:'application/manifest+json'});
+    var link=document.createElement('link'); link.rel='manifest'; link.href=URL.createObjectURL(blob); document.head.appendChild(link);
+  }catch(e){ console.warn('[pwa]',e); }
+})();
+
+// ─── #1 Compartilhamento nativo (anexa o PDF de verdade no WhatsApp) ───
+function gnCanShareFiles(){ try{ return !!(navigator.share && navigator.canShare); }catch(e){ return false; } }
+function gnDocToFile(doc, filename){ try{ var blob=doc.output('blob'); return new File([blob], filename||'documento.pdf', {type:'application/pdf'}); }catch(e){ return null; } }
+// Compartilha 1+ arquivos PDF; retorna true se abriu o menu nativo
+function gnShareFiles(files, title, text){
+  try{
+    if(gnCanShareFiles() && files && files.length && navigator.canShare({files:files})){
+      navigator.share({files:files, title:title||'Gás Network', text:text||''}).then(function(){ if(typeof toast==='function') toast('📲 Compartilhado!','ok'); }).catch(function(){});
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+// ─── Busca de endereço pelo CEP (ViaCEP) — usada pela IA e formulários ───
+function gnCEPLookup(cep){
+  cep=String(cep||'').replace(/\D/g,'');
+  if(cep.length!==8) return Promise.resolve(null);
+  return fetch('https://viacep.com.br/ws/'+cep+'/json/').then(function(r){ return r.json(); }).then(function(d){
+    if(!d || d.erro) return null;
+    return { logradouro:d.logradouro||'', bairro:d.bairro||'', cidade:d.localidade||'', uf:d.uf||'', cep:cep,
+      full:[d.logradouro, d.bairro].filter(Boolean).join(', ')+(d.localidade?(' - '+d.localidade+'/'+d.uf):'') };
+  }).catch(function(){ return null; });
+}
+
+// ─── #6 Modelos de serviço (1 toque) ───
+var GN_SVC_TEMPLATES=[
+  {nome:'Teste de estanqueidade', desc:'Verificação de estanqueidade da rede de gás', exec:'Ensaio de estanqueidade com manômetro e inspeção visual da tubulação, conexões e registros, conforme ABNT NBR 15526.', mat:'Manômetro, solução detectora de vazamento'},
+  {nome:'Instalação de ponto de gás', desc:'Instalação de ponto de gás', exec:'Instalação de tubulação, registro e ponto de consumo, com teste de estanqueidade ao final, conforme NBR 15526.', mat:'Tubo, conexões, registro de gás'},
+  {nome:'Troca de regulador', desc:'Substituição de regulador de pressão', exec:'Remoção do regulador antigo e instalação de novo regulador, com teste de vedação.', mat:'Regulador de pressão'},
+  {nome:'Manutenção preventiva', desc:'Manutenção preventiva da instalação de gás', exec:'Inspeção geral, reaperto de conexões, teste de vazamento e verificação dos dispositivos de segurança.', mat:''},
+  {nome:'Conversão de fogão GLP/GN', desc:'Conversão de fogão', exec:'Troca dos injetores e regulagem da chama para o tipo de gás (GLP/GN).', mat:'Kit de injetores'},
+  {nome:'Visita técnica / vistoria', desc:'Visita técnica', exec:'Vistoria técnica da instalação e levantamento das necessidades do cliente.', mat:''}
+];
+function osModelo(i){ var t=GN_SVC_TEMPLATES[i]; if(!t) return; var sv=function(id,v){ var e=document.getElementById(id); if(e&&v!=null) e.value=v; };
+  sv('os-desc',t.desc); sv('os-exec',t.exec); sv('os-mat',t.mat||''); if(typeof toast==='function') toast('⚡ Modelo aplicado: '+t.nome+'. Ajuste o valor e gere.','ok'); }
+function recModelo(i){ var t=GN_SVC_TEMPLATES[i]; if(!t) return; var e=document.getElementById('rec-ref'); if(e) e.value=t.nome; if(typeof toast==='function') toast('⚡ Modelo aplicado: '+t.nome,'ok'); }
+function gnModelosHTML(fn){
+  var stl='background:rgba(124,92,255,.12);color:var(--gn-text);border:1px solid rgba(124,92,255,.3);border-radius:20px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600;';
+  return GN_SVC_TEMPLATES.map(function(t,i){ return '<button type="button" onclick="'+fn+'('+i+')" style="'+stl+'">'+t.nome+'</button>'; }).join('');
+}
+
+// ─── #3 Aviso de validade do Laudo (renovação = receita recorrente) ───
+function gnLaudoValidadeMeses(){ var m=Number(localStorage.getItem('gn_laudo_validade')||'12')||12; return m; }
+function gnLaudosVencendo(diasAlerta){
+  diasAlerta=diasAlerta||30; var out=[]; var hoje=new Date(); hoje.setHours(0,0,0,0);
+  var meses=gnLaudoValidadeMeses();
+  var hist=[]; try{ hist=JSON.parse(localStorage.getItem('gn_hist')||'[]'); }catch(e){}
+  hist.forEach(function(e){
+    var td=String(e&&e.tipoDoc||'').toLowerCase();
+    if(td.indexOf('laudo')<0) return;
+    var dStr=String(e.data||''); var base=null;
+    var m=dStr.match(/(\d{2})\/(\d{2})\/(\d{4})/); if(m){ base=new Date(m[3]+'-'+m[2]+'-'+m[1]+'T00:00:00'); }
+    else if(/^\d{4}-\d{2}-\d{2}/.test(dStr)){ base=new Date(dStr.slice(0,10)+'T00:00:00'); }
+    if(!base||isNaN(base)) return;
+    var venc=new Date(base); venc.setMonth(venc.getMonth()+meses);
+    var dias=Math.round((venc-hoje)/86400000);
+    if(dias<=diasAlerta){ out.push({cliente:e.cliente||'—', numero:e.numero||'', venc:venc, dias:dias, vencido:dias<0}); }
+  });
+  out.sort(function(a,b){ return a.dias-b.dias; });
+  return out;
+}
+function gnLaudoRenovarWhats(cliente){
+  var num=''; if(typeof docsFone==='function') num=docsFone(cliente);
+  var msg='Olá, '+cliente+'! Aqui é da Gás Network. O laudo de estanqueidade da sua instalação de gás está próximo do vencimento (ou vencido). Podemos agendar a renovação para manter tudo em conformidade e seguro. Quando fica bom pra você?';
+  window.open('https://wa.me/'+num+'?text='+encodeURIComponent(msg),'_blank');
+}
+
+// ─── #7 Lembrete de agendamento (amanhã) + confirmação no WhatsApp ───
+function gnCompromissosAmanha(){
+  var out=[]; var hoje=new Date(); hoje.setHours(0,0,0,0); var am=new Date(hoje); am.setDate(am.getDate()+1);
+  var amISO=am.getFullYear()+'-'+String(am.getMonth()+1).padStart(2,'0')+'-'+String(am.getDate()).padStart(2,'0');
+  var arr=[]; try{ arr=(typeof gnStoreGet==='function')?gnStoreGet('agenda'):JSON.parse(localStorage.getItem('gn_agenda')||'[]'); }catch(e){}
+  arr.forEach(function(c){ if(String(c.data||'').slice(0,10)===amISO) out.push(c); });
+  out.sort(function(a,b){ return (a.hora||'').localeCompare(b.hora||''); });
+  return out;
+}
+function gnConfirmarWhats(cliente, titulo, data, hora){
+  var num=''; if(typeof docsFone==='function') num=docsFone(cliente);
+  var dataBR=(String(data).indexOf('-')>0)?String(data).split('-').reverse().join('/'):data;
+  var msg='Olá'+(cliente?(', '+cliente):'')+'! Confirmando nosso agendamento da Gás Network'+(titulo?(' ('+titulo+')'):'')+' para '+dataBR+(hora?(' às '+hora):'')+'. Está confirmado? Qualquer coisa me avise. Obrigado!';
+  window.open('https://wa.me/'+num+'?text='+encodeURIComponent(msg),'_blank');
+}
+
+// ─── Painel de avisos no Início (laudos a vencer + compromissos de amanhã) ───
+function gnAvisos(){
+  var box=document.getElementById('ini-avisos'); if(!box) return;
+  var html='';
+  var lv=gnLaudosVencendo(30);
+  if(lv.length){
+    html+='<div style="background:rgba(245,158,11,.10);border:1px solid #f59e0b;border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
+      +'<div style="font-weight:800;color:#b45309;margin-bottom:6px;">🔔 '+lv.length+' laudo(s) a vencer / vencido(s)</div>';
+    html+=lv.slice(0,6).map(function(l){
+      var d=l.vencido?('<span style="color:#dc2626;font-weight:700;">vencido</span>'):('vence em '+l.dias+' dia(s)');
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--gn-border);">'
+        +'<span style="color:var(--gn-text);"><strong>'+gnEsc(l.cliente)+'</strong> · '+d+' ('+l.venc.toLocaleDateString('pt-BR')+')</span>'
+        +'<button onclick="gnLaudoRenovarWhats(\''+gnEsc(l.cliente).replace(/'/g,"\\'")+'\')" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">📲 Oferecer renovação</button></div>';
+    }).join('');
+    html+='</div>';
+  }
+  var ca=gnCompromissosAmanha();
+  if(ca.length){
+    html+='<div style="background:rgba(37,99,235,.10);border:1px solid #2563eb;border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
+      +'<div style="font-weight:800;color:#2563eb;margin-bottom:6px;">📅 Amanhã você tem '+ca.length+' compromisso(s)</div>';
+    html+=ca.map(function(c){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--gn-border);">'
+        +'<span style="color:var(--gn-text);"><strong>'+(c.hora||'--:--')+'</strong> · '+gnEsc(c.titulo||'')+(c.cliente?(' · '+gnEsc(c.cliente)):'')+'</span>'
+        +'<button onclick="gnConfirmarWhats(\''+gnEsc(c.cliente||'').replace(/'/g,"\\'")+'\',\''+gnEsc(c.titulo||'').replace(/'/g,"\\'")+'\',\''+(c.data||'')+'\',\''+(c.hora||'')+'\')" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">📲 Confirmar</button></div>';
+    }).join('');
+    html+='</div>';
+  }
+  box.innerHTML=html;
+}
+
+// ─── #9 Gráfico financeiro (últimos 6 meses) — SVG puro, sem bibliotecas ───
+function renderFinGrafico(){
+  var box=document.getElementById('fin-grafico'); if(!box) return;
+  var fin=[]; try{ fin=(typeof finData==='function')?finData():JSON.parse(localStorage.getItem('gn_fin')||'[]'); }catch(e){}
+  var meses=[]; var now=new Date();
+  for(var k=5;k>=0;k--){ var d=new Date(now.getFullYear(), now.getMonth()-k, 1); meses.push({y:d.getFullYear(), m:d.getMonth(), fat:0, custo:0}); }
+  fin.forEach(function(x){ if(!x||!x.data) return; var dt=new Date(String(x.data).slice(0,10)+'T00:00:00'); if(isNaN(dt)) return; var v=Number(x.valor)||0;
+    meses.forEach(function(mm){ if(dt.getFullYear()===mm.y && dt.getMonth()===mm.m){ if(x.tipo==='receita'&&x.status==='pago') mm.fat+=v; else if(x.tipo==='custo'&&x.status==='pago') mm.custo+=v; } });
+  });
+  var max=1; meses.forEach(function(m){ max=Math.max(max, m.fat, m.custo); });
+  var temDado=meses.some(function(m){ return m.fat>0||m.custo>0; });
+  if(!temDado){ box.innerHTML='<div style="font-size:12px;color:var(--gn-dim);padding:10px 0;">📊 O gráfico de evolução aparece aqui assim que houver lançamentos pagos.</div>'; return; }
+  var W=560,H=190, pad=28, n=meses.length, gw=(W-pad*2)/n, bw=Math.min(20,(gw-12)/2);
+  var MN=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  var bars='';
+  meses.forEach(function(m,i){
+    var x0=pad+i*gw+gw/2;
+    var hf=Math.round((m.fat/max)*(H-pad*2)); var hc=Math.round((m.custo/max)*(H-pad*2));
+    var yf=H-pad-hf, yc=H-pad-hc;
+    bars+='<rect x="'+(x0-bw-1)+'" y="'+yf+'" width="'+bw+'" height="'+hf+'" rx="3" fill="#16a34a"></rect>';
+    bars+='<rect x="'+(x0+1)+'" y="'+yc+'" width="'+bw+'" height="'+hc+'" rx="3" fill="#dc2626"></rect>';
+    bars+='<text x="'+x0+'" y="'+(H-pad+13)+'" text-anchor="middle" font-size="10" fill="#888">'+MN[m.m]+'</text>';
+    var lucro=m.fat-m.custo; if(m.fat>0){ bars+='<text x="'+x0+'" y="'+(yf-4)+'" text-anchor="middle" font-size="8.5" fill="'+(lucro>=0?'#16a34a':'#dc2626')+'">'+(lucro>=0?'+':'')+Math.round(lucro)+'</text>'; }
+  });
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:600px;">'
+    +'<line x1="'+pad+'" y1="'+(H-pad)+'" x2="'+(W-pad)+'" y2="'+(H-pad)+'" stroke="var(--gn-border)" stroke-width="1"></line>'+bars+'</svg>';
+  box.innerHTML='<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:12px;padding:12px 14px;">'
+    +'<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;"><div style="font-weight:700;color:var(--gn-text);">📊 Evolução (6 meses)</div>'
+    +'<div style="font-size:11.5px;color:var(--gn-dim);"><span style="color:#16a34a;">■</span> Faturamento &nbsp; <span style="color:#dc2626;">■</span> Despesas &nbsp; (nº = lucro)</div></div>'+svg+'</div>';
+}
+
+// ─── #10 Backup completo (exportar / restaurar) ───
+function gnBackupExport(){
+  try{
+    var dump={ _app:'Gás Network', _versao:1, _data:new Date().toISOString(), dados:{} };
+    for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if(k && k.indexOf('gn_')===0){ dump.dados[k]=localStorage.getItem(k); } }
+    var blob=new Blob([JSON.stringify(dump)],{type:'application/json'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download='backup_gasnetwork_'+new Date().toISOString().slice(0,10)+'.json'; document.body.appendChild(a); a.click(); a.remove();
+    if(typeof toast==='function') toast('💾 Backup exportado ('+Object.keys(dump.dados).length+' conjuntos de dados).','ok');
+  }catch(e){ if(typeof toast==='function') toast('Erro ao exportar: '+(e&&e.message||e),'er'); }
+}
+function gnBackupImport(input){
+  var f=input&&input.files&&input.files[0]; if(!f) return;
+  if(!confirm('Restaurar este backup vai SUBSTITUIR os dados atuais deste aparelho pelos do arquivo. Deseja continuar?')){ input.value=''; return; }
+  var r=new FileReader();
+  r.onload=function(e){
+    try{
+      var obj=JSON.parse(String(e.target.result||'{}')); var dados=obj.dados||obj; var n=0;
+      Object.keys(dados).forEach(function(k){ if(k.indexOf('gn_')===0){ localStorage.setItem(k, dados[k]); n++; } });
+      if(typeof toast==='function') toast('✅ Backup restaurado ('+n+' conjuntos). Recarregando...','ok');
+      setTimeout(function(){ location.reload(); }, 1200);
+    }catch(err){ if(typeof toast==='function') toast('Arquivo de backup inválido.','er'); }
+    input.value='';
+  };
+  r.readAsText(f);
+}
+// ─── #10 Relatório do mês (PDF) ───
+function gnRelatorioMes(){
+  if(typeof gnDocPDF!=='function'){ if(typeof toast==='function') toast('Motor de PDF indisponível.','er'); return; }
+  var now=new Date(); var ano=now.getFullYear(), mes=now.getMonth();
+  var MN=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var fin=[]; try{ fin=(typeof finData==='function')?finData():JSON.parse(localStorage.getItem('gn_fin')||'[]'); }catch(e){}
+  var fat=0, custo=0, arec=0; var hoje=new Date().toISOString().slice(0,10);
+  fin.forEach(function(x){ if(!x||!x.data) return; var dt=new Date(String(x.data).slice(0,10)+'T00:00:00'); if(isNaN(dt)||dt.getFullYear()!==ano||dt.getMonth()!==mes) return; var v=Number(x.valor)||0;
+    if(x.tipo==='receita'){ if(x.status==='pago') fat+=v; else arec+=v; } else if(x.tipo==='custo'&&x.status==='pago') custo+=v; });
+  var nServ=0; try{ var os=(typeof gnStoreGet==='function')?gnStoreGet('os'):JSON.parse(localStorage.getItem('gn_os')||'[]'); os.forEach(function(o){ var dt=new Date(String(o.data||'').slice(0,10)+'T00:00:00'); if(!isNaN(dt)&&dt.getFullYear()===ano&&dt.getMonth()===mes&&o.status==='Finalizada') nServ++; }); }catch(e){}
+  var bf=function(v){ return (typeof gnBRL==='function')?gnBRL(v):('R$ '+Number(v).toFixed(2)); };
+  var blocos=[
+    {titulo:'Resumo financeiro de '+MN[mes]+'/'+ano, texto:'Faturamento recebido: '+bf(fat)+'\nDespesas pagas: '+bf(custo)+'\nLucro líquido: '+bf(fat-custo)+'\nValores a receber: '+bf(arec)},
+    {titulo:'Serviços', texto:'Serviços finalizados no mês: '+nServ}
+  ];
+  var doc=gnDocPDF({ titulo:'RELATÓRIO MENSAL', numero:MN[mes]+'/'+ano, data:new Date().toLocaleDateString('pt-BR'), cliente:null, total:(fat-custo), blocos:blocos, rodape:'Relatório gerado automaticamente pelo app Gás Network.' });
+  if(!doc) return; var fn='Relatório '+MN[mes]+' '+ano+'.pdf';
+  try{ doc.save(fn); }catch(e){}
+  try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(doc, fn, {numero:MN[mes]+'/'+ano, cliente:'Gás Network', tipo:'Relatório'}); }catch(e){}
+  if(typeof toast==='function') toast('📄 Relatório de '+MN[mes]+' gerado e salvo na nuvem.','ok');
+}
+
+// ─── Motor de CONSULTAS/ANÁLISES (a IA pergunta e responde sobre os dados do app) ───
+function gnConsultaPeriodo(dataStr, per){
+  if(per==='tudo'||!per) return true;
+  if(!dataStr) return false;
+  var d=new Date(String(dataStr).slice(0,10)+'T00:00:00'); if(isNaN(d)) return false;
+  var now=new Date(); var y=now.getFullYear(), m=now.getMonth();
+  if(per==='hoje') return d.toDateString()===now.toDateString();
+  if(per==='semana'){ var s=new Date(now); s.setDate(s.getDate()-7); s.setHours(0,0,0,0); return d>=s; }
+  if(per==='mes') return d.getFullYear()===y && d.getMonth()===m;
+  if(per==='mespassado'){ var pm=new Date(y,m-1,1); return d.getFullYear()===pm.getFullYear() && d.getMonth()===pm.getMonth(); }
+  if(per==='ano') return d.getFullYear()===y;
+  return true;
+}
+function gnConsulta(d){
+  d=d||{};
+  var ent=String(d.entidade||'clientes').toLowerCase();
+  var per=String(d.periodo||'mes').toLowerCase();
+  var lim=Math.max(1, Number(d.limite)||10);
+  var asc=(String(d.ordem||'desc')==='asc');
+  var perLbl={hoje:'hoje',semana:'últimos 7 dias',mes:'este mês',mespassado:'mês passado',ano:'este ano',tudo:'todo o período'}[per]||per;
+  function brl(v){ return (typeof gnBRL==='function')?gnBRL(v):('R$ '+(Number(v)||0).toFixed(2)); }
+  function js(k){ try{ return JSON.parse(localStorage.getItem(k)||'[]'); }catch(e){ return []; } }
+  var fin=js('gn_fin');
+  // CLIENTES por faturamento recebido (≈ quanto cada cliente rendeu)
+  if(ent.indexOf('client')>=0 || ent.indexOf('lucr')>=0 || ent.indexOf('fatur')>=0){
+    var map={};
+    fin.forEach(function(x){ if(x && x.tipo==='receita' && x.status==='pago' && gnConsultaPeriodo(x.data, per)){ var c=(x.cliente||'—'); map[c]=(map[c]||0)+(Number(x.valor)||0); } });
+    var arr=Object.keys(map).map(function(k){ return {cliente:k, total:map[k]}; }).sort(function(a,b){ return asc?(a.total-b.total):(b.total-a.total); }).slice(0,lim);
+    if(!arr.length) return {ok:true, abrir:'fin', msg:'Não encontrei faturamento recebido de clientes em '+perLbl+'. Lance os recebimentos no Financeiro que eu te mostro o ranking.'};
+    var linhas=arr.map(function(r,i){ return (i+1)+'. '+r.cliente+' — '+brl(r.total); }).join('\n');
+    var tot=arr.reduce(function(s,r){ return s+r.total; },0);
+    return {ok:true, abrir:'fin', msg:'🏆 Top '+arr.length+' clientes por faturamento recebido ('+perLbl+'):\n\n'+linhas+'\n\nSomatório desses clientes: '+brl(tot)+'.\n(Considera os recebimentos pagos no período.)'};
+  }
+  // ORÇAMENTOS / PEDIDOS por valor
+  if(ent.indexOf('orcam')>=0 || ent.indexOf('orçam')>=0 || ent.indexOf('pedid')>=0 || ent.indexOf('proposta')>=0){
+    var hist=js('gn_hist').filter(function(e){ return gnConsultaPeriodo(e.data, per); }).sort(function(a,b){ return asc?((Number(a.valor)||0)-(Number(b.valor)||0)):((Number(b.valor)||0)-(Number(a.valor)||0)); }).slice(0,lim);
+    if(!hist.length) return {ok:true, abrir:'hist', msg:'Nenhum orçamento/documento em '+perLbl+'.'};
+    var lh=hist.map(function(e,i){ return (i+1)+'. '+(e.cliente||'—')+' — '+brl(Number(e.valor)||0)+' ('+(e.numero||'')+(e.data?(' · '+e.data):'')+')'; }).join('\n');
+    return {ok:true, abrir:'hist', msg:'📄 Top '+hist.length+' orçamentos/documentos por valor ('+perLbl+'):\n\n'+lh};
+  }
+  // FINANCEIRO resumo
+  if(ent.indexOf('financ')>=0 || ent.indexOf('caixa')>=0 || ent.indexOf('resumo')>=0){
+    var fat=0,custo=0,arec=0; fin.forEach(function(x){ if(!x||!gnConsultaPeriodo(x.data,per)) return; var v=Number(x.valor)||0; if(x.tipo==='receita'){ if(x.status==='pago') fat+=v; else arec+=v; } else if(x.tipo==='custo'&&x.status==='pago') custo+=v; });
+    return {ok:true, abrir:'fin', msg:'💰 Financeiro ('+perLbl+'):\n\n• Faturamento recebido: '+brl(fat)+'\n• Despesas pagas: '+brl(custo)+'\n• Lucro líquido: '+brl(fat-custo)+'\n• A receber: '+brl(arec)};
+  }
+  // MATERIAIS (a comprar / estoque baixo)
+  if(ent.indexOf('material')>=0 || ent.indexOf('materi')>=0 || ent.indexOf('estoque')>=0 || ent.indexOf('produto')>=0){
+    var prod=js('gn_prod'); var low=prod.filter(function(c){ return (Number(c.minimo)||0)>0 && (Number(c.estoque)||0)<=(Number(c.minimo)||0); }).slice(0,lim);
+    if(!low.length) return {ok:true, abrir:'prod', msg:'✅ Nenhum material abaixo do estoque mínimo. Total de itens cadastrados: '+prod.length+'.'};
+    var lm=low.map(function(c,i){ return (i+1)+'. '+(c.nome||'')+' — tem '+(Number(c.estoque)||0)+', mínimo '+(Number(c.minimo)||0); }).join('\n');
+    return {ok:true, abrir:'prod', msg:'📦 Materiais para repor ('+low.length+'):\n\n'+lm};
+  }
+  // AGENDA (próximos compromissos)
+  if(ent.indexOf('agend')>=0 || ent.indexOf('compromiss')>=0){
+    var hoje=new Date().toISOString().slice(0,10);
+    var ag=js('gn_agenda').filter(function(c){ return (c.data||'').slice(0,10)>=hoje; }).sort(function(a,b){ return ((a.data||'')+(a.hora||'')).localeCompare((b.data||'')+(b.hora||'')); }).slice(0,lim);
+    if(!ag.length) return {ok:true, abrir:'age', msg:'Nenhum compromisso futuro na agenda.'};
+    var la=ag.map(function(c,i){ return (i+1)+'. '+((c.data||'').split('-').reverse().join('/'))+' '+(c.hora||'')+' — '+(c.titulo||'')+(c.cliente?(' ('+c.cliente+')'):''); }).join('\n');
+    return {ok:true, abrir:'age', msg:'📅 Próximos compromissos:\n\n'+la};
+  }
+  return {ok:false, msg:'Posso consultar: clientes (faturamento), orçamentos, financeiro, materiais ou agenda. Sobre qual você quer?'};
+}
+</script>
+<script>
+// ══════════════════════════════════════════════
 // ═══ DOCUMENTOS DO CLIENTE (visão por cliente + envio em lote no WhatsApp) ═══
 // ══════════════════════════════════════════════
 var docsPulled=false;
@@ -7900,6 +8257,18 @@ function docsRegen(store, id){
   }catch(e){ return false; }
   return true;
 }
+// Constrói o PDF (sem baixar) p/ compartilhar; retorna {doc,filename,meta,d}
+function docsBuild(store, id){
+  var arr=[]; try{ arr=gnStoreGet(store); }catch(e){ return null; }
+  var d=arr.filter(function(x){ return x.id===id; })[0]; if(!d) return null;
+  var doc=null, fn='', meta=null;
+  try{
+    if(store==='rec'){ doc=recDoc(d,false); fn='Recibo '+(d.numero||'')+' - '+(d.nome||'')+'.pdf'; meta={numero:d.numero,cliente:d.nome||'',tipo:'Recibo'}; }
+    else if(store==='os'){ doc=osDoc(d,false); fn='Nota de Serviço '+(d.numero||'')+' - '+(d.nome||'')+'.pdf'; meta={numero:d.numero,cliente:d.nome||'',tipo:'Nota de Serviço'}; }
+    else if(store==='ctr'){ doc=ctrDoc(d,false); fn='Contrato '+(d.numero||'')+' - '+(d.nome||'')+'.pdf'; meta={numero:d.numero,cliente:d.nome||'',tipo:'Contrato'}; }
+  }catch(e){}
+  return doc?{doc:doc, filename:fn, meta:meta, d:d}:null;
+}
 function docsSelecionados(){
   return Array.prototype.slice.call(document.querySelectorAll('.docs-chk:checked')).map(function(c){ return {store:c.getAttribute('data-store'), id:c.getAttribute('data-id'), tipo:c.getAttribute('data-tipo'), numero:c.getAttribute('data-num'), valor:Number(c.getAttribute('data-val'))||0}; });
 }
@@ -7915,13 +8284,17 @@ function docsBaixarSelec(){
 function docsWhatsSelec(){
   var sel=docsSelecionados(); if(!sel.length){ toast('Selecione ao menos um documento.','er'); return; }
   var nome=(document.getElementById('docs-cli')||{}).value||''; if(!nome){ toast('Escolha um cliente.','er'); return; }
-  // Baixa os PDFs primeiro (pra você anexar no WhatsApp)
-  var ok=0; sel.forEach(function(s){ if(docsRegen(s.store, s.id)) ok++; });
   var linhas=sel.map(function(s){ return '• '+s.tipo+' '+s.numero+(s.valor?(' ('+gnBRL(s.valor)+')'):''); }).join('\n');
   var msg='Olá, '+nome+'! Seguem seus documentos da Gás Network:\n'+linhas+'\n\nQualquer dúvida estou à disposição.';
+  // 1) Tenta compartilhamento nativo (anexa os PDFs de verdade)
+  if(typeof gnCanShareFiles==='function' && gnCanShareFiles()){
+    var files=[]; sel.forEach(function(s){ var b=docsBuild(s.store, s.id); if(b){ var f=gnDocToFile(b.doc, b.filename); if(f) files.push(f); try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(b.doc, b.filename, b.meta); }catch(e){} } });
+    if(files.length && navigator.canShare({files:files})){ navigator.share({files:files, title:'Documentos Gás Network', text:msg}).then(function(){ toast('📲 '+files.length+' documento(s) compartilhado(s).','ok'); }).catch(function(){}); return; }
+  }
+  // 2) Fallback: baixa os PDFs + abre o WhatsApp pra anexar
+  var ok=0; sel.forEach(function(s){ if(docsRegen(s.store, s.id)) ok++; });
   var num=docsFone(nome);
-  var url='https://wa.me/'+num+'?text='+encodeURIComponent(msg);
-  setTimeout(function(){ window.open(url,'_blank'); }, 400);
+  setTimeout(function(){ window.open('https://wa.me/'+num+'?text='+encodeURIComponent(msg),'_blank'); }, 400);
   toast('📲 Baixei '+ok+' PDF(s) e abri o WhatsApp de '+nome+'. É só anexar os arquivos que acabei de baixar.','ok');
 }
 function renderDocsCliente(){
@@ -7957,11 +8330,18 @@ function renderDocsCliente(){
 }
 // Envia um único documento pelo WhatsApp (baixa + abre conversa)
 function docsWhatsUm(store, id){
-  var arr=[]; try{ arr=gnStoreGet(store); }catch(e){}
-  var d=arr.filter(function(x){ return x.id===id; })[0]; if(!d) return;
-  docsRegen(store, id);
-  var tipo=(store==='rec')?'Recibo':((store==='os')?'Nota de Serviço':'Contrato');
+  var b=docsBuild(store, id); if(!b) return; var d=b.d;
+  var tipo=b.meta.tipo;
   var msg='Olá, '+(d.nome||'')+'! Segue seu(sua) '+tipo+' '+(d.numero||'')+(d.valor?(' ('+gnBRL(d.valor)+')'):'')+'. Qualquer dúvida estou à disposição.';
+  // cloud save sempre
+  try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(b.doc, b.filename, b.meta); }catch(e){}
+  // 1) compartilhamento nativo (anexa o PDF)
+  if(typeof gnCanShareFiles==='function' && gnCanShareFiles()){
+    var f=gnDocToFile(b.doc, b.filename);
+    if(f && navigator.canShare({files:[f]})){ navigator.share({files:[f], title:tipo, text:msg}).then(function(){ toast('📲 Documento compartilhado.','ok'); }).catch(function(){}); return; }
+  }
+  // 2) fallback: baixa + abre WhatsApp
+  try{ b.doc.save(b.filename); }catch(e){}
   var num=docsFone(d.nome);
   setTimeout(function(){ window.open('https://wa.me/'+num+'?text='+encodeURIComponent(msg),'_blank'); }, 400);
   toast('📲 Baixei o PDF e abri o WhatsApp. É só anexar o arquivo.','ok');
@@ -8024,8 +8404,12 @@ function docsWhatsUm(store, id){
       +'Telas do app: age=Agenda, novo=Nova Proposta/Orçamento, os=Nota de Serviço, rec=Recibo, laudo=Laudo de Estanqueidade/Técnico, docrap=Documento Rápido, fin=Financeiro, compras=Lista de Compras, cli=Clientes, contatos=Contatos, docs=Documentos do Cliente (todos os docs de um cliente, com envio em lote no WhatsApp), prod=Materiais, arquivos=Arquivos e Mídia, ped=Pedidos, tarefas=Tarefas. '
       +(clientesNomes?('Clientes já cadastrados: '+clientesNomes+'. '):'')
       +'Memória sobre o usuário/empresa: '+JSON.stringify(mem()).slice(0,1500)+'. '
-      +'REGRAS DE EXECUÇÃO: Quando o usuário pedir para emitir/criar/gerar um documento, agendar, ou montar lista de compras, e você tiver os dados mínimos, devolva uma AÇÃO no campo "acao". Se faltar um dado essencial (ex.: valor do recibo, dia do agendamento), NÃO crie a ação — em vez disso pergunte de forma curta e objetiva no campo "fala". '
-      +'Dados mínimos: recibo precisa de nome e valor; nota_servico precisa de nome; laudo precisa de cliente e objetivo; agendar precisa de titulo (ou cliente+servico) e data; compras precisa de pelo menos 1 item. Converta datas relativas ("sexta","amanhã") para AAAA-MM-DD com base em hoje. Valores em número (ex.: 350.00). '
+      +'COMO AGIR (MUITO IMPORTANTE): Você é uma IA prestativa e OBEDIENTE, como um assistente de verdade. NUNCA discuta, NUNCA exija informações e NUNCA fique repetindo pedido de dados. Se o usuário disser que não precisa de algum dado, ou pedir para gerar sem certa informação, OBEDEÇA e gere assim mesmo, com o que ele forneceu. '
+      +'Para ORÇAMENTO/PROPOSTA e a maioria dos documentos NENHUM campo é obrigatório — gere com o que houver. Só o LAUDO se beneficia de mais detalhes (cliente e objetivo), mas ainda assim não exija: se faltar, gere com o que tem. '
+      +'Só faça UMA pergunta curta se for realmente impossível agir (ex.: pediu "emite um recibo" sem nenhum nome nem valor). Fora isso, AJA e crie a ação. '
+      +'Seja inteligente para interpretar textos bagunçados, com erros de digitação e fora de ordem: identifique sozinho o que é nome, CPF/CNPJ, telefone, e-mail, endereço, CEP, valor e serviço, e organize tudo certinho, corrigindo e complementando o que faltar. '
+      +'Quando o usuário informar um CEP, coloque-o no campo "cep" da ação — o sistema busca o endereço completo (rua e bairro) na internet automaticamente. Converta datas relativas ("sexta","amanhã") para AAAA-MM-DD com base em hoje. Valores sempre em número (ex.: 350.00). '
+      +'Se o usuário pedir para incluir mais informações no documento, coloque-as nos campos correspondentes. '
       +'DEVOLVA SOMENTE um JSON válido com este formato: {"fala":"sua resposta ao usuário","abrir":null,"lembrar":null,"acao":null}. '
       +'"abrir" = id de tela para abrir (ou null). "lembrar" = fato curto para guardar na memória (ou null). '
       +'"acao" = null OU um objeto {"tipo":"recibo|nota_servico|laudo|orcamento|agendar|compras","dados":{...}}. '
@@ -8033,9 +8417,13 @@ function docsWhatsUm(store, id){
       +'recibo:{nome,valor,forma,ref,cpf,data}; '
       +'nota_servico:{nome,end,valor,desc,exec,mat,status,data}; '
       +'laudo:{cliente,objetivo,local,vistoria,metodo,normas,resultado,naoconf,recomendacoes,conclusao,art,doc,dataemis,dataexec}; '
-      +'orcamento:{nome,cpf,end,obra,resp,tel,email,obj,escopo}; '
+      +'orcamento:{nome,cpf,cep,end,obra,resp,tel,email,obj,escopo}; '
       +'agendar:{titulo,cliente,data,hora,horaFim,obs,servico}; '
-      +'compras:{itens:[{material,qtd}]}. '
+      +'compras:{itens:[{material,qtd}]}; '
+      +'consulta:{entidade,periodo,limite,ordem}. '
+      +'VOCÊ TAMBÉM CONSULTA E ANALISA OS DADOS DO APP. Quando o usuário pedir rankings, listas, totais ou análises (ex.: "os 20 clientes que mais me deram lucro mês passado", "quanto faturei essa semana", "o que falta comprar", "meus próximos compromissos"), devolva acao {tipo:"consulta", dados:{entidade, periodo, limite, ordem}}. '
+      +'entidade = clientes (faturamento/lucro por cliente) | orcamentos | financeiro | materiais | agenda. periodo = hoje|semana|mes|mespassado|ano|tudo. limite = nº de itens (ex.: 20). ordem = desc|asc. '
+      +'Interprete o pedido em linguagem natural e preencha esses campos sozinho (ex.: "mês passado"→periodo:"mespassado", "20 clientes"→limite:20, "que mais lucraram"→ordem:"desc"). '
       +'Quando criar uma ação, em "fala" confirme de forma curta o que está fazendo (ex.: "Emitindo o recibo de R$ 350 para João...").';
     function done(j){
       var hh=hist();
@@ -8096,11 +8484,15 @@ function docsWhatsUm(store, id){
   }
   function _emitOrcamento(d){
     d=d||{};
-    if(!d.nome){ return {ok:false,msg:'Pra montar o orçamento preciso do nome do cliente. Qual é?'}; }
     function setv(id,v){ var el=document.getElementById(id); if(el && v!=null && v!=='') el.value=v; }
     setv('f-nome',d.nome); setv('f-cpf',d.cpf); setv('f-end-cliente',d.end); setv('f-end-obra',d.obra); setv('f-responsavel',d.resp); setv('f-tel',d.tel); setv('f-email',d.email); setv('f-obj',d.obj); setv('f-escopo',d.escopo);
     if(typeof goTab==='function') goTab('novo');
-    return {ok:true, abrir:'novo', msg:'📝 Abri o Orçamento já com os dados de '+d.nome+' preenchidos. Adicione os serviços e o valor na tela e clique em Gerar PDF — eu deixei tudo pronto pra você só completar.'};
+    // CEP -> endereço completo (automático, via internet)
+    if(d.cep && typeof gnCEPLookup==='function'){
+      gnCEPLookup(d.cep).then(function(r){ if(r){ var el=document.getElementById('f-end-cliente'); var cur=el?(el.value||''):''; if(!cur || cur===(d.end||'')){ if(el) el.value=r.full; } if(typeof toast==='function') toast('📍 Endereço preenchido pelo CEP.','ok'); } });
+    }
+    var quem=d.nome?(' de '+d.nome):'';
+    return {ok:true, abrir:'novo', msg:'📝 Pronto, abri o Orçamento'+quem+' com o que você me passou. É só conferir os serviços e o valor na tela e gerar o PDF. 👍'};
   }
   function _agendar(d){
     d=d||{};
@@ -8140,6 +8532,7 @@ function docsWhatsUm(store, id){
       case 'orcamento': case 'proposta': return _emitOrcamento(d);
       case 'agendar': case 'agenda': case 'agendamento': return _agendar(d);
       case 'compras': case 'lista_compras': case 'materiais': return _addCompras(d);
+      case 'consulta': case 'consultar': case 'relatorio': case 'analise': case 'ranking': case 'listar': return (typeof gnConsulta==='function')?gnConsulta(d):{ok:false,msg:'Consulta indisponível.'};
       default: return {ok:false,msg:'Ainda não sei executar "'+acao.tipo+'", mas posso te levar à tela certa.'};
     }
   };
