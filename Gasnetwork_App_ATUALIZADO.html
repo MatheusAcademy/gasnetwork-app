@@ -1456,6 +1456,7 @@ textarea.fi{resize:vertical;}
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
         <input id="docs-busca-cli" oninput="renderDocsCliente()" placeholder="🔎 buscar cliente por nome, CPF/CNPJ, telefone ou e-mail..." style="flex:1;min-width:220px;padding:10px 12px;border:1px solid var(--gn-border);border-radius:9px;">
         <button onclick="docsAnalisarDrive()" id="docs-drive-btn" style="background:#0891b2;color:#fff;border:none;padding:10px 16px;border-radius:9px;cursor:pointer;font-weight:700;white-space:nowrap;">🔄 Analisar Google Drive</button>
+        <button onclick="docsRevisarNomes()" id="docs-nomes-btn" style="background:#7c5cff;color:#fff;border:none;padding:10px 16px;border-radius:9px;cursor:pointer;font-weight:700;white-space:nowrap;">🧹 Revisar nomes</button>
       </div>
       <div id="docs-drive-status" style="font-size:12px;color:var(--gn-dim);margin-bottom:12px;"></div>
       <div id="docs-clientes"></div>
@@ -1531,14 +1532,14 @@ textarea.fi{resize:vertical;}
     <div class="pgsub" style="margin-bottom:14px;">Suba uma <b>pasta inteira</b> (ou vários arquivos) — são lidos <b>PDF, Word (.docx) e planilhas (Excel/CSV)</b>; o resto é ignorado. Nos documentos, lê <b>pelos padrões</b> (nome, CPF/CNPJ, contato, endereço, data e serviço) sem depender da IA na maioria; nas <b>planilhas, cada linha vira um cliente/serviço</b> (detecta as colunas sozinho). Descarta o que não tem relação, cadastra cada cliente (sem duplicar, casando por CPF/CNPJ/telefone/e-mail/nome) e agenda a renovação pelo <b>tipo de serviço</b> (teste de estanqueidade = 12 meses, troca de mangueira = 5 anos). Pode <b>pausar ou cancelar</b>. Opcionalmente cria/usa a pasta de cada cliente no Google Drive.</div>
     <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
-        <label style="background:#4338ca;color:#fff;padding:11px 16px;border-radius:9px;cursor:pointer;font-weight:700;">📁 Escolher pasta<input type="file" id="bulk-folder" webkitdirectory directory multiple style="display:none;" onchange="bulkInfo()"></label>
-        <label style="background:#0e7490;color:#fff;padding:11px 16px;border-radius:9px;cursor:pointer;font-weight:700;">📎 Escolher arquivos<input type="file" id="bulk-files" multiple accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.txt,image/*" style="display:none;" onchange="bulkInfo()"></label>
+        <label style="background:#4338ca;color:#fff;padding:11px 16px;border-radius:9px;cursor:pointer;font-weight:700;">📁 Escolher pasta<input type="file" id="bulk-folder" webkitdirectory directory multiple style="display:none;" onchange="bulkInfo(); bulkAutoGo();"></label>
+        <label style="background:#0e7490;color:#fff;padding:11px 16px;border-radius:9px;cursor:pointer;font-weight:700;">📎 Escolher arquivos<input type="file" id="bulk-files" multiple accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.txt,image/*" style="display:none;" onchange="bulkInfo(); bulkAutoGo();"></label>
         <button id="bulk-btn" onclick="bulkProcess()" style="background:#16a34a;color:#fff;border:none;padding:11px 18px;border-radius:9px;cursor:pointer;font-weight:700;">⚙️ Processar arquivos</button>
         <button id="bulk-pause" onclick="bulkPauseToggle()" style="display:none;background:#b45309;color:#fff;border:none;padding:11px 16px;border-radius:9px;cursor:pointer;font-weight:700;">⏸ Pausar</button>
         <button id="bulk-cancel" onclick="bulkCancel()" style="display:none;background:#dc2626;color:#fff;border:none;padding:11px 16px;border-radius:9px;cursor:pointer;font-weight:700;">✖ Cancelar</button>
         <span id="bulk-count" style="font-size:12.5px;color:var(--gn-dim);"></span>
       </div>
-      <label style="display:inline-flex;align-items:center;gap:7px;margin-top:12px;font-size:13px;color:var(--gn-text);cursor:pointer;"><input type="checkbox" id="bulk-drive"> Enviar cada arquivo para a pasta do cliente no Google Drive (mais lento)</label>
+      <label style="display:inline-flex;align-items:center;gap:7px;margin-top:12px;font-size:13px;color:var(--gn-text);cursor:pointer;"><input type="checkbox" id="bulk-drive" checked> Enviar cada arquivo para a pasta do cliente no Google Drive (recomendado)</label>
       <div style="margin-top:12px;height:8px;background:var(--gn-surface2,#1f2937);border-radius:6px;overflow:hidden;"><div id="bulk-prog-bar" style="height:100%;width:0;background:#16a34a;transition:width .25s;"></div></div>
       <div id="bulk-status" style="font-size:12.5px;color:var(--gn-dim);margin-top:8px;"></div>
     </div>
@@ -4087,7 +4088,7 @@ function gnCor(){ var c=gnCfg(); return c.cor||'#7c5cff'; }
 // Dados compartilhados por toda a equipe + auto-save de documentos no Drive.
 // ══════════════════════════════════════════════
 var GN_CLOUD2 = 'https://script.google.com/macros/s/AKfycbycnK4Fx0J4QphoLr-LQJPkh04RTy6zbBto-Sqlgr306GqjggZkKhyOsJXypeprS0Loww/exec';
-var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user','gn_upload_hist','gn_drive_idx'];
+var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user','gn_upload_hist','gn_drive_idx','gn_nome_ok'];
 var _gnSynced = {};        // último valor conhecido por chave (string)
 var _gnSyncBusy = false;
 var _gnSyncOn = true;
@@ -10598,6 +10599,92 @@ function gnAutoBackupNuvem(){
 }
 window.gnExportarBackup=gnExportarBackup; window.gnImportarBackup=gnImportarBackup; window.gnBackupNuvem=gnBackupNuvem; window.gnBackupInfo=gnBackupInfo; window.gnAutoBackupNuvem=gnAutoBackupNuvem;
 (function(){ function go(){ try{ gnAutoBackupNuvem(); }catch(e){} } if(document.readyState==='complete') setTimeout(go, 7000); else window.addEventListener('load', function(){ setTimeout(go, 7000); }); })();
+</script>
+<script>
+// ═══ LIMPEZA INTELIGENTE DE NOMES + auto-processar upload + auto-ler Drive ═══
+function gnNomeRuim(nome){
+  var s=String(nome||'').trim();
+  if(s.length<2) return true;
+  if(/^[\s,;:.\-–—•·"']/.test(s)) return true;
+  var pal=(s.match(/\S+/g)||[]).length;
+  if(pal>=7) return true;
+  if(s.length>55) return true;
+  if(/\.\s/.test(s) || /[.;:]$/.test(s)) return true;
+  if(/\b(que|porque|inclusive|conceito|acompanha|disciplina|handoff|portanto|ru[ií]do)\b/i.test(s) && pal>=4) return true;
+  return false;
+}
+function _gnNomeOkSet(){ try{ return JSON.parse(localStorage.getItem('gn_nome_ok')||'[]'); }catch(e){ return []; } }
+function _gnNomeOkAdd(id){ var a=_gnNomeOkSet(); if(a.indexOf(id)<0){ a.push(id); try{ localStorage.setItem('gn_nome_ok', JSON.stringify(a)); }catch(e){} try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_nome_ok'); }catch(e){} } }
+function _gnDig(s){ return String(s||'').replace(/\D/g,''); }
+function _gnBomPorContato(){
+  var idx={tel:{},email:{},cpf:{}};
+  function add(nome,tel,email,cpf){ if(gnNomeRuim(nome)) return; var t=_gnDig(tel); if(t.length>=8){ var k=t.slice(-8); if(!idx.tel[k]) idx.tel[k]=nome; } var e=String(email||'').toLowerCase().trim(); if(e.indexOf('@')>0 && !idx.email[e]) idx.email[e]=nome; var c=_gnDig(cpf); if(c.length>=11 && !idx.cpf[c]) idx.cpf[c]=nome; }
+  try{ (typeof cliData==='function'?cliData():[]).forEach(function(c){ add(c.nome,c.tel||c.whatsapp,c.email,c.cpf); }); }catch(e){}
+  try{ (typeof renovData==='function'?renovData():[]).forEach(function(r){ add(r.nome,r.tel,r.email,r.cpf); }); }catch(e){}
+  return idx;
+}
+function _gnAchaBom(idx,tel,email,cpf){ var c=_gnDig(cpf); if(c.length>=11 && idx.cpf[c]) return idx.cpf[c]; var e=String(email||'').toLowerCase().trim(); if(e.indexOf('@')>0 && idx.email[e]) return idx.email[e]; var t=_gnDig(tel); if(t.length>=8 && idx.tel[t.slice(-8)]) return idx.tel[t.slice(-8)]; return ''; }
+function gnLimpaNomesAuto(){
+  var idx=_gnBomPorContato(); var okSet=_gnNomeOkSet(); var fix=0; var restantes=[];
+  var rv=[]; try{ rv=renovData(); }catch(e){}
+  var rvChg=false;
+  rv.forEach(function(r){ if(!gnNomeRuim(r.nome) || okSet.indexOf(r.id)>=0) return; var bom=_gnAchaBom(idx,r.tel,r.email,r.cpf); if(bom){ r.nome=bom; rvChg=true; fix++; } else { restantes.push({store:'renov', id:r.id, nome:r.nome, tel:r.tel||'', email:r.email||'', cpf:r.cpf||'', servico:r.servico||''}); } });
+  if(rvChg){ try{ renovSaveAll(rv); }catch(e){} }
+  var cl=[]; try{ cl=cliData(); }catch(e){}
+  var clChg=false;
+  cl.forEach(function(c){ if(!gnNomeRuim(c.nome) || okSet.indexOf(c.id)>=0) return; var bom=_gnAchaBom(idx,c.tel||c.whatsapp,c.email,c.cpf); if(bom){ c.nome=bom; clChg=true; fix++; } else { restantes.push({store:'cli', id:c.id, nome:c.nome, tel:(c.tel||c.whatsapp||''), email:c.email||'', cpf:c.cpf||'', servico:''}); } });
+  if(clChg){ try{ cliSaveAll(cl); if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_cli'); }catch(e){} }
+  return {fix:fix, restantes:restantes};
+}
+function gnNomeRec(store,id){ try{ var a=(store==='cli')?cliData():renovData(); for(var i=0;i<a.length;i++){ if(a[i].id===id) return {arr:a,rec:a[i]}; } }catch(e){} return null; }
+function docsNomeSalvar(store,id){ var inp=document.getElementById('rn-'+store+'-'+id); if(!inp) return; var novo=String(inp.value||'').trim(); if(novo.length<2){ if(typeof toast==='function') toast('Escreva um nome válido.','er'); return; } var g=gnNomeRec(store,id); if(!g) return; g.rec.nome=novo; if(store==='cli'){ cliSaveAll(g.arr); try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_cli'); }catch(e){} } else { renovSaveAll(g.arr); } _gnNomeOkAdd(id); if(typeof toast==='function') toast('✓ Nome corrigido.','ok'); var row=document.getElementById('rnrow-'+store+'-'+id); if(row) row.style.display='none'; }
+function docsNomeManter(store,id){ _gnNomeOkAdd(id); var row=document.getElementById('rnrow-'+store+'-'+id); if(row) row.style.display='none'; if(typeof toast==='function') toast('Ok, mantido.','ok'); }
+function docsNomeApagar(store,id){ if(!confirm('Apagar este registro? Ele sai da sua base. Confirmar?')) return; var g=gnNomeRec(store,id); if(!g) return; var a=g.arr.filter(function(x){ return x.id!==id; }); if(store==='cli'){ cliSaveAll(a); try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_cli'); }catch(e){} } else { renovSaveAll(a); } var row=document.getElementById('rnrow-'+store+'-'+id); if(row) row.style.display='none'; if(typeof toast==='function') toast('Registro apagado.','ok'); }
+function docsRevisarNomes(){
+  var r=gnLimpaNomesAuto(); var rest=r.restantes;
+  var m=document.getElementById('gn-nomes-modal');
+  if(!m){ m=document.createElement('div'); m.id='gn-nomes-modal'; m.style.cssText='position:fixed;inset:0;z-index:2300;background:rgba(6,9,18,.88);padding:16px;overflow:auto;'; document.body.appendChild(m); }
+  var rows=rest.map(function(o){
+    var contato=[o.tel?('📱 '+o.tel):'', o.email?('✉ '+o.email):'', o.cpf?('🪪 '+o.cpf):''].filter(Boolean).join(' · ')||'sem contato';
+    return '<div id="rnrow-'+o.store+'-'+o.id+'" style="border:1px solid var(--gn-border);border-radius:11px;padding:11px 12px;margin-bottom:8px;">'
+      +'<div style="font-size:11px;color:var(--gn-dim);margin-bottom:6px;">'+(o.store==='cli'?'Cliente':'Laudo')+(o.servico?(' · '+gnEsc(o.servico)):'')+' · '+gnEsc(contato)+'</div>'
+      +'<input id="rn-'+o.store+'-'+o.id+'" value="'+gnEsc(o.nome)+'" style="width:100%;padding:8px 10px;border:1px solid var(--gn-border);border-radius:8px;background:var(--gn-bg);color:var(--gn-text);box-sizing:border-box;margin-bottom:8px;">'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+      +'<button onclick="docsNomeSalvar(\''+o.store+'\',\''+o.id+'\')" style="background:#16a34a;color:#fff;border:none;border-radius:7px;padding:7px 12px;cursor:pointer;font-weight:600;font-size:12.5px;">💾 Salvar nome</button>'
+      +'<button onclick="docsNomeManter(\''+o.store+'\',\''+o.id+'\')" style="background:var(--gn-card);border:1px solid var(--gn-border);color:var(--gn-text);border-radius:7px;padding:7px 12px;cursor:pointer;font-size:12.5px;">Está certo, manter</button>'
+      +'<button onclick="docsNomeApagar(\''+o.store+'\',\''+o.id+'\')" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:7px 12px;cursor:pointer;font-size:12.5px;">🗑 Apagar</button>'
+      +'</div></div>';
+  }).join('');
+  m.innerHTML='<div style="max-width:760px;margin:16px auto;background:#161d31;border:1px solid var(--gn-border,#2a3350);border-radius:18px;overflow:hidden;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--gn-border,#2a3350);"><div style="font-weight:800;color:#f1f5ff;">🧹 Revisar nomes</div><button onclick="document.getElementById(\'gn-nomes-modal\').style.display=\'none\'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9fb0d0;">✕</button></div>'
+    +'<div style="padding:16px;">'
+    +'<div style="background:rgba(22,163,74,.12);border:1px solid rgba(22,163,74,.4);border-radius:10px;padding:10px 12px;margin-bottom:14px;color:#bbf7d0;font-size:13px;">✓ Corrigi automaticamente <b>'+r.fix+'</b> nome(s) pelo telefone/e-mail/CPF.</div>'
+    +(rest.length?('<div style="font-size:13px;color:var(--gn-dim);margin-bottom:10px;">Sobraram <b style="color:var(--gn-text);">'+rest.length+'</b> que não consegui identificar sozinho. Corrija, confirme que está certo, ou apague — nada some sem você confirmar.</div>'+rows):'<div style="color:var(--gn-dim);padding:10px;border:1px dashed var(--gn-border);border-radius:10px;">Tudo certo! Nenhum nome bagunçado para revisar.</div>')
+    +'</div></div>';
+  m.style.display='block';
+  try{ if(typeof renderDocsCliente==='function') renderDocsCliente(); }catch(e){}
+}
+// auto-processar o upload assim que escolher os arquivos
+function bulkAutoGo(){ try{ if(window.__bulkAutoT) clearTimeout(window.__bulkAutoT); window.__bulkAutoT=setTimeout(function(){ try{ if(typeof bulkProcess==='function') bulkProcess(); }catch(e){} }, 900); }catch(e){} }
+// ler o Google Drive sozinho (silencioso) — roda ao abrir o app, em qualquer aparelho
+function docsAutoDrive(){
+  try{
+    if(typeof GN_CLOUD2==='undefined' || !GN_CLOUD2) return;
+    fetch(GN_CLOUD2,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'listDrive'})})
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(!j || !j.ok || !Array.isArray(j.clientes)) return;
+        var idx={ em:new Date().toISOString(), clientes:j.clientes };
+        try{ localStorage.setItem('gn_drive_idx', JSON.stringify(idx)); }catch(e){}
+        try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_drive_idx'); }catch(e){}
+        try{ var s=document.getElementById('docs-drive-status'); if(s){ var n=0; j.clientes.forEach(function(c){ n+=(c.arquivos||[]).length; }); s.innerHTML='☁ Drive lido: <b style="color:var(--gn-text);">'+j.clientes.length+'</b> cliente(s) · <b style="color:var(--gn-text);">'+n+'</b> arquivo(s). Atualizado agora.'; } }catch(e){}
+        try{ var pane=document.getElementById('pane-docs'); if(pane && pane.style.display!=='none' && typeof renderDocsCliente==='function') renderDocsCliente(); }catch(e){}
+      })
+      .catch(function(){});
+  }catch(e){}
+}
+window.gnNomeRuim=gnNomeRuim; window.docsRevisarNomes=docsRevisarNomes; window.docsNomeSalvar=docsNomeSalvar; window.docsNomeManter=docsNomeManter; window.docsNomeApagar=docsNomeApagar; window.gnLimpaNomesAuto=gnLimpaNomesAuto; window.bulkAutoGo=bulkAutoGo; window.docsAutoDrive=docsAutoDrive;
+(function(){ function go(){ try{ docsAutoDrive(); }catch(e){} } if(document.readyState==='complete') setTimeout(go, 4000); else window.addEventListener('load', function(){ setTimeout(go, 4000); }); })();
 </script>
 </body>
 </html>
