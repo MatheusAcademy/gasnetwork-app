@@ -3236,7 +3236,7 @@ function laePts(n){ n=parseInt(n,10)||1; var w=(n>=1&&n<=10)?LAE_NUMS[n-1]:n; re
 function gnLaudoEstBlocos(o){
   o=o||{}; var et=String(o.etapas||'2'); var gas=String(o.gas||'GLP').toUpperCase();
   var pt=o.ponto||'do ponto de origem'; var qd=parseInt(o.qtdPontos,10)||1; var qt=laePts(qd);
-  var esc=(o.escopo||'').trim(); var res=(String(o.resultado||'ok').toLowerCase().indexOf('repro')>=0)?'fail':'ok';
+  var esc=(o.escopo||'').trim(); var res=(/repro|fail/.test(String(o.resultado||'ok').toLowerCase()))?'fail':'ok';
   var rec=(o.recomendacoes||'').trim(); var gl=(gas==='GN')?'GN (Gás Natural)':'GLP';
   var T1='O presente Laudo Técnico de Estanqueidade tem por finalidade certificar a integridade, estanqueidade e conformidade da rede de gás canalizado da edificação, abrangendo toda a extensão da tubulação, desde o ponto de alimentação (central de gás ou medidor) até os pontos de consumo finais.\n\n'
     +'A vistoria técnica e o respectivo ensaio de estanqueidade foram executados pela empresa Gás Network Serviços e Instalações Ltda, inscrita no CNPJ nº 46.701.957/0001-66, devidamente habilitada para prestação de serviços técnicos especializados em redes de gás (GLP e GN), conforme as diretrizes estabelecidas pelas normas técnicas ABNT NBR 15526 e ABNT NBR 13103.\n\n'
@@ -3302,7 +3302,7 @@ function gnLaudoPDF(o){
   var GREEN=[22,128,61], RED=[190,40,40];
   var dataStr=o.data||new Date().toLocaleDateString('pt-BR');
   var ano=o.ano||(new Date().getFullYear());
-  var res=(String(o.resultado||'ok').toLowerCase().indexOf('repro')>=0)?'fail':'ok';
+  var res=(/repro|fail/.test(String(o.resultado||'ok').toLowerCase()))?'fail':'ok';
   // ===== CAPA =====
   if(cfg.logo){ try{ var lp=doc.getImageProperties(cfg.logo); if(lp&&lp.width&&lp.height){ var lr=Math.min(70/lp.width, 26/lp.height); var lw=lp.width*lr, lh=lp.height*lr; var lfmt=(cfg.logo.indexOf('image/png')>=0)?'PNG':((cfg.logo.indexOf('image/webp')>=0)?'WEBP':'JPEG'); doc.addImage(cfg.logo, lfmt, (W-lw)/2, 40, lw, lh); } }catch(e){} }
   doc.setFont('helvetica','italic'); doc.setFontSize(15); doc.setTextColor(...DK); doc.text('Laudo Técnico', W/2, 120, {align:'center'});
@@ -8670,6 +8670,7 @@ function docsWhatsUm(store, id){
       +'laudo:{cliente,objetivo,local,vistoria,metodo,normas,resultado,naoconf,recomendacoes,conclusao,art,doc,dataemis,dataexec}; '
       +'laudo_estanqueidade:{cliente,data,escopo,qtdPontos,ponto,recomendacoes,doc,end,tel,etapas,gas,resultado}; '
       +'contrato:{nome,cpf,valor,objeto,pgto,prazo,garantia}; '
+      +'ATENÇÃO LAUDO DE ESTANQUEIDADE: preencha SEMPRE os dados estruturados, NÃO apenas o texto. Se o usuário disser que vazou / deu vazamento / reprovou → "resultado":"reprovado"; se disser aprovado/sem vazamento → "resultado":"aprovado". Coloque a recomendação em "recomendacoes" (ex.: aplicação de resina) e o detalhe do vazamento (ex.: "20 mmca") em "observacoes". Informe também "etapas" (2 ou 3), "gas" (GLP/GN), "qtdPontos" e "ponto" (partida do teste) quando o usuário mencionar. Nunca deixe o resultado em branco quando ele foi informado. '
       +'agendar:{titulo,cliente,data,hora,horaFim,obs,servico}; '
       +'compras:{itens:[{material,qtd}]}; '
       +'consulta:{entidade,periodo,limite,ordem}. '
@@ -8792,12 +8793,24 @@ function docsWhatsUm(store, id){
     function setr(name,val){ try{ var el=document.querySelector('input[name="'+name+'"][value="'+val+'"]'); if(el) el.checked=true; }catch(e){} }
     setv('lae-cli', d.cliente||d.nome); setv('lae-data', d.data||new Date().toISOString().slice(0,10));
     setv('lae-doc', d.doc||d.cpf||''); setv('lae-end', d.end||d.endereco||''); setv('lae-tel', d.tel||'');
-    setv('lae-ponto', d.ponto||''); setv('lae-qtd', d.qtdPontos||d.pontos||''); setv('lae-escopo', d.escopo||''); setv('lae-recom', d.recomendacoes||'');
-    // etapas (2/3), gás (GN/GLP) e resultado (ok/fail)
-    if(d.etapas){ setr('lae-et', (String(d.etapas).indexOf('3')>=0?'3':'2')); }
-    if(d.gas){ setr('lae-gas', (String(d.gas).toUpperCase().indexOf('GN')>=0||String(d.gas).toLowerCase().indexOf('natural')>=0)?'GN':'GLP'); }
-    if(d.resultado){ setr('lae-res', (String(d.resultado).toLowerCase().indexOf('repro')>=0||String(d.resultado).toLowerCase().indexOf('fail')>=0)?'fail':'ok'); }
-    if(typeof laudoEstGerar==='function'){ try{ laudoEstGerar(false); }catch(e){ return {ok:false,msg:'Não consegui gerar: '+(e&&e.message||e)}; } return {ok:true, whats:(d.cliente||d.nome), msg:'✅ Laudo de Estanqueidade de '+(d.cliente||d.nome)+' gerado e baixado, no modelo completo (capa, etapas e numeração).'}; }
+    setv('lae-ponto', d.ponto||''); setv('lae-qtd', d.qtdPontos||d.pontos||''); setv('lae-escopo', d.escopo||'');
+    // ── BLINDAGEM: lê a conversa recente para inferir o que faltar nos dados ──
+    var conv=''; try{ var H=JSON.parse(localStorage.getItem('gn_assist_hist')||'[]'); conv=H.slice(-10).map(function(m){return String(m.t||'');}).join(' \n ').toLowerCase(); }catch(e){}
+    // RESULTADO (aprovado/reprovado) — sempre seta o radio (não herda estado antigo)
+    var resul=d.resultado;
+    if(!resul){ if(/reprov|vazament|vazou|fuga|n[aã]o aprov|fail|queda de press/.test(conv)) resul='reprovado'; else if(/aprovad|sem vazament|estanque|passou|nenhuma queda/.test(conv)) resul='aprovado'; }
+    setr('lae-res', (resul && /(repro|fail)/.test(String(resul).toLowerCase()))?'fail':'ok');
+    // ETAPAS (2/3)
+    var et=d.etapas; setr('lae-et', (et && String(et).indexOf('3')>=0)?'3':'2');
+    // GÁS (GN/GLP)
+    var gas=d.gas; if(!gas){ if(/\bgn\b|g[aá]s natural/.test(conv)) gas='GN'; else if(/glp|botij/.test(conv)) gas='GLP'; }
+    setr('lae-gas', (gas && (String(gas).toUpperCase().indexOf('GN')>=0||String(gas).toLowerCase().indexOf('natural')>=0))?'GN':'GLP');
+    // RECOMENDAÇÕES + OBSERVAÇÕES (detalhe do vazamento, etc.)
+    var recom=d.recomendacoes||d.recomendacao||''; if(!recom && /resina/.test(conv)) recom='Aplicação de resina vedante para solução do vazamento e regularização do sistema.';
+    setv('lae-recom', recom);
+    var extra=d.observacoes||d.obs||d.detalhe||d.vazamento||''; if(!extra){ var mv=conv.match(/(\d+[.,]?\d*)\s*mmca/); if(mv) extra='Durante o ensaio foi identificado vazamento com queda de pressão de '+mv[1]+' mmca na tubulação.'; }
+    setv('lae-extra', extra);
+    if(typeof laudoEstGerar==='function'){ try{ laudoEstGerar(false); }catch(e){ return {ok:false,msg:'Não consegui gerar: '+(e&&e.message||e)}; } var _r=(resul&&/(repro|fail)/.test(String(resul).toLowerCase()))?'REPROVADO':'APROVADO'; return {ok:true, whats:(d.cliente||d.nome), msg:'✅ Laudo de Estanqueidade de '+(d.cliente||d.nome)+' gerado e baixado — resultado: '+_r+'. (capa, etapas e numeração).'}; }
     return {ok:false, msg:'Gerador de estanqueidade indisponível.'};
   }
   function _emitContrato(d){
