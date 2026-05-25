@@ -6355,8 +6355,13 @@ function renderCli(){
   var q=((document.getElementById('cli-busca')||{}).value||'').toLowerCase().trim();
   var arr=cliData().slice().sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
   if(q){ arr=arr.filter(function(c){ return ((c.nome||'')+' '+(c.tel||'')+' '+(c.whatsapp||'')+' '+(c.cpf||'')+' '+(c.cidade||'')).toLowerCase().indexOf(q)>=0; }); }
-  if(!arr.length){ list.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">'+(cliData().length?'Nenhum cliente encontrado para a busca.':'Nenhum cliente cadastrado ainda.')+'</div>'; return; }
-  list.innerHTML=arr.map(function(c){
+  // Filtro anti-lixo: esconde "clientes" com nome bagunçado (chave de banco, telefone-como-nome,
+  // descrição de serviço). Não apaga nada — só some da lista. Botão "Mostrar todos" reverte.
+  if(typeof window.__cliShowAll==='undefined'){ try{ window.__cliShowAll=(localStorage.getItem('gn_cli_showall')==='1'); }catch(e){ window.__cliShowAll=false; } }
+  if(!window.__cliShowAll){ var _allc=arr.length; arr=arr.filter(function(c){ return !(typeof gnNomeRuim==='function' && gnNomeRuim(c.nome)); }); window.__cliHidden=_allc-arr.length; } else { window.__cliHidden=0; }
+  var _cliToggle=(window.__cliHidden||window.__cliShowAll)?('<button onclick="cliToggleAll()" style="margin-bottom:10px;background:'+(window.__cliShowAll?'#fef3c7;color:#92400e':'var(--gn-surface2,#243049);color:var(--gn-text)')+';border:1px solid var(--gn-border);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12.5px;font-weight:700;">'+(window.__cliShowAll?'👁 Mostrando todos — voltar a filtrar':('🔎 Mostrar todos'+(window.__cliHidden?(' ('+window.__cliHidden+' escondido(s) por nome bagunçado)'):'')))+'</button>'):'';
+  if(!arr.length){ list.innerHTML=_cliToggle+'<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">'+(cliData().length?(window.__cliHidden?(window.__cliHidden+' cliente(s) escondido(s) por nome bagunçado. Clique em "Mostrar todos" para vê-los.'):'Nenhum cliente encontrado para a busca.'):'Nenhum cliente cadastrado ainda.')+'</div>'; return; }
+  list.innerHTML=_cliToggle+(window.__cliHidden?('<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;"><b style="color:var(--gn-text);">'+arr.length+'</b> cliente(s) · <b style="color:#dc2626;">'+window.__cliHidden+'</b> escondido(s) por nome bagunçado.</div>'):'')+arr.map(function(c){
     var sub=[c.tipo, c.cpf, c.cidade].filter(Boolean).join(' · ');
     return '<div style="border:1px solid var(--gn-border);border-radius:12px;padding:12px 14px;margin-bottom:8px;">'
       + '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">'
@@ -6376,6 +6381,7 @@ function renderCli(){
   Array.prototype.forEach.call(list.querySelectorAll('.cli-edit'), function(b){ b.onclick=function(){ cliEdit(b.getAttribute('data-id')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.cli-del'), function(b){ b.onclick=function(){ cliDel(b.getAttribute('data-id')); }; });
 }
+window.cliToggleAll=function(){ window.__cliShowAll=!window.__cliShowAll; try{ localStorage.setItem('gn_cli_showall', window.__cliShowAll?'1':'0'); }catch(e){} try{ renderCli(); }catch(e){} };
 
 </script>
 <script>
@@ -11578,24 +11584,28 @@ async function gnArquivarServicosDrive(){
     if(window.__arqCancel) break;
     var r=pend[i]; var c=byNome[String(r.nome||'').toLowerCase().trim()]||{};
     try{
-      var doc=new jp.jsPDF({unit:'mm',format:'a4'}); var M=18, y=20, W=210;
-      doc.setFillColor(124,92,255); doc.rect(0,0,W,14,'F');
-      doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.text(String(empresa).toUpperCase(),M,9);
-      doc.setTextColor(20,20,20); y=26; doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.text('Comprovante de Serviço Executado',M,y); y+=10;
-      doc.setFontSize(10);
-      var lin=function(label,val){ if(!val) return; doc.setFont('helvetica','bold'); doc.text(label,M,y); doc.setFont('helvetica','normal'); var ls=doc.splitTextToSize(String(val),W-M-M-33); doc.text(ls,M+33,y); y+=Math.max(6, ls.length*5)+1; };
-      lin('Cliente:', r.nome);
-      lin('Endereço:', c.endereco||'');
-      lin('Contato:', [c.tel||c.whatsapp||'', c.email||''].filter(Boolean).join(' · '));
-      if(c.cpf) lin('CPF/CNPJ:', c.cpf);
-      lin('Serviço:', r.servico);
-      lin('Data de execução:', _arqDBR(r.data)||'—');
-      if(Number(r.valor)>0) lin('Valor:', _arqBRL(r.valor));
-      var venc=''; try{ if(typeof renovStatus==='function'){ var s=renovStatus(r.data,r.validadeMeses); if(s&&s.venc) venc=s.venc.toLocaleDateString('pt-BR'); } }catch(e){}
-      if(venc) lin('Próxima renovação:', venc+' (validade '+(r.validadeMeses||12)+' meses)');
-      y+=2; doc.setFont('helvetica','bold'); doc.text('Descrição do serviço:',M,y); y+=6; doc.setFont('helvetica','normal');
-      var dl=doc.splitTextToSize(String(r.descricao||r.servico||''),W-M-M); doc.text(dl,M,y); y+=dl.length*5+10;
-      doc.setFontSize(8); doc.setTextColor(120,120,120); doc.text(String(empresa)+(co.crea?(' · '+co.crea):'')+(co.responsavel?(' · '+co.responsavel):''),M,287);
+      // Usa o template profissional padrão (gnDocPDF) — mesmo layout dos documentos atuais.
+      var doc=(typeof gnServicoDocPDF==='function')?gnServicoDocPDF(r):null;
+      if(!doc){
+        doc=new jp.jsPDF({unit:'mm',format:'a4'}); var M=18, y=20, W=210;
+        doc.setFillColor(124,92,255); doc.rect(0,0,W,14,'F');
+        doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.text(String(empresa).toUpperCase(),M,9);
+        doc.setTextColor(20,20,20); y=26; doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.text('Comprovante de Serviço Executado',M,y); y+=10;
+        doc.setFontSize(10);
+        var lin=function(label,val){ if(!val) return; doc.setFont('helvetica','bold'); doc.text(label,M,y); doc.setFont('helvetica','normal'); var ls=doc.splitTextToSize(String(val),W-M-M-33); doc.text(ls,M+33,y); y+=Math.max(6, ls.length*5)+1; };
+        lin('Cliente:', r.nome);
+        lin('Endereço:', c.endereco||'');
+        lin('Contato:', [c.tel||c.whatsapp||'', c.email||''].filter(Boolean).join(' · '));
+        if(c.cpf) lin('CPF/CNPJ:', c.cpf);
+        lin('Serviço:', r.servico);
+        lin('Data de execução:', _arqDBR(r.data)||'—');
+        if(Number(r.valor)>0) lin('Valor:', _arqBRL(r.valor));
+        var venc=''; try{ if(typeof renovStatus==='function'){ var s=renovStatus(r.data,r.validadeMeses); if(s&&s.venc) venc=s.venc.toLocaleDateString('pt-BR'); } }catch(e){}
+        if(venc) lin('Próxima renovação:', venc+' (validade '+(r.validadeMeses||12)+' meses)');
+        y+=2; doc.setFont('helvetica','bold'); doc.text('Descrição do serviço:',M,y); y+=6; doc.setFont('helvetica','normal');
+        var dl=doc.splitTextToSize(String(r.descricao||r.servico||''),W-M-M); doc.text(dl,M,y); y+=dl.length*5+10;
+        doc.setFontSize(8); doc.setTextColor(120,120,120); doc.text(String(empresa)+(co.crea?(' · '+co.crea):'')+(co.responsavel?(' · '+co.responsavel):''),M,287);
+      }
       var b64=String(doc.output('datauristring')).split(',')[1]||'';
       var fn=('Servico '+(r.servico||'')+' '+(_arqDBR(r.data)||'').replace(/\//g,'-')).replace(/[\\\/:*?"<>|]/g,'-').slice(0,80)+'.pdf';
       await fetch(GN_CLOUD2,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveDoc',base64:b64,filename:fn,mime:'application/pdf',cliente:(r.nome||'Sem nome'),tipo:(r.servico||'Serviços executados'),numero:''})});
@@ -11612,36 +11622,35 @@ async function gnArquivarServicosDrive(){
 }
 window.gnArquivarServicosDrive=gnArquivarServicosDrive;
 // ═══ VER PDF de um serviço executado (gera o comprovante na hora, com data e valor) ═══
+function gnServicoDocPDF(r){
+  // Gera o comprovante do serviço no MESMO template profissional dos documentos atuais
+  // (logo, cabeçalho, rodapé e assinatura via gnDocPDF).
+  if(typeof gnDocPDF!=='function') return null;
+  var cli=[]; try{ cli=JSON.parse(localStorage.getItem('gn_cli')||'[]'); }catch(e){}
+  var c=cli.filter(function(x){ return String(x.nome||'').toLowerCase().trim()===String(r.nome||'').toLowerCase().trim(); })[0]||{};
+  var dBR=function(s){ s=String(s||''); var m=s.match(/(\d{4})-(\d{2})-(\d{2})/); return m?(m[3]+'/'+m[2]+'/'+m[1]):s; };
+  var linhas=[];
+  var contato=[c.tel||c.whatsapp||'', c.email||''].filter(Boolean).join(' · '); if(contato) linhas.push({label:'Contato', valor:contato});
+  if(c.cpf) linhas.push({label:'CPF/CNPJ', valor:c.cpf});
+  if(r.servico) linhas.push({label:'Serviço', valor:r.servico});
+  linhas.push({label:'Data de execução', valor:(dBR(r.data)||'—')});
+  if(r.formaPgto||r.forma) linhas.push({label:'Forma de pagamento', valor:(r.formaPgto||r.forma)});
+  var venc=''; try{ if(typeof renovStatus==='function'){ var s=renovStatus(r.data,r.validadeMeses); if(s&&s.venc) venc=s.venc.toLocaleDateString('pt-BR'); } }catch(e){}
+  if(venc) linhas.push({label:'Próxima renovação', valor:venc+' (validade '+(r.validadeMeses||12)+' meses)'});
+  var blocos=[{titulo:'Serviço executado', texto:String(r.descricao||r.servico||'Serviço técnico executado.')}];
+  return gnDocPDF({ titulo:'COMPROVANTE DE SERVIÇO EXECUTADO', numero:(r.numero||''), data:(dBR(r.data)||''),
+    cliente:{ nome:(r.nome||''), end:(c.endereco||'') }, linhas:linhas, total:(Number(r.valor)>0?r.valor:null),
+    blocos:blocos, rodape:'Comprovante de serviço executado emitido eletronicamente.' });
+}
 function gnVerPDFServico(id){
   try{
-    var jp=window.jspdf; if(!jp||!jp.jsPDF){ if(typeof toast==='function') toast('Gerador de PDF indisponível.','er'); return; }
     var ren=[]; try{ ren=JSON.parse(localStorage.getItem('gn_renov')||'[]'); }catch(e){}
     var r=ren.filter(function(x){ return x.id===id; })[0]; if(!r){ if(typeof toast==='function') toast('Serviço não encontrado.','er'); return; }
-    var cli=[]; try{ cli=JSON.parse(localStorage.getItem('gn_cli')||'[]'); }catch(e){}
-    var c=cli.filter(function(x){ return String(x.nome||'').toLowerCase().trim()===String(r.nome||'').toLowerCase().trim(); })[0]||{};
-    var co=(typeof gnCO==='function')?gnCO():{}; var empresa=co.fantasia||co.marca||'Gás Network Engenharia';
-    var doc=new jp.jsPDF({unit:'mm',format:'a4'}); var M=18,y=20,W=210;
-    doc.setFillColor(124,92,255); doc.rect(0,0,W,14,'F'); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.text(String(empresa).toUpperCase(),M,9);
-    doc.setTextColor(20,20,20); y=26; doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.text('Comprovante de Serviço Executado',M,y); y+=10; doc.setFontSize(10);
-    var lin=function(l,v){ if(!v) return; doc.setFont('helvetica','bold'); doc.text(l,M,y); doc.setFont('helvetica','normal'); var ls=doc.splitTextToSize(String(v),W-M-M-33); doc.text(ls,M+33,y); y+=Math.max(6,ls.length*5)+1; };
-    var dBR=function(s){ s=String(s||''); var m=s.match(/(\d{4})-(\d{2})-(\d{2})/); return m?(m[3]+'/'+m[2]+'/'+m[1]):s; };
-    var brl=function(v){ v=Number(v)||0; return 'R$ '+v.toFixed(2).replace('.',','); };
-    lin('Cliente:', r.nome);
-    lin('Endereço:', c.endereco||'');
-    lin('Contato:', [c.tel||c.whatsapp||'', c.email||''].filter(Boolean).join(' · '));
-    if(c.cpf) lin('CPF/CNPJ:', c.cpf);
-    lin('Serviço:', r.servico);
-    lin('Data de execução:', dBR(r.data)||'—');
-    if(Number(r.valor)>0) lin('Valor:', brl(r.valor));
-    var venc=''; try{ if(typeof renovStatus==='function'){ var s=renovStatus(r.data,r.validadeMeses); if(s&&s.venc) venc=s.venc.toLocaleDateString('pt-BR'); } }catch(e){}
-    if(venc) lin('Próxima renovação:', venc+' (validade '+(r.validadeMeses||12)+' meses)');
-    y+=2; doc.setFont('helvetica','bold'); doc.text('Descrição do serviço:',M,y); y+=6; doc.setFont('helvetica','normal');
-    var dl=doc.splitTextToSize(String(r.descricao||r.servico||''),W-M-M); doc.text(dl,M,y); y+=dl.length*5+10;
-    doc.setFontSize(8); doc.setTextColor(120,120,120); doc.text(String(empresa)+(co.crea?(' · '+co.crea):'')+(co.responsavel?(' · '+co.responsavel):''),M,287);
+    var doc=gnServicoDocPDF(r); if(!doc){ if(typeof toast==='function') toast('Gerador de PDF indisponível.','er'); return; }
     try{ window.open(doc.output('bloburl'),'_blank'); }catch(e){ try{ doc.save('Servico - '+(r.servico||'')+'.pdf'); }catch(_){} }
   }catch(e){ if(typeof toast==='function') toast('Erro ao gerar PDF: '+(e&&e.message||e),'er'); }
 }
-window.gnVerPDFServico=gnVerPDFServico;
+window.gnVerPDFServico=gnVerPDFServico; window.gnServicoDocPDF=gnServicoDocPDF;
 // ═══ BALÃO DO CLIENTE — abre em qualquer tela com tudo do cliente (dados, serviços+PDF, documentos, financeiro) ═══
 function gnBalaoZap(){ try{ var c=window.__balaoCli||{}; var n=String(c.tel||c.whatsapp||'').replace(/\D/g,''); if(!n){ if(typeof toast==='function') toast('Cliente sem telefone.','er'); return; } if(n.length<=11) n='55'+n; window.open('https://wa.me/'+n,'_blank'); }catch(e){} }
 window.gnBalaoZap=gnBalaoZap;
