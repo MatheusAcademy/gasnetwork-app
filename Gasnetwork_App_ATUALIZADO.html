@@ -2317,11 +2317,14 @@ function renderResumoDia(){
   // RESUMO DO DIA / VISÃO GERAL (item 2)
   var box=document.getElementById('ini-resumo'); if(!box) return;
   function card(t,v,c,onclick){ return '<button onclick="'+onclick+'" style="text-align:left;background:var(--gn-card,#fff);border:1px solid var(--gn-border,#e3e3e3);border-left:4px solid '+c+';border-radius:12px;padding:12px 13px;cursor:pointer;"><div style="font-size:11px;color:var(--gn-dim,#888);">'+t+'</div><div style="font-size:17px;font-weight:800;color:var(--gn-text,#222);margin-top:3px;">'+v+'</div></button>'; }
+  // Cards financeiros usam a MESMA lógica do Financeiro (finCalc): faturamento manual x real (banco), a receber e em atraso.
+  var dFin={}; try{ dFin=(typeof finCalc==='function')?finCalc():{}; }catch(eF){ dFin={}; }
+  var _vF=function(x){ return Number(x)||0; };
   box.innerHTML =
-    card('Faturamento do mês', brl(fatMes), '#7c5cff', "goTab('fin')")
-   +card('Recebido no mês', brl(recMes), '#16a34a', "goTab('fin')")
-   +card('A receber', brl(vReceber), '#34d399', "goTab('fin')")
-   +card('Em atraso', brl(vAtraso), '#fb7185', "goTab('fin')")
+    card('Faturamento manual (equipe)', brl(_vF(dFin.recManual)), '#16a34a', "iniFinBalao('manual')")
+   +card('Faturamento real (banco)', brl(_vF(dFin.recBanco)), '#2563eb', "iniFinBalao('banco')")
+   +card('A receber', brl(_vF(dFin.arec)), '#34d399', "iniFinBalao('arec')")
+   +card('Em atraso', brl(_vF(dFin.atraso)), '#fb7185', "iniFinBalao('atraso')")
    +card('Criados no mês', criadosMes, '#4d9bff', "iniGoPed('')")
    +card('Pendentes', cont['Pendente']||0, cor('Pendente'), "iniGoPed('Pendente')")
    +card('Aguardando aprovação', cont['Aguardando aprovação']||0, cor('Aguardando aprovação'), "iniGoPed('Aguardando aprovação')")
@@ -2331,6 +2334,45 @@ function renderResumoDia(){
    +card('Garantias ativas', cont['Garantia']||0, cor('Garantia'), "iniGoPed('Garantia')")
    +card('Serviços de hoje', servHoje, '#22d3ee', "goTab('age')");
 }
+// Balão explicativo de cada card financeiro do Início (em vez de redirecionar direto pro Financeiro)
+function iniFinBalao(tipo){
+  var d={}; try{ d=(typeof finCalc==='function')?finCalc():{}; }catch(e){ d={}; }
+  var brl=function(x){ try{ return gnBRL(Number(x)||0); }catch(e){ return 'R$ '+(Number(x)||0).toFixed(2); } };
+  var perLbl=''; try{ var sel=document.getElementById('fin-periodo'); if(sel){ perLbl=sel.options[sel.selectedIndex].text; } }catch(e){}
+  var info={
+    manual:{ t:'💚 Faturamento manual (equipe)', v:d.recManual, cor:'#16a34a',
+      desc:'É a soma dos recebimentos lançados pela sua equipe (e os que vieram do Agenda Boa) no período selecionado. Representa o faturamento do trabalho executado, do jeito que você e a Mayara registram.',
+      faz:'Use este número como o seu faturamento "de serviço". O Lucro líquido do Financeiro é este valor menos as despesas do banco.' },
+    banco:{ t:'🏦 Faturamento real (banco)', v:d.recBanco, cor:'#2563eb',
+      desc:'É tudo que ENTROU de verdade nas suas contas (C6 + Asaas) no período, lido dos extratos importados. É o dinheiro que realmente caiu na conta.',
+      faz:'Compare com o faturamento manual: se o banco estiver bem abaixo, há serviço executado que ainda não foi pago ou não foi lançado.' },
+    arec:{ t:'🟢 A receber', v:d.arec, cor:'#16a34a',
+      desc:'São valores de serviços já lançados que os clientes ainda vão pagar e que AINDA estão dentro do prazo (não venceram). Não é dinheiro em atraso.',
+      faz:'Acompanhe pelo Financeiro. Quando o cliente pagar, marque como recebido. Se passar do prazo, vira "Em atraso" e aparece nas Cobranças.' },
+    atraso:{ t:'🟠 Em atraso', v:d.atraso, cor:'#fb7185',
+      desc:'São recebimentos que JÁ passaram do vencimento e o cliente ainda não pagou. É exatamente o que aparece em "Cobranças a fazer" nas Tarefas.',
+      faz:'Cobre esses clientes. Vá em Tarefas → Cobranças e mande a mensagem com 1 toque, ou marque "Já pago" quando receber.' }
+  }[tipo]; if(!info) return;
+  var id='ini-fin-balao';
+  var m=document.getElementById(id);
+  if(!m){ m=document.createElement('div'); m.id=id; m.style.cssText='display:none;position:fixed;inset:0;z-index:2300;background:rgba(6,9,18,.86);padding:16px;overflow:auto;'; m.addEventListener('click',function(e){ if(e.target===m) m.style.display='none'; }); document.body.appendChild(m); }
+  var acao = (tipo==='atraso')
+    ? '<button onclick="document.getElementById(\''+id+'\').style.display=\'none\';goTab(\'tarefas\')" style="background:#dc2626;color:#fff;border:none;border-radius:9px;padding:10px 15px;cursor:pointer;font-weight:700;">📢 Ver cobranças</button>'
+    : '<button onclick="document.getElementById(\''+id+'\').style.display=\'none\';goTab(\'fin\')" style="background:#4338ca;color:#fff;border:none;border-radius:9px;padding:10px 15px;cursor:pointer;font-weight:700;">💰 Abrir Financeiro</button>';
+  m.innerHTML='<div style="max-width:480px;margin:50px auto;background:#161d31;border:1px solid var(--gn-border,#2a3350);border-top:4px solid '+info.cor+';border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.55);overflow:hidden;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--gn-border,#2a3350);"><div style="font-weight:800;color:#f1f5ff;">'+info.t+'</div><button onclick="document.getElementById(\''+id+'\').style.display=\'none\'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9fb0d0;">✕</button></div>'
+    +'<div style="padding:18px;">'
+    +'<div style="font-size:30px;font-weight:800;color:'+info.cor+';">'+brl(info.v)+'</div>'
+    +(perLbl?('<div style="font-size:12px;color:#9fb0d0;margin-bottom:12px;">Período: '+gnEsc(perLbl)+'</div>'):'<div style="margin-bottom:12px;"></div>')
+    +'<div style="font-size:11px;color:#c4b5fd;font-weight:700;text-transform:uppercase;margin-bottom:4px;">O que significa</div>'
+    +'<div style="font-size:13.5px;color:#e6ecff;line-height:1.55;margin-bottom:12px;">'+gnEsc(info.desc)+'</div>'
+    +'<div style="font-size:11px;color:#c4b5fd;font-weight:700;text-transform:uppercase;margin-bottom:4px;">O que fazer</div>'
+    +'<div style="font-size:13.5px;color:#e6ecff;line-height:1.55;margin-bottom:16px;">'+gnEsc(info.faz)+'</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'+acao+'<button onclick="document.getElementById(\''+id+'\').style.display=\'none\'" style="background:#64748b;color:#fff;border:none;border-radius:9px;padding:10px 15px;cursor:pointer;font-weight:600;">Fechar</button></div>'
+    +'</div></div>';
+  m.style.display='block';
+}
+window.iniFinBalao=iniFinBalao;
 
 // ═══ NOTIFICAÇÕES (sino — item 37) + central HOJE (item 38) ═══
 function notifCompute(){
@@ -4106,7 +4148,7 @@ function gnCor(){ var c=gnCfg(); return c.cor||'#7c5cff'; }
 // Dados compartilhados por toda a equipe + auto-save de documentos no Drive.
 // ══════════════════════════════════════════════
 var GN_CLOUD2 = 'https://script.google.com/macros/s/AKfycbycnK4Fx0J4QphoLr-LQJPkh04RTy6zbBto-Sqlgr306GqjggZkKhyOsJXypeprS0Loww/exec';
-var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user','gn_upload_hist','gn_drive_idx','gn_nome_ok','gn_notinha_done'];
+var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user','gn_upload_hist','gn_drive_idx','gn_nome_ok','gn_notinha_done','gn_gar_retornos'];
 var _gnSynced = {};        // último valor conhecido por chave (string)
 var _gnSyncBusy = false;
 var _gnSyncOn = true;
@@ -9173,7 +9215,9 @@ function gnGarantias(){
   try{ var rv=JSON.parse(localStorage.getItem('gn_renov')||'[]'); rv.forEach(function(r){ var rg=(typeof gnServRegra==='function')?gnServRegra(r.servico):{meses:12,lembrete:true}; if(rg.lembrete) return; var di=String(r.data||'').slice(0,10); if(!/^\d{4}-\d{2}-\d{2}$/.test(di)) return; var d=new Date(di+'T00:00:00'); if(isNaN(d)) return; var fim2=new Date(d.getTime()); fim2.setMonth(fim2.getMonth()+(rg.meses||3)); var dr=Math.round((fim2-h0)/86400000); var stt=(dr<0)?'vencida':((dr<=30)?'vencendo':'vigente'); out.push({entry:{cliente:r.nome, numero:''}, inicio:di, fim:fim2, diasRest:dr, status:stt, cat:r.servico||'Serviço de gás', serv:r.servico||'', fromRenov:true, cliNome:r.nome}); }); }catch(e){}
   out.sort(function(a,b){ return a.diasRest-b.diasRest; }); return out;
 }
-function gnGarantiasVencendo(){ return gnGarantias().filter(function(g){ return g.status!=='vigente' && g.diasRest>=-60 && g.diasRest<=30; }); }
+// Só garantias AINDA sob sua responsabilidade que estão prestes a vencer (0 a 30 dias).
+// Garantia VENCIDA NÃO entra aqui de propósito: passou o prazo sem problema = ótimo, não é alerta.
+function gnGarantiasVencendo(){ return gnGarantias().filter(function(g){ return g.status==='vencendo' && g.diasRest>=0 && g.diasRest<=30; }); }
 function garEnviar(numero){
   var e=pedEntry(numero); if(!e) return; var c=(typeof pedCliente==='function')?(pedCliente(e.cliente)||{}):{};
   var msg=modeloMsg('Relacionamento', e.cliente, 'Olá, {nome}! Passando para falar sobre a garantia do serviço que realizamos. Estamos à disposição!');
@@ -9194,11 +9238,16 @@ function renderGarantias(){
   var lbl={vigente:'EM GARANTIA',vencendo:'VENCENDO',vencida:'VENCIDA'};
   function itemHTML(g){
     var e=g.entry; var fimStr=g.fim.toLocaleDateString('pt-BR'); var iniStr=(g.inicio||'').split('-').reverse().join('/');
-    var info=(g.status==='vencida')?('venceu em '+fimStr):((g.status==='vencendo')?('vence em '+g.diasRest+' dia(s) — '+fimStr):('em garantia até '+fimStr));
-    return '<div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--gn-border);border-left:4px solid '+cor[g.status]+';border-radius:10px;margin-bottom:6px;">'
+    var info=(g.status==='vencida')?('venceu em '+fimStr+' — fora da garantia ✅'):((g.status==='vencendo')?('vence em '+g.diasRest+' dia(s) — '+fimStr):('em garantia até '+fimStr));
+    var gk=(e&&e.numero)||('rv:'+((g.cliNome||e.cliente||''))+'|'+(g.serv||'')+'|'+(g.inicio||''));
+    var rets=(typeof garRetForKey==='function')?garRetForKey(gk):[];
+    var retHtml = rets.length ? ('<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--gn-border);">'+rets.map(function(r){ var dd=r.data?String(r.data).split('-').reverse().join('/'):''; return '<div style="font-size:11.5px;color:var(--gn-dim);">🔧 <b style="color:var(--gn-text);">Retorno '+gnEsc(dd)+'</b>'+(r.motivo?(' · '+gnEsc(r.motivo)):'')+(r.feito?(' — '+gnEsc(r.feito)):'')+((r.midias&&r.midias.length)?(' · 📎 '+r.midias.length+' anexo(s)'):'')+'</div>'; }).join('')+'</div>') : '';
+    var btnCli = g.fromRenov ? ('<button onclick="gnClienteBalao(this.getAttribute(\'data-c\'))" data-c="'+gnEsc(e.cliente||g.cliNome||'')+'" style="background:#7c5cff;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">👤 Ver cliente</button>') : ('<button onclick="garEnviar(\''+gnEsc(e.numero)+'\')" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">📲 Falar com cliente</button>');
+    var btnRet='<button onclick="garRetAbrir(this.getAttribute(\'data-gk\'),this.getAttribute(\'data-cli\'))" data-gk="'+gnEsc(gk)+'" data-cli="'+gnEsc(e.cliente||g.cliNome||'')+'" style="background:#0e7490;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">🔧 Registrar retorno'+(rets.length?(' ('+rets.length+')'):'')+'</button>';
+    return '<div style="display:flex;align-items:flex-start;gap:11px;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--gn-border);border-left:4px solid '+cor[g.status]+';border-radius:10px;margin-bottom:6px;">'
       +'<div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(e.cliente||'Cliente')+' <span style="font-size:10px;background:'+cor[g.status]+';color:#fff;border-radius:8px;padding:1px 7px;">'+lbl[g.status]+'</span></div>'
-      +'<div style="font-size:12px;color:var(--gn-dim);">'+gnEsc(e.numero||'')+' · executado em <b style="color:var(--gn-text);">'+iniStr+'</b> · garantia: '+info+(g.serv?(' · '+gnEsc(g.serv)):'')+'</div></div>'
-      +(g.fromRenov ? ('<button onclick="gnClienteBalao(this.getAttribute(\'data-c\'))" data-c="'+gnEsc(e.cliente||'')+'" style="background:#7c5cff;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">👤 Ver cliente</button>') : ('<button onclick="garEnviar(\''+gnEsc(e.numero)+'\')" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">📲 Falar com cliente</button>'))+'</div>';
+      +'<div style="font-size:12px;color:var(--gn-dim);">'+gnEsc(e.numero||'')+' · executado em <b style="color:var(--gn-text);">'+iniStr+'</b> · garantia: '+info+(g.serv?(' · '+gnEsc(g.serv)):'')+'</div>'+retHtml+'</div>'
+      +'<div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;">'+btnCli+btnRet+'</div></div>';
   }
   // agrupa por categoria de serviço (ex.: Construção de tubulação, Aplicação de resina, Teste de estanqueidade...)
   var grupos={}; arr.forEach(function(g){ var c=g.cat||'Serviço de gás'; (grupos[c]=grupos[c]||[]).push(g); });
@@ -9209,6 +9258,40 @@ function renderGarantias(){
       + grupos[cat].map(itemHTML).join('');
   }).join('');
 }
+// ─── Retorno em garantia: registra quando o cliente chama de volta (data, motivo, o que foi feito, fotos/vídeos) ───
+function garRetAll(){ try{ return JSON.parse(localStorage.getItem('gn_gar_retornos')||'{}')||{}; }catch(e){ return {}; } }
+function garRetSaveAll(o){ try{ localStorage.setItem('gn_gar_retornos', JSON.stringify(o)); }catch(e){} try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_gar_retornos'); }catch(e){} }
+function garRetForKey(k){ var o=garRetAll(); var a=o[k]; return Array.isArray(a)?a:[]; }
+var garRetKey=null, garRetCli=null, garRetMidias=[];
+function garRetEnsure(){ if(document.getElementById('gar-ret-modal')) return; var d=document.createElement('div'); d.id='gar-ret-modal'; d.style.cssText='display:none;position:fixed;inset:0;z-index:2300;background:rgba(6,9,18,.88);padding:16px;overflow:auto;';
+  d.innerHTML='<div style="max-width:560px;margin:30px auto;background:#161d31;border:1px solid var(--gn-border,#2a3350);border-top:4px solid #0e7490;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.55);overflow:hidden;"><div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--gn-border,#2a3350);"><div id="gar-ret-title" style="font-weight:800;color:#f1f5ff;">Registrar retorno</div><button onclick="garRetClose()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9fb0d0;">✕</button></div><div style="padding:18px;">'
+    +'<div style="font-size:12px;color:#9fb0d0;margin-bottom:10px;">Use isto quando o cliente te chamou de volta (vazamento, problema, revisão) dentro da garantia. Fica tudo salvo no histórico do serviço.</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">'
+    +'<div><label style="font-size:11px;color:#9fb0d0;">Data do retorno</label><input type="date" id="gar-ret-data" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--gn-border);border-radius:8px;background:#0f1626;color:#f1f5ff;"></div>'
+    +'<div><label style="font-size:11px;color:#9fb0d0;">Motivo do retorno</label><input id="gar-ret-motivo" placeholder="Ex.: vazamento na conexão" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--gn-border);border-radius:8px;background:#0f1626;color:#f1f5ff;"></div>'
+    +'</div>'
+    +'<div style="margin-top:10px;"><label style="font-size:11px;color:#9fb0d0;">O que foi executado no retorno</label><textarea id="gar-ret-feito" rows="3" placeholder="Descreva o que você fez na visita de retorno..." style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--gn-border);border-radius:8px;background:#0f1626;color:#f1f5ff;"></textarea></div>'
+    +'<div style="margin-top:10px;"><label style="background:#4338ca;color:#fff;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:600;font-size:12.5px;display:inline-block;">📷 Adicionar fotos / vídeos<input type="file" accept="image/*,video/*" multiple onchange="garRetAddMidia(this)" style="display:none;"></label> <span id="gar-ret-midia-info" style="font-size:12px;color:#9fb0d0;"></span></div>'
+    +'<div id="gar-ret-midia-grid" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;"><button onclick="garRetSalvar()" style="background:#16a34a;color:#fff;border:none;border-radius:9px;padding:11px 16px;cursor:pointer;font-weight:700;">💾 Salvar retorno</button><button onclick="garRetClose()" style="background:#64748b;color:#fff;border:none;border-radius:9px;padding:11px 16px;cursor:pointer;font-weight:600;">Cancelar</button></div>'
+    +'<div id="gar-ret-hist" style="margin-top:14px;"></div>'
+    +'</div></div>';
+  document.body.appendChild(d); }
+function garRetClose(){ var m=document.getElementById('gar-ret-modal'); if(m) m.style.display='none'; }
+function garRetAbrir(k, cli){ garRetEnsure(); garRetKey=k; garRetCli=cli||''; garRetMidias=[];
+  var t=document.getElementById('gar-ret-title'); if(t) t.textContent='Registrar retorno — '+(cli||'cliente');
+  var dt=document.getElementById('gar-ret-data'); if(dt) dt.value=new Date().toISOString().slice(0,10);
+  ['gar-ret-motivo','gar-ret-feito'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  var info=document.getElementById('gar-ret-midia-info'); if(info) info.textContent=''; var grid=document.getElementById('gar-ret-midia-grid'); if(grid) grid.innerHTML='';
+  garRetHist();
+  document.getElementById('gar-ret-modal').style.display='block';
+}
+function garRetHist(){ var box=document.getElementById('gar-ret-hist'); if(!box) return; var rets=garRetForKey(garRetKey); if(!rets.length){ box.innerHTML='<div style="font-size:12px;color:#9fb0d0;">Nenhum retorno registrado ainda para este serviço.</div>'; return; } box.innerHTML='<div style="font-size:11px;color:#c4b5fd;font-weight:700;text-transform:uppercase;margin-bottom:6px;">Retornos registrados</div>'+rets.map(function(r,i){ var dd=r.data?String(r.data).split('-').reverse().join('/'):''; return '<div style="border:1px solid var(--gn-border);border-radius:9px;padding:8px 10px;margin-bottom:6px;"><div style="font-weight:700;color:#f1f5ff;font-size:12.5px;">🔧 '+gnEsc(dd)+(r.motivo?(' · '+gnEsc(r.motivo)):'')+'</div>'+(r.feito?('<div style="font-size:12px;color:#cdd7ee;margin-top:2px;">'+gnEsc(r.feito)+'</div>'):'')+((r.midias&&r.midias.length)?('<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">'+r.midias.map(function(m){ return m.tipo==='img'?('<img src="'+m.url+'" style="width:54px;height:54px;object-fit:cover;border-radius:6px;">'):('<span style="font-size:11px;color:#9fb0d0;border:1px solid var(--gn-border);border-radius:6px;padding:3px 6px;">🎬 '+gnEsc(m.name||'vídeo')+'</span>'); }).join('')+'</div>'):'')+'<button onclick="garRetDel('+i+')" style="background:#fdecec;color:#dc2626;border:none;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;margin-top:5px;">excluir</button></div>'; }).join(''); }
+function garRetDel(i){ i=parseInt(i,10); var o=garRetAll(); var a=o[garRetKey]||[]; if(i>=0&&i<a.length){ if(!confirm('Excluir este retorno?')) return; a.splice(i,1); o[garRetKey]=a; garRetSaveAll(o); garRetHist(); try{ if(typeof renderGarantias==='function') renderGarantias(); }catch(e){} } }
+function garRetAddMidia(input){ var files=input&&input.files?Array.prototype.slice.call(input.files):[]; if(!files.length) return; var pend=files.length; files.forEach(function(f){ if(/^image\//.test(f.type)){ if(typeof pdResizeImg==='function'){ pdResizeImg(f, function(durl){ if(durl) garRetMidias.push({tipo:'img', url:durl}); pend--; if(pend===0) garRetMidiaInfo(); }); } else { var r=new FileReader(); r.onload=function(e){ garRetMidias.push({tipo:'img', url:e.target.result}); pend--; if(pend===0) garRetMidiaInfo(); }; r.onerror=function(){ pend--; if(pend===0) garRetMidiaInfo(); }; r.readAsDataURL(f); } } else { garRetMidias.push({tipo:'video', name:f.name, size:f.size}); pend--; if(pend===0) garRetMidiaInfo(); } }); input.value=''; }
+function garRetMidiaInfo(){ var nImg=garRetMidias.filter(function(m){return m.tipo==='img';}).length, nVid=garRetMidias.filter(function(m){return m.tipo==='video';}).length; var info=document.getElementById('gar-ret-midia-info'); if(info) info.textContent=(nImg?nImg+' foto(s) ':'')+(nVid?(nVid+' vídeo(s) — só o nome é guardado; mantenha o arquivo no Drive'):''); var grid=document.getElementById('gar-ret-midia-grid'); if(grid){ grid.innerHTML=garRetMidias.map(function(m){ return m.tipo==='img'?('<img src="'+m.url+'" style="width:54px;height:54px;object-fit:cover;border-radius:6px;">'):('<span style="font-size:11px;color:#9fb0d0;border:1px solid var(--gn-border);border-radius:6px;padding:3px 6px;">🎬 '+gnEsc(m.name||'vídeo')+'</span>'); }).join(''); } }
+function garRetSalvar(){ if(!garRetKey){ return; } var g=function(id){ var el=document.getElementById(id); return el?(el.value||'').trim():''; }; var data=g('gar-ret-data'), motivo=g('gar-ret-motivo'), feito=g('gar-ret-feito'); if(!data && !motivo && !feito && !garRetMidias.length){ if(typeof toast==='function') toast('Preencha pelo menos a data e o motivo do retorno.','er'); return; } var o=garRetAll(); var a=o[garRetKey]||[]; a.unshift({ data:data, motivo:motivo, feito:feito, midias:garRetMidias.slice(), cliente:garRetCli, criadoEm:new Date().toISOString() }); o[garRetKey]=a; try{ garRetSaveAll(o); }catch(e){ if(typeof toast==='function') toast('Não consegui salvar (armazenamento cheio? tente menos fotos).','er'); return; } garRetMidias=[]; if(typeof toast==='function') toast('✓ Retorno registrado para '+(garRetCli||'cliente')+'.','ok'); garRetHist(); ['gar-ret-motivo','gar-ret-feito'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); var info=document.getElementById('gar-ret-midia-info'); if(info) info.textContent=''; var grid=document.getElementById('gar-ret-midia-grid'); if(grid) grid.innerHTML=''; try{ if(typeof renderGarantias==='function') renderGarantias(); }catch(e){} }
+window.garRetAbrir=garRetAbrir; window.garRetClose=garRetClose; window.garRetSalvar=garRetSalvar; window.garRetAddMidia=garRetAddMidia; window.garRetDel=garRetDel;
 
 // ══════════════════════════════════════════════
 // ═══ NOTA FISCAL DE SERVIÇO (NFS-e) via gateway fiscal + certificado A1 ═══
@@ -9542,9 +9625,9 @@ function gnAvisos(){
       var gv=gnGarantiasVencendo();
       if(gv.length){
         html+='<div style="background:rgba(245,158,11,.10);border:1px solid #f59e0b;border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
-          +'<div style="font-weight:800;color:#b45309;margin-bottom:6px;">🛡️ '+gv.length+' garantia(s) vencendo / recém-vencida(s)</div>';
+          +'<div style="font-weight:800;color:#b45309;margin-bottom:6px;">🛡️ '+gv.length+' garantia(s) ainda na sua responsabilidade (vencendo)</div>';
         html+=gv.slice(0,6).map(function(g){
-          var d=(g.diasRest<0)?('<span style="color:#dc2626;font-weight:700;">venceu há '+(-g.diasRest)+' dia(s)</span>'):('vence em '+g.diasRest+' dia(s)');
+          var d='vence em '+g.diasRest+' dia(s)';
           return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--gn-border);">'
             +'<span style="color:var(--gn-text);"><strong>'+gnEsc(g.entry.cliente||'')+'</strong> · '+d+'</span>'
             +'<button onclick="garEnviar(\''+gnEsc(g.entry.numero||'')+'\')" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">📲 Falar com cliente</button></div>';
@@ -10683,7 +10766,8 @@ function renderTarefasHub(){
     }).join('');
     inner2+='<button onclick="goTab(\'renov\')" style="margin-top:6px;background:#dc2626;color:#fff;border:none;border-radius:8px;padding:8px 13px;cursor:pointer;font-weight:700;font-size:12.5px;">Abrir Renovação de Laudos →</button>';
   }
-  H+=card('🔄 Clientes a relembrar (laudos / manutenções)', inner2);
+  // (prioridade baixa) — guardado para entrar NO FIM da lista, depois das notinhas, tarefas e cobranças
+  var secRelembrar=card('🔄 Clientes a relembrar (laudos / manutenções) — quando sobrar tempo', inner2);
   // 3) Minhas tarefas (anotadas / do assistente)
   var ts=[]; try{ ts=(typeof tarGet==='function')?tarGet():JSON.parse(localStorage.getItem('gn_tarefas')||'[]'); }catch(e){}
   var _tarPeso=function(t){ var s=(String(t.titulo||'')+' '+String(t.cliente||'')+' '+String(t.servico||'')).toLowerCase();
@@ -10714,13 +10798,15 @@ function renderTarefasHub(){
   try{ if(typeof gnAniversariantes==='function'){ var avs=gnAniversariantes(7); var i4; if(!avs.length){ i4=vazio('Nenhum aniversário nos próximos 7 dias.'); } else { i4=avs.map(function(a){ var q=(a.dias===0)?'hoje 🎉':('em '+a.dias+' dia(s)'); return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 12px;border:1px solid var(--gn-border);border-left:4px solid #0891b2;border-radius:10px;margin-bottom:6px;"><div><b style="color:var(--gn-text);">'+esc(a.cli.nome||'')+'</b> <span style="font-size:12px;color:var(--gn-dim);">· '+q+'</span></div><button onclick="gnAniverEnviar(\''+esc(String(a.cli.id||'')).replace(/\x27/g,"\\\x27")+'\')" style="background:#25d366;color:#fff;border:none;border-radius:8px;padding:7px 11px;cursor:pointer;font-weight:600;font-size:12px;">📲 Parabenizar</button></div>'; }).join(''); } H+=card('🎂 Aniversariantes', i4); } }catch(e){}
   // 5) Pós-venda pendente
   try{ if(typeof gnPosvendaPendentes==='function'){ var pvs=gnPosvendaPendentes(); var i5; if(!pvs.length){ i5=vazio('Nenhum pós-venda pendente no momento.'); } else { i5='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;"><b style="color:#7c5cff;">'+pvs.length+'</b> serviço(s) concluído(s) aguardando um contato de pós-venda.</div><button onclick="goTab(\'posvenda\')" style="background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:8px 13px;cursor:pointer;font-weight:700;font-size:12.5px;">Abrir Pós-venda →</button>'; } H+=card('⭐ Pós-venda', i5); } }catch(e){}
-  // 6) Cobranças (financeiro a receber / em atraso)
+  // 6) Cobranças — SÓ pagamentos EM ATRASO (vencido: data < hoje). Bate com o card "Em atraso" do Financeiro.
+  //    Não inclui "a receber" futuro nem orçamentos — só quem já passou do vencimento e você precisa cobrar.
   var fin=[]; try{ fin=JSON.parse(localStorage.getItem('gn_fin')||'[]'); }catch(e){}
-  var pend={}; (fin||[]).forEach(function(x){ if(x && x.tipo==='receita' && x.status && x.status!=='pago'){ var k=(x.cliente||'').trim(); if(k) pend[k]=(pend[k]||0)+(Number(x.valor)||0); } });
-  var pk=Object.keys(pend); var i6;
-  if(!pk.length){ i6=vazio('Nenhuma cobrança pendente. Valores a receber lançados no Financeiro aparecem aqui para cobrar com 1 toque.'); }
-  else { var totp=0; pk.forEach(function(k){ totp+=pend[k]; }); i6='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;"><b style="color:#f59e0b;">'+pk.length+'</b> cliente(s) com valor em aberto · total '+((typeof gnBRL==='function')?gnBRL(totp):('R$ '+totp.toFixed(2)))+'.</div>'+pk.slice(0,15).map(function(k){ return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 12px;border:1px solid var(--gn-border);border-left:4px solid #f59e0b;border-radius:10px;margin-bottom:6px;"><div><b style="color:var(--gn-text);">'+esc(k)+'</b> <span style="font-size:12px;color:var(--gn-dim);">· a receber '+((typeof gnBRL==='function')?gnBRL(pend[k]):('R$ '+pend[k].toFixed(2)))+'</span></div><button onclick="hubCobrar(\''+esc(String(k)).replace(/\x27/g,"\\\x27")+'\','+pend[k]+')" style="background:#25d366;color:#fff;border:none;border-radius:8px;padding:7px 11px;cursor:pointer;font-weight:600;font-size:12px;">📲 Cobrar</button></div>'; }).join(''); }
-  H+=card('📢 Cobranças a fazer', i6);
+  var pend={}; (fin||[]).forEach(function(x){ if(x && x.tipo==='receita' && x.status && x.status!=='pago' && x.data && String(x.data).slice(0,10)<hojeISO){ var k=(x.cliente||'').trim(); if(k) pend[k]=(pend[k]||0)+(Number(x.valor)||0); } });
+  var pk=Object.keys(pend).sort(function(a,b){ return pend[b]-pend[a]; }); var i6;
+  if(!pk.length){ i6=vazio('Nenhuma cobrança em atraso. 🎉 Quando um recebimento passar do vencimento (lá no Financeiro), o cliente aparece aqui pra cobrar com 1 toque.'); }
+  else { var totp=0; pk.forEach(function(k){ totp+=pend[k]; }); i6='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;"><b style="color:#dc2626;">'+pk.length+'</b> cliente(s) <b>em atraso</b> · total '+((typeof gnBRL==='function')?gnBRL(totp):('R$ '+totp.toFixed(2)))+' (mesmo valor do card “Em atraso” do Financeiro).</div>'+pk.slice(0,40).map(function(k){ return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 12px;border:1px solid var(--gn-border);border-left:4px solid #dc2626;border-radius:10px;margin-bottom:6px;"><div><b style="color:var(--gn-text);">'+esc(k)+'</b> <span style="font-size:12px;color:var(--gn-dim);">· em atraso '+((typeof gnBRL==='function')?gnBRL(pend[k]):('R$ '+pend[k].toFixed(2)))+'</span></div><div style="display:flex;gap:5px;flex-wrap:wrap;"><button onclick="hubCobrar(\''+esc(String(k)).replace(/\x27/g,"\\\x27")+'\','+pend[k]+')" style="background:#25d366;color:#fff;border:none;border-radius:8px;padding:7px 11px;cursor:pointer;font-weight:600;font-size:12px;">📲 Cobrar</button><button onclick="hubCobrarPago(\''+esc(String(k)).replace(/\x27/g,"\\\x27")+'\')" title="Marca os valores em atraso desse cliente como recebidos" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 11px;cursor:pointer;font-weight:600;font-size:12px;">✓ Já pago</button></div></div>'; }).join(''); }
+  H+=card('📢 Cobranças a fazer (em atraso)', i6);
+  H+=secRelembrar; // relembrar laudos/manutenções fica por último (prioridade baixa)
   box.innerHTML=H;
 }
 function hubCobrar(nome, valor){
@@ -10732,6 +10818,21 @@ function hubCobrar(nome, valor){
   if(typeof gnSendMsg==='function'){ gnSendMsg(nome, c?(c.whatsapp||c.tel):'', c?c.email:'', msg); } else if(typeof toast==='function'){ toast('Recurso de envio indisponível.','er'); }
 }
 window.hubCobrar=hubCobrar;
+// Marca como RECEBIDO os valores em atraso desse cliente (move de "a cobrar" para "recebido" no Financeiro)
+function hubCobrarPago(nome){
+  var n=String(nome||'').toLowerCase().trim(); if(!n) return;
+  var hojeISO=new Date().toISOString().slice(0,10);
+  var fin=[]; try{ fin=JSON.parse(localStorage.getItem('gn_fin')||'[]'); }catch(e){}
+  var qt=0, soma=0;
+  fin.forEach(function(x){ if(x && x.tipo==='receita' && x.status && x.status!=='pago' && x.data && String(x.data).slice(0,10)<hojeISO && String(x.cliente||'').toLowerCase().trim()===n){ x.status='pago'; if(!x.dataPag) x.dataPag=hojeISO; qt++; soma+=Number(x.valor)||0; } });
+  if(!qt){ if(typeof toast==='function') toast('Nada em atraso encontrado para '+nome+'.','er'); return; }
+  if(!confirm('Marcar como RECEBIDO '+qt+' lançamento(s) em atraso de '+nome+' ('+((typeof gnBRL==='function')?gnBRL(soma):('R$ '+soma.toFixed(2)))+')?')) return;
+  try{ localStorage.setItem('gn_fin', JSON.stringify(fin)); }catch(e){}
+  try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_fin'); }catch(e){}
+  if(typeof toast==='function') toast('✓ '+nome+': '+((typeof gnBRL==='function')?gnBRL(soma):('R$ '+soma.toFixed(2)))+' marcado como recebido.','ok');
+  renderTarefasHub(); try{ if(typeof renderFin==='function') renderFin(); }catch(e){} try{ if(typeof renderResumoDia==='function') renderResumoDia(); }catch(e){}
+}
+window.hubCobrarPago=hubCobrarPago;
 function hubFazerNotinha(nome){ try{ if(typeof goTab==='function') goTab('os'); var el=document.getElementById('os-nome')||document.getElementById('os-cli')||document.getElementById('os-cliente'); if(el){ el.value=nome; try{ if(typeof osPickCli==='function') osPickCli(); }catch(e){} } if(typeof toast==='function') toast('Faça a Nota de Serviço de '+nome+'.','ok'); }catch(e){} }
 function hubTarAdd(){ var inp=document.getElementById('tarhub-tit'); var v=inp?(inp.value||'').trim():''; if(!v){ if(typeof toast==='function') toast('Escreva a tarefa.','er'); return; } var a=(typeof tarGet==='function')?tarGet():[]; a.unshift({id:'t'+Date.now(),titulo:v,prioridade:'Média',venc:'',cliente:'',status:'Aberta',criadoEm:new Date().toISOString()}); if(typeof tarSaveAll==='function') tarSaveAll(a); try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_tarefas'); }catch(e){} if(inp) inp.value=''; renderTarefasHub(); }
 function hubTarToggle(id){ var a=(typeof tarGet==='function')?tarGet():[]; a.forEach(function(x){ if(x.id===id) x.status=(x.status==='Concluída'?'Aberta':'Concluída'); }); if(typeof tarSaveAll==='function') tarSaveAll(a); try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_tarefas'); }catch(e){} renderTarefasHub(); }
