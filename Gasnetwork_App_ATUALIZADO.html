@@ -2082,7 +2082,7 @@ Retorne SOMENTE JSON válido:
 // VARIÁVEIS GLOBAIS
 // ══════════════════════════════════════════════
 let isRec = false, recog = null, accum = '';
-let currentMode = 'simples';
+let currentMode = 'completo';
 let pdfContextText = '';
 let propostaNum = '';  // numero travado da proposta atual (gerado uma unica vez)
 
@@ -2123,7 +2123,7 @@ window.addEventListener('DOMContentLoaded', () => {
     } catch(e) { tecRecog = null; }
   }
 
-  updCount(); renderHist(); syncHist(); setMode('simples');
+  updCount(); renderHist(); syncHist(); setMode('completo');
   document.getElementById('t-data').value = new Date().toISOString().slice(0,10);
   tecBuildImgGrid();
 });
@@ -4039,16 +4039,26 @@ function gnAnexarMidia(cliente, ref){
   inp.click();
 }
 // IA via backend (chave fica no servidor, não no código)
+// Parser tolerante: aceita JSON puro, JSON dentro de ``` ``` ou embutido em texto.
+// Se não houver JSON, lança erro mas guarda o texto cru em err.raw (pra mostrar como resposta).
+function gnAIParse(content){
+  var s=String(content||'').trim();
+  s=s.replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim();
+  try{ return JSON.parse(s); }catch(e){}
+  var m=s.match(/\{[\s\S]*\}/);
+  if(m){ try{ return JSON.parse(m[0]); }catch(e){} }
+  var err=new Error('resposta-nao-json'); err.raw=String(content||''); throw err;
+}
 function gnAI(systemPrompt, userText){
   return fetch(GN_CLOUD2,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'ai', system:systemPrompt, user:String(userText||'').slice(0,14000)})})
     .then(function(r){return r.json();})
-    .then(function(j){ if(!j||!j.ok||!j.content) throw new Error((j&&j.error)||'falha-ia'); return JSON.parse(j.content); });
+    .then(function(j){ if(!j||!j.ok||!j.content) throw new Error((j&&j.error)||'falha-ia'); return gnAIParse(j.content); });
 }
 // IA com VISÃO (lê imagem + texto) — usa o backend (modelo de visão da OpenAI)
 function gnAIVision(systemPrompt, userText, imageDataURL){
   return fetch(GN_CLOUD2,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'aiVision', system:systemPrompt, user:String(userText||'').slice(0,6000), image:imageDataURL||''})})
     .then(function(r){return r.json();})
-    .then(function(j){ if(!j||!j.ok||!j.content) throw new Error((j&&j.error)||'falha-ia-visao'); return JSON.parse(j.content); });
+    .then(function(j){ if(!j||!j.ok||!j.content) throw new Error((j&&j.error)||'falha-ia-visao'); return gnAIParse(j.content); });
 }
 (function(){ function go(){ try{ gnSyncInit(); }catch(e){} } if(document.readyState!=='loading') setTimeout(go,1000); else document.addEventListener('DOMContentLoaded', function(){ setTimeout(go,1000); }); })();
 
@@ -8650,6 +8660,8 @@ function docsWhatsUm(store, id){
       if(typeof recalcTotal==='function') recalcTotal();
     }catch(e){}
     if(d.cep && typeof gnCEPLookup==='function'){ gnCEPLookup(d.cep).then(function(r){ if(r){ var el=document.getElementById('f-end-cliente'); if(el && (!el.value||el.value===(d.end||''))) el.value=r.full; } }); }
+    // usa SEMPRE o modelo completo (com capa, layout atualizado)
+    try{ if(typeof setMode==='function') setMode('completo'); else if(typeof currentMode!=='undefined') currentMode='completo'; }catch(e){}
     var okGen=false; try{ if(typeof gerarPDF==='function'){ gerarPDF(); okGen=true; } }catch(e){}
     if(!okGen){ if(typeof goTab==='function') goTab('novo'); return {ok:false, abrir:'novo', msg:'Preparei o orçamento na tela — confira e gere por lá.'}; }
     var vtot=Number(d.valor)||0; if(!vtot && d.servicos){ try{ d.servicos.forEach(function(s){ vtot+=(Number(s.valor_unitario||s.vu||s.valor)||0)*(Number(s.quantidade||s.qtd)||1); }); }catch(e){} }
