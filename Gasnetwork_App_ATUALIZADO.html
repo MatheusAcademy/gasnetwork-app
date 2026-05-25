@@ -1355,7 +1355,7 @@ textarea.fi{resize:vertical;}
     <div id="fin-meta" style="margin-bottom:10px;"></div>
     <div id="fin-grafico" style="margin-bottom:12px;"></div>
     <div style="font-size:12px;color:var(--gn-dim);background:rgba(100,116,139,.10);border:1px solid var(--gn-border);border-radius:10px;padding:10px 12px;margin-bottom:20px;line-height:1.5;">
-      💡 Toque em qualquer card acima para abrir a lista detalhada daquele valor (editável, com documentos por cliente). O <b>Lucro líquido</b> é calculado sozinho: faturamento − despesas no período. <span id="fin-saldoini-txt" style="display:none;"></span>
+      💡 Toque em qualquer card acima para abrir a lista detalhada daquele valor (editável, com documentos por cliente). O <b>Lucro líquido</b> = faturamento − despesas no período. Importante: ele NÃO soma "manual + banco" (seria a mesma receita em dobro) — usa o maior dos dois como faturamento real. <span id="fin-saldoini-txt" style="display:none;"></span>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-bottom:20px;">
@@ -5311,7 +5311,7 @@ function finPerChange(){ var sel=document.getElementById('fin-periodo'); var cx=
 function finCopiarResumo(){
   var d=finCalc();
   var perSel=document.getElementById('fin-periodo'); var perTxt=perSel?(perSel.options[perSel.selectedIndex]||{}).text||'período':'período';
-  var lucro=d.rec-d.custoPago;
+  var lucro=d.lucro;
   var txt='📊 Resumo financeiro — '+perTxt+'\n'
     +'• Faturamento manual: '+finBRL(d.recManual)+'\n'
     +'• Faturamento real (banco): '+finBRL(d.recBanco)+'\n'
@@ -5777,7 +5777,15 @@ function finCalc(){
     else if(x.tipo==='custo'||x.tipo==='fatura'||x.tipo==='aplicacao') saldoBanco-=v;
     // interna: ignora
   });
-  return { arr:arr, rec:rec, recManual:recManual, recBanco:recBanco, svcExec:svcExec, arec:arec, atraso:atraso, custoPago:custoPago, custoPrev:custoPrev, interna:interna, total:rec+arec+atraso, result:rec-custoPago, investido:investido, saldoBanco:saldoBanco, saldoIni:saldoIni };
+  // Custos pagos separados por fonte (banco = real; manual = lançado pela equipe)
+  var custoBanco=0, custoManual=0;
+  arr.forEach(function(x){ if(x.tipo==='custo' && x.status==='pago'){ var v=Number(x.valor)||0; if(finFonte(x)==='banco') custoBanco+=v; else custoManual+=v; } });
+  // LUCRO REAL = dinheiro que ENTROU no banco − dinheiro que SAIU do banco (não mistura/duplica com o manual).
+  // Se o período não tem movimento de banco, cai pro mundo manual (o que a equipe lançou).
+  // Conforme definido: a DESPESA real é SOMENTE a do banco (custoBanco). Lucro = faturamento real (banco) − despesas do banco.
+  var despesaShow = custoBanco;
+  var lucro = recBanco - custoBanco;
+  return { arr:arr, rec:rec, recManual:recManual, recBanco:recBanco, custoBanco:custoBanco, custoManual:custoManual, despesaShow:despesaShow, lucro:lucro, svcExec:svcExec, arec:arec, atraso:atraso, custoPago:custoPago, custoPrev:custoPrev, interna:interna, total:rec+arec+atraso, result:lucro, investido:investido, saldoBanco:saldoBanco, saldoIni:saldoIni };
 }
 function finCard(t,v,c){ return '<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-left:4px solid '+c+';border-radius:12px;padding:14px;"><div style="font-size:12px;color:var(--gn-dim);">'+t+'</div><div style="font-size:18px;font-weight:700;color:var(--gn-text);margin-top:4px;">'+finBRL(v)+'</div></div>'; }
 
@@ -5791,8 +5799,8 @@ function renderFin(){
     finCard('Faturamento real (banco)', d.recBanco, '#2563eb') +
     finCard('Faturamento (serviços executados)', d.svcExec, '#0e7490') +
     finCard('A receber', d.arec, '#22c55e') + finCard('Em atraso', d.atraso, '#f59e0b') +
-    finCard('Despesas (custos pagos)', d.custoPago, '#dc2626') +
-    finCard('Lucro líquido', (d.rec-d.custoPago), (d.rec-d.custoPago)>=0?'#16a34a':'#dc2626') +
+    finCard('Despesas (banco)', d.despesaShow, '#dc2626') +
+    finCard('Lucro líquido', d.lucro, d.lucro>=0?'#16a34a':'#dc2626') +
     (function(){ var nDocs=d.arr.filter(function(x){return x.tipo==='receita';}).length; var tk=nDocs?d.rec/nDocs:0; return finCard('Ticket médio', tk, '#7c5cff'); })(); }
   var sit=document.getElementById('fin-saldoini-txt'); if(sit) sit.textContent='(saldo inicial atual: '+finBRL(d.saldoIni||0)+')';
   // melhoria: meta de faturamento mensal com barra de progresso
