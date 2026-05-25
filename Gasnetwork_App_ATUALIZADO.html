@@ -2291,7 +2291,8 @@ function renderResumoDia(){
   var vReceber=0, vAtraso=0, criadosMes=0;
   h.forEach(function(e){ var st; try{ st=pedGet(e.numero); }catch(_){ st={status:'Pendente',pagamento:'—'}; } cont[st.status]=(cont[st.status]||0)+1; var v=Number(e.valor)||0; if(st.pagamento==='A receber') vReceber+=v; else if(st.pagamento==='Em atraso') vAtraso+=v; if(rsdIsMes(e.data)) criadosMes++; });
   // financeiro do mês
-  var fatMes=0, recMes=0; try{ var fin=JSON.parse(localStorage.getItem('gn_fin')||'[]'); fin.forEach(function(f){ if(f && f.tipo==='receita' && rsdIsMes(f.data)){ var v=Number(f.valor)||0; fatMes+=v; if(f.status==='pago') recMes+=v; } }); }catch(e){}
+  // Faturamento do mês = faturamento MANUAL (equipe) do mês — NÃO soma o banco junto (seria a mesma receita em dobro, igual à lógica do Financeiro/Lucro).
+  var fatMes=0, recMes=0; try{ var fin=JSON.parse(localStorage.getItem('gn_fin')||'[]'); fin.forEach(function(f){ if(f && f.tipo==='receita' && (typeof finFonte==='function'?finFonte(f)!=='banco':true) && rsdIsMes(f.data)){ var v=Number(f.valor)||0; fatMes+=v; if(f.status==='pago') recMes+=v; } }); }catch(e){}
   // serviços de hoje (agenda)
   var hoje=new Date().toISOString().slice(0,10); var servHoje=0; try{ var ag=(typeof gnStoreGet==='function')?gnStoreGet('agenda'):[]; ag.forEach(function(a){ if(a && String(a.data||'').slice(0,10)===hoje) servHoje++; }); }catch(e){}
   function cor(s){ try{ return pedCor(s); }catch(e){ return '#7c5cff'; } }
@@ -9839,7 +9840,8 @@ function docsAbrirFicha(key){
       var cor=s.status==='vencido'?'#dc2626':(s.status==='vence'?'#f59e0b':(s.status==='ok'?'#16a34a':'#64748b'));
       var info=s.status==='vencido'?('vencido'+(s.venc?(' em '+s.venc.toLocaleDateString('pt-BR')):'')):(s.status==='vence'?('vence em '+s.dias+' dia(s)'):(s.status==='ok'?('em dia'+(s.venc?(' até '+s.venc.toLocaleDateString('pt-BR')):'')):'sem data de execução'));
       return '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 12px;border:1px solid var(--gn-border);border-left:4px solid '+cor+';border-radius:10px;margin-bottom:6px;">'
-        +'<div style="min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(r.servico||'Serviço/Laudo')+'</div><div style="font-size:12px;color:var(--gn-dim);">executado em '+((r.data||'').split('-').reverse().join('/')||'—')+' · '+info+'</div></div>'
+        +'<div style="min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(r.servico||'Serviço/Laudo')+(Number(r.valor)>0?(' · <span style="color:#16a34a;">'+gnBRL(r.valor)+'</span>'):'')+'</div><div style="font-size:12px;color:var(--gn-dim);">executado em '+((r.data||'').split('-').reverse().join('/')||'—')+' · '+info+'</div></div>'
+        +'<button onclick="gnVerPDFServico(\''+r.id+'\')" style="background:#4338ca;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">📄 Ver PDF</button>'
         +'</div>';
     }).join('');
     laudoHtml+='<button onclick="goTab(\'renov\')" style="margin-top:4px;background:#7c5cff;color:#fff;border:none;border-radius:9px;padding:8px 14px;cursor:pointer;font-weight:700;font-size:12.5px;">Abrir Renovação de Laudos →</button>';
@@ -10814,6 +10816,37 @@ async function gnArquivarServicosDrive(){
   if(typeof toast==='function') toast('✅ '+ok+' serviço(s) arquivado(s) no Drive.','ok');
 }
 window.gnArquivarServicosDrive=gnArquivarServicosDrive;
+// ═══ VER PDF de um serviço executado (gera o comprovante na hora, com data e valor) ═══
+function gnVerPDFServico(id){
+  try{
+    var jp=window.jspdf; if(!jp||!jp.jsPDF){ if(typeof toast==='function') toast('Gerador de PDF indisponível.','er'); return; }
+    var ren=[]; try{ ren=JSON.parse(localStorage.getItem('gn_renov')||'[]'); }catch(e){}
+    var r=ren.filter(function(x){ return x.id===id; })[0]; if(!r){ if(typeof toast==='function') toast('Serviço não encontrado.','er'); return; }
+    var cli=[]; try{ cli=JSON.parse(localStorage.getItem('gn_cli')||'[]'); }catch(e){}
+    var c=cli.filter(function(x){ return String(x.nome||'').toLowerCase().trim()===String(r.nome||'').toLowerCase().trim(); })[0]||{};
+    var co=(typeof gnCO==='function')?gnCO():{}; var empresa=co.fantasia||co.marca||'Gás Network Engenharia';
+    var doc=new jp.jsPDF({unit:'mm',format:'a4'}); var M=18,y=20,W=210;
+    doc.setFillColor(124,92,255); doc.rect(0,0,W,14,'F'); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.text(String(empresa).toUpperCase(),M,9);
+    doc.setTextColor(20,20,20); y=26; doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.text('Comprovante de Serviço Executado',M,y); y+=10; doc.setFontSize(10);
+    var lin=function(l,v){ if(!v) return; doc.setFont('helvetica','bold'); doc.text(l,M,y); doc.setFont('helvetica','normal'); var ls=doc.splitTextToSize(String(v),W-M-M-33); doc.text(ls,M+33,y); y+=Math.max(6,ls.length*5)+1; };
+    var dBR=function(s){ s=String(s||''); var m=s.match(/(\d{4})-(\d{2})-(\d{2})/); return m?(m[3]+'/'+m[2]+'/'+m[1]):s; };
+    var brl=function(v){ v=Number(v)||0; return 'R$ '+v.toFixed(2).replace('.',','); };
+    lin('Cliente:', r.nome);
+    lin('Endereço:', c.endereco||'');
+    lin('Contato:', [c.tel||c.whatsapp||'', c.email||''].filter(Boolean).join(' · '));
+    if(c.cpf) lin('CPF/CNPJ:', c.cpf);
+    lin('Serviço:', r.servico);
+    lin('Data de execução:', dBR(r.data)||'—');
+    if(Number(r.valor)>0) lin('Valor:', brl(r.valor));
+    var venc=''; try{ if(typeof renovStatus==='function'){ var s=renovStatus(r.data,r.validadeMeses); if(s&&s.venc) venc=s.venc.toLocaleDateString('pt-BR'); } }catch(e){}
+    if(venc) lin('Próxima renovação:', venc+' (validade '+(r.validadeMeses||12)+' meses)');
+    y+=2; doc.setFont('helvetica','bold'); doc.text('Descrição do serviço:',M,y); y+=6; doc.setFont('helvetica','normal');
+    var dl=doc.splitTextToSize(String(r.descricao||r.servico||''),W-M-M); doc.text(dl,M,y); y+=dl.length*5+10;
+    doc.setFontSize(8); doc.setTextColor(120,120,120); doc.text(String(empresa)+(co.crea?(' · '+co.crea):'')+(co.responsavel?(' · '+co.responsavel):''),M,287);
+    try{ window.open(doc.output('bloburl'),'_blank'); }catch(e){ try{ doc.save('Servico - '+(r.servico||'')+'.pdf'); }catch(_){} }
+  }catch(e){ if(typeof toast==='function') toast('Erro ao gerar PDF: '+(e&&e.message||e),'er'); }
+}
+window.gnVerPDFServico=gnVerPDFServico;
 // ═══ DESFAZER UPLOAD — remove tudo que entrou por uma importação (etiqueta _imp) ═══
 function gnImpUndo(impId){
   if(!impId) return;
