@@ -1525,7 +1525,7 @@ textarea.fi{resize:vertical;}
   <div id="pane-upload" style="display:none;">
     <div class="eyebrow">Sistema</div>
     <div class="pgtitle" style="margin-bottom:4px;">📂 Upload em massa — laudos / notinhas já executados</div>
-    <div class="pgsub" style="margin-bottom:14px;">Suba uma <b>pasta inteira</b> (ou vários arquivos) — <b>só PDF e Word (.docx)</b> são lidos; o resto é ignorado. O app lê os documentos <b>pelos padrões</b> (nome, CPF/CNPJ, contato, endereço, data e serviço) — rápido e sem depender da IA na maioria —, descarta o que não tem relação com serviço/cliente, cadastra cada cliente (sem duplicar, casando por CPF/CNPJ/telefone/e-mail/nome) e agenda a renovação pelo <b>tipo de serviço</b> (teste de estanqueidade = 12 meses, troca de mangueira = 5 anos). Pode <b>pausar ou cancelar</b> quando quiser. Opcionalmente cria/usa a pasta de cada cliente no seu Google Drive.</div>
+    <div class="pgsub" style="margin-bottom:14px;">Suba uma <b>pasta inteira</b> (ou vários arquivos) — são lidos <b>PDF, Word (.docx) e planilhas (Excel/CSV)</b>; o resto é ignorado. Nos documentos, lê <b>pelos padrões</b> (nome, CPF/CNPJ, contato, endereço, data e serviço) sem depender da IA na maioria; nas <b>planilhas, cada linha vira um cliente/serviço</b> (detecta as colunas sozinho). Descarta o que não tem relação, cadastra cada cliente (sem duplicar, casando por CPF/CNPJ/telefone/e-mail/nome) e agenda a renovação pelo <b>tipo de serviço</b> (teste de estanqueidade = 12 meses, troca de mangueira = 5 anos). Pode <b>pausar ou cancelar</b>. Opcionalmente cria/usa a pasta de cada cliente no Google Drive.</div>
     <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
         <label style="background:#4338ca;color:#fff;padding:11px 16px;border-radius:9px;cursor:pointer;font-weight:700;">📁 Escolher pasta<input type="file" id="bulk-folder" webkitdirectory directory multiple style="display:none;" onchange="bulkInfo()"></label>
@@ -1898,6 +1898,16 @@ textarea.fi{resize:vertical;}
     <div class="eyebrow">Empresa</div>
     <div class="pgtitle" style="margin-bottom:4px;">Configurações da empresa</div>
     <div class="pgsub" style="margin-bottom:14px;">Estes dados aparecem automaticamente em todos os documentos (orçamento, recibo, OS, laudo, contrato). Sincroniza na nuvem.</div>
+
+    <div style="background:rgba(22,163,74,.10);border:1px solid #16a34a;border-radius:14px;padding:16px;margin-bottom:14px;">
+      <div style="font-weight:700;color:var(--gn-text);margin-bottom:4px;">💾 Backup dos dados (segurança)</div>
+      <div style="font-size:12px;color:var(--gn-dim);margin-bottom:8px;">Exporte uma cópia de TUDO (clientes, laudos/serviços, pedidos, financeiro, agenda, tarefas, modelos e configurações) num arquivo. Guarde-o em local seguro (Drive, e-mail, pen drive). Se precisar, importe para restaurar. Faça backup com frequência — é a garantia do seu banco de clientes.</div>
+      <div id="cfg-backup-info" style="font-size:11.5px;color:var(--gn-dim);margin-bottom:10px;"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button onclick="gnExportarBackup()" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:700;">⬇ Exportar backup</button>
+        <label style="background:#0e7490;color:#fff;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:700;">⬆ Importar backup<input type="file" accept=".json,application/json" onchange="gnImportarBackup(this)" style="display:none;"></label>
+      </div>
+    </div>
 
     <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
       <div style="font-weight:700;color:var(--gn-text);margin-bottom:10px;">Identidade</div>
@@ -6883,7 +6893,7 @@ function cfgSave(){
   toast('✓ Configurações salvas — já valem para os próximos documentos','ok');
 }
 function cfgApplyCor(cor){ if(!cor) return; try{ document.documentElement.style.setProperty('--gn-brand1', cor); document.documentElement.style.setProperty('--gn-grad','linear-gradient(135deg,'+cor+',#4d9bff 55%,#22d3ee)'); }catch(e){} }
-function renderCfg(){ if(!cfgPulled){ cfgPulled=true; gnStorePull('cfg', function(ch){ if(ch) cfgLoad(); }); } cfgLoad(); var c=(typeof gnCfg==='function')?gnCfg():{}; if(c.cor) cfgApplyCor(c.cor); }
+function renderCfg(){ if(!cfgPulled){ cfgPulled=true; gnStorePull('cfg', function(ch){ if(ch) cfgLoad(); }); } cfgLoad(); var c=(typeof gnCfg==='function')?gnCfg():{}; if(c.cor) cfgApplyCor(c.cor); try{ if(typeof gnBackupInfo==='function') gnBackupInfo(); }catch(e){} }
 
 </script>
 <script>
@@ -8536,6 +8546,71 @@ function renovMsgTexto(c){
     .replace(/\{empresa\}/g, empresa)
     .replace(/\{contato\}/g, contato);
 }
+function renovSubst(c, t){
+  var co=(typeof gnCO==='function')?gnCO():{};
+  var s=(typeof renovStatus==='function')?renovStatus(c.data, c.validadeMeses):{venc:null};
+  var emiss=renovFmtData(c.data)||'(data não informada)';
+  var venc=(s&&s.venc)?s.venc.toLocaleDateString('pt-BR'):'(a verificar)';
+  var primeiro=(c.nome||'').split(' ')[0]||'cliente';
+  var empresa=co.fantasia||co.marca||'Gás Network Engenharia';
+  var contato=[co.fone,co.email].filter(Boolean).join(' · '); if(contato) contato='\n'+contato;
+  return String(t||'').replace(/\{nome\}/g,primeiro).replace(/\{emissao\}/g,emiss).replace(/\{vencimento\}/g,venc).replace(/\{empresa\}/g,empresa).replace(/\{contato\}/g,contato);
+}
+function renovMsgVariacoes(c){
+  var serv=(c.servico||'laudo de estanqueidade'); var sl=serv.toLowerCase();
+  var base=[
+    {t:'Padrão (segurança e conformidade)', m:renovMsgPadrao()},
+    {t:'Curta e direta', m:'Olá, {nome}! Aqui é da {empresa}. O '+sl+' da sua instalação (emitido em {emissao}) venceu em {vencimento}. Podemos agendar a renovação? — {empresa}'},
+    {t:'Foco em segurança', m:'Olá, {nome}! Alerta de segurança: o '+sl+' da sua instalação de gás está vencido desde {vencimento}. Para sua proteção e a de todos, recomendamos renovar o quanto antes. Posso agendar?{contato}'},
+    {t:'Conformidade / legal / seguro', m:'Olá, {nome}! Para manter sua instalação de gás em conformidade com as normas (ABNT NBR 15526) e exigências legais/seguro, o '+sl+' precisa ser renovado (venceu em {vencimento}). Quer que a gente agende a vistoria? — {empresa}'},
+    {t:'Cordial / relacionamento', m:'Olá, {nome}, tudo bem? Aqui é da {empresa}. Já faz um tempo do seu '+sl+' (de {emissao}) e ele venceu em {vencimento}. Adoraríamos cuidar da renovação pra você ficar tranquilo e seguro. Posso agendar?{contato}'}
+  ];
+  try{ if(typeof modeloData==='function'){ modeloData().forEach(function(md){ if((md.cat||'')==='Renovação' && md.texto) base.push({t:'Modelo: '+(md.titulo||'Renovação'), m:md.texto}); }); } }catch(e){}
+  return base.map(function(o){ return {titulo:o.t, texto:renovSubst(c,o.m)}; });
+}
+var renovDetId=null;
+function renovDetEnsure(){ if(document.getElementById('renov-det-modal')) return; var d=document.createElement('div'); d.id='renov-det-modal'; d.style.cssText='display:none;position:fixed;inset:0;z-index:2200;background:rgba(6,9,18,.86);padding:16px;overflow:auto;'; d.innerHTML='<div style="max-width:720px;margin:20px auto;background:#161d31;border:1px solid var(--gn-border,#2a3350);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.55);overflow:hidden;"><div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--gn-border,#2a3350);"><div id="renov-det-title" style="font-weight:800;color:#f1f5ff;">Cliente</div><button onclick="renovDetClose()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9fb0d0;">✕</button></div><div id="renov-det-body" style="padding:18px;"></div></div>'; document.body.appendChild(d); }
+function renovDetClose(){ var m=document.getElementById('renov-det-modal'); if(m) m.style.display='none'; }
+function renovDetalhe(id){
+  renovDetEnsure(); renovDetId=id; var c=(typeof renovById==='function')?renovById(id):null; if(!c){ if(typeof toast==='function') toast('Cliente não encontrado.','er'); return; }
+  var s=(typeof renovStatus==='function')?renovStatus(c.data,c.validadeMeses):{status:'sem-data',venc:null,dias:null};
+  var emiss=renovFmtData(c.data)||'—'; var venc=(s.venc)?s.venc.toLocaleDateString('pt-BR'):'—';
+  var inp='width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--gn-border,#2a3350);border-radius:8px;background:#0f1626;color:#f1f5ff;'; var lab='font-size:11px;color:#9fb0d0;';
+  var stLbl={vencido:'VENCIDO',vence:'A VENCER',ok:'EM DIA','sem-data':'SEM DATA'}[s.status]||'';
+  var seloR=c.statusR==='fechou'?' · ✅ FECHOU':(c.statusR==='agendou'?' · 📅 AGENDOU':(c.statusR==='recusou'?' · ✗ RECUSOU':(c.oferecidoEm?' · ✓ msg enviada':'')));
+  document.getElementById('renov-det-title').innerHTML=gnEsc(c.nome||'Cliente')+' <span style="font-size:11px;color:#9fb0d0;">'+stLbl+seloR+'</span>';
+  var fld=function(l,v){ return '<div style="background:rgba(255,255,255,.06);border:1px solid var(--gn-border,#2a3350);border-radius:9px;padding:8px 10px;"><div style="'+lab+'">'+l+'</div><div style="font-weight:700;color:#f1f5ff;word-break:break-word;">'+v+'</div></div>'; };
+  var html='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;margin-bottom:6px;">'
+    +fld('Serviço executado', gnEsc(c.servico||'laudo de estanqueidade'))
+    +fld('Data do teste/serviço', emiss)
+    +fld('Vencimento', venc+(s.dias!=null?(' ('+(s.dias<0?((-s.dias)+'d vencido'):(s.dias+'d')) +')'):''))
+    +'</div>';
+  html+='<div style="font-weight:700;color:#f1f5ff;margin:10px 0 6px;">Dados do cliente (edite se precisar)</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:9px;">'
+    +'<div style="grid-column:1/-1;"><label style="'+lab+'">Nome</label><input id="rd-nome" value="'+gnEsc(c.nome||'')+'" style="'+inp+'"></div>'
+    +'<div><label style="'+lab+'">CPF/CNPJ</label><input id="rd-cpf" value="'+gnEsc(c.cpf||'')+'" style="'+inp+'"></div>'
+    +'<div><label style="'+lab+'">Telefone/WhatsApp</label><input id="rd-tel" value="'+gnEsc(c.tel||c.telefone||'')+'" style="'+inp+'"></div>'
+    +'<div><label style="'+lab+'">E-mail</label><input id="rd-email" value="'+gnEsc(c.email||'')+'" style="'+inp+'"></div>'
+    +'<div><label style="'+lab+'">Data do teste (AAAA-MM-DD)</label><input id="rd-data" value="'+gnEsc(c.data||'')+'" style="'+inp+'"></div>'
+    +'</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"><button onclick="renovDetSalvar()" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:8px 13px;cursor:pointer;font-weight:700;">💾 Salvar dados</button><button onclick="renovDetDrive()" style="background:#0e7490;color:#fff;border:none;border-radius:8px;padding:8px 13px;cursor:pointer;font-weight:600;">📂 Documentos/Fotos no Drive</button></div>';
+  html+='<div style="font-weight:700;color:#f1f5ff;margin:14px 0 6px;">Mensagens prontas — escolha, edite e envie</div>';
+  var vars=renovMsgVariacoes(c);
+  html+=vars.map(function(v,idx){ return '<div style="border:1px solid var(--gn-border,#2a3350);border-radius:10px;padding:10px;margin-bottom:8px;background:rgba(255,255,255,.03);"><div style="font-weight:700;color:#c4b5fd;font-size:12.5px;margin-bottom:5px;">'+gnEsc(v.titulo)+'</div><textarea id="rd-msg-'+idx+'" rows="4" style="'+inp+'resize:vertical;font-size:12.5px;">'+gnEsc(v.texto)+'</textarea><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;"><button onclick="renovDetEnviar('+idx+',\'whatsapp\')" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-weight:600;font-size:12px;">📲 WhatsApp</button><button onclick="renovDetEnviar('+idx+',\'email\')" style="background:#0e7490;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-weight:600;font-size:12px;">✉️ E-mail</button></div></div>'; }).join('');
+  html+='<div style="font-weight:700;color:#f1f5ff;margin:14px 0 6px;">Resultado</div><div style="display:flex;gap:8px;flex-wrap:wrap;">'
+    +'<button onclick="renovToggleContato(renovDetId)" style="background:'+(c.oferecidoEm?'#16a34a':'var(--gn-surface2,#243049)')+';color:'+(c.oferecidoEm?'#fff':'#f1f5ff')+';border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:600;">'+(c.oferecidoEm?'✓ Já contatei':'☐ Marcar: já contatei')+'</button>'
+    +'<button onclick="renovDetFechou()" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:700;">✅ Cliente fechou a renovação</button>'
+    +'<button onclick="renovAgendar(renovDetId)" style="background:#0891b2;color:#fff;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:600;">📅 Aceitou — agendar revisita</button>'
+    +'<button onclick="renovDetRecusou()" style="background:var(--gn-surface2,#243049);color:#f1f5ff;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;">✗ Recusou</button></div>';
+  document.getElementById('renov-det-body').innerHTML=html;
+  document.getElementById('renov-det-modal').style.display='block';
+}
+function renovDetSalvar(){ var a=renovData(); var nm=''; a.forEach(function(x){ if(x.id===renovDetId){ var g=function(id){ var e=document.getElementById(id); return e?e.value.trim():''; }; x.nome=g('rd-nome')||x.nome; x.cpf=g('rd-cpf'); x.tel=g('rd-tel'); x.telefone=x.tel; x.email=g('rd-email'); x.data=g('rd-data')||x.data; nm=x.nome; try{ if(typeof cliUpsertMerge==='function') cliUpsertMerge({nome:x.nome,cpf:x.cpf,tel:x.tel,email:x.email,laudoData:x.data,servico:x.servico}); }catch(e){} } }); renovSaveAll(a); if(typeof toast==='function') toast('✓ Dados de '+nm+' atualizados.','ok'); renderRenov(); renovDetalhe(renovDetId); }
+function renovDetDrive(){ var c=renovById(renovDetId); if(!c) return; try{ window.open('https://drive.google.com/drive/search?q='+encodeURIComponent('Gás Network App '+(c.nome||'')),'_blank'); }catch(e){ window.open('https://drive.google.com','_blank'); } }
+function renovDetEnviar(idx, canal){ var c=renovById(renovDetId); if(!c) return; var ta=document.getElementById('rd-msg-'+idx); var msg=ta?ta.value:''; var num=String(c.tel||c.telefone||'').replace(/\D/g,'');
+  if(canal==='whatsapp'){ if(!num){ if(typeof toast==='function') toast('Cliente sem telefone.','er'); return; } if(num.length<=11) num='55'+num; window.open('https://wa.me/'+num+'?text='+encodeURIComponent(msg),'_blank'); }
+  else { if(String(c.email||'').indexOf('@')<0){ if(typeof toast==='function') toast('Cliente sem e-mail.','er'); return; } window.open('mailto:'+encodeURIComponent(c.email)+'?subject='+encodeURIComponent('Renovação do laudo — Gás Network')+'&body='+encodeURIComponent(msg),'_blank'); }
+  if(typeof toast==='function') toast('Mensagem aberta. Depois de enviar de verdade, marque "Já contatei". 👍','ok'); }
+function renovDetFechou(){ var a=renovData(); a.forEach(function(x){ if(x.id===renovDetId){ x.statusR='fechou'; if(!x.oferecidoEm) x.oferecidoEm=new Date().toISOString(); x.fechadoEm=new Date().toISOString(); } }); renovSaveAll(a); if(typeof toast==='function') toast('✅ Cliente fechou a renovação — entra na taxa de retorno.','ok'); renderRenov(); renovDetalhe(renovDetId); }
+function renovDetRecusou(){ var a=renovData(); a.forEach(function(x){ if(x.id===renovDetId) x.statusR='recusou'; }); renovSaveAll(a); renderRenov(); renovDetalhe(renovDetId); }
 function renovInterpretar(){
   var txt=((document.getElementById('renov-texto')||{}).value||'').trim();
   if(!txt){ if(typeof toast==='function') toast('Cole a lista ou anexe um arquivo primeiro.','er'); return; }
@@ -8634,8 +8709,11 @@ function renovEnviar(id, canalForcado){
   if(canal==='whatsapp'){ var num=String(c.tel||c.telefone||'').replace(/\D/g,''); if(!num){ if(typeof toast==='function') toast('Esse cliente não tem WhatsApp.','er'); return; } if(num.length<=11) num='55'+num; window.open('https://wa.me/'+num+'?text='+encodeURIComponent(msg),'_blank'); }
   else if(canal==='email'){ if(String(c.email||'').indexOf('@')<0){ if(typeof toast==='function') toast('Esse cliente não tem e-mail.','er'); return; } window.open('mailto:'+encodeURIComponent(c.email)+'?subject='+encodeURIComponent('Renovação do laudo de estanqueidade — Gás Network')+'&body='+encodeURIComponent(msg),'_blank'); }
   else { if(typeof toast==='function') toast('Esse cliente não tem WhatsApp nem e-mail cadastrado.','er'); return; }
-  renovMarcar(id);
+  // NÃO marca automaticamente — você marca o check "Contatei" depois de enviar de verdade.
 }
+// marca/desmarca manualmente que você já contatou o cliente
+function renovToggleContato(id){ var a=renovData(); a.forEach(function(x){ if(x.id===id){ x.oferecidoEm = x.oferecidoEm ? '' : new Date().toISOString(); } }); renovSaveAll(a); renderRenov(); try{ if(document.getElementById('renov-det-modal') && document.getElementById('renov-det-modal').style.display==='block' && typeof renovDetalhe==='function') renovDetalhe(id); }catch(e){} }
+function renovLimparContatados(){ if(!confirm('Limpar TODAS as marcações de "contatado"? (não afeta agendados/fechados) Use isso se o app marcou clientes que você ainda não contatou.')) return; var a=renovData(); a.forEach(function(x){ x.oferecidoEm=''; }); renovSaveAll(a); renderRenov(); if(typeof toast==='function') toast('✓ Marcações de contato limpas.','ok'); }
 // Fila de envio: o navegador bloqueia abrir vários WhatsApp/e-mails de uma vez, então enviamos 1 por clique do usuário.
 function renovEnviarLote(){
   var ids=renovSelecionados(); if(!ids.length){ if(typeof toast==='function') toast('Selecione os clientes (use "Selecionar vencidos").','er'); return; }
@@ -8673,6 +8751,7 @@ function renderRenov(){
   var nV=arr.filter(function(c){return c._st==='vencido';}).length, nP=arr.filter(function(c){return c._st==='vence';}).length;
   var nOk=arr.filter(function(c){return c._st==='ok';}).length, nSd=arr.filter(function(c){return c._st==='sem-data';}).length;
   var nOf=arr.filter(function(c){return c.oferecidoEm;}).length, nAg=arr.filter(function(c){return c.statusR==='agendou';}).length, nRec=arr.filter(function(c){return c.statusR==='recusou';}).length;
+  var nFech=arr.filter(function(c){return c.statusR==='fechou';}).length; var nRetorno=nAg+nFech; var taxaRet=nOf?Math.round((nRetorno/nOf)*100):0;
   var ticket=Number(localStorage.getItem('gn_renov_ticket')||'0')||0;
   var receita=(nV+nP)*ticket;
   function _chip(f,label,color){ var on=(renovFiltro===f); return '<button onclick="renovSetFiltro(\''+f+'\')" style="border:1px solid '+(color||'var(--gn-border)')+';background:'+(on?(color||'#4338ca'):'transparent')+';color:'+(on?'#fff':(color||'var(--gn-text)'))+';border-radius:20px;padding:4px 11px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap;">'+label+'</button>'; }
@@ -8688,7 +8767,8 @@ function renderRenov(){
   var head='<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:12px;padding:11px 13px;margin-bottom:10px;">'
     +chips
     +'<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;">'
-    +'<div style="font-size:12.5px;color:var(--gn-dim);">'+nOf+' contatado(s)'+(ticket>0?(' · 💰 Potencial: <strong style="color:#16a34a;">'+gnBRL(receita)+'</strong> ('+(nV+nP)+' × '+gnBRL(ticket)+')'):'')+'</div>'
+    +'<div style="font-size:12.5px;color:var(--gn-dim);">'+nOf+' contatado(s) · 🎯 Retorno: <strong style="color:#16a34a;">'+nRetorno+'</strong> fechado(s) ('+taxaRet+'%)'+(ticket>0?(' · 💰 Potencial: <strong style="color:#16a34a;">'+gnBRL(receita)+'</strong> ('+(nV+nP)+' × '+gnBRL(ticket)+')'):'')+'</div>'
+    +(nOf?'<button onclick="renovLimparContatados()" title="Limpar marcações de contatado" style="background:var(--gn-surface2);color:var(--gn-text);border:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:11.5px;">↺ Limpar contatados</button>':'')
     +'<button onclick="renovSetTicket()" style="background:var(--gn-surface2);color:var(--gn-text);border:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:11.5px;">💵 Valor médio da renovação</button>'
     +'<button onclick="gnRelRenovPDF()" style="background:#4338ca;color:#fff;border:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:11.5px;">📄 Relatório PDF</button>'
     +'</div></div>';
@@ -8710,9 +8790,10 @@ function renderRenov(){
     var resolvido=(c.statusR==='agendou'||c.statusR==='recusou');
     return '<div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--gn-border);border-left:4px solid '+(precisaReenvio?'#b45309':cor[c._st])+';border-radius:10px;margin-bottom:6px;opacity:'+(resolvido?'0.65':'1')+';">'
       +'<input type="checkbox" class="renov-chk" data-id="'+c.id+'" data-venc="'+podeSel+'" onchange="renovSelCount()" style="width:18px;height:18px;cursor:pointer;flex:0 0 auto;">'
-      +'<div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(c.nome)+' <span style="font-size:10px;background:'+cor[c._st]+';color:#fff;border-radius:8px;padding:1px 7px;">'+lbl[c._st]+'</span>'+selo+'</div>'
+      +'<div onclick="renovDetalhe(\''+c.id+'\')" title="Ver ficha completa do cliente" style="flex:1;min-width:0;cursor:pointer;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(c.nome)+' <span style="font-size:10px;background:'+cor[c._st]+';color:#fff;border-radius:8px;padding:1px 7px;">'+lbl[c._st]+'</span>'+selo+' <span style="font-size:10px;color:#7c5cff;">› ver ficha</span></div>'
       +'<div style="font-size:12px;color:var(--gn-dim);">'+gnEsc(contato)+' · '+info+'</div>'+reHint+'</div>'
       +'<div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;">'
+      +'<button onclick="renovToggleContato(\''+c.id+'\')" title="Marque SÓ depois de enviar a mensagem você mesmo" style="background:'+(c.oferecidoEm?'#16a34a':'var(--gn-surface2)')+';color:'+(c.oferecidoEm?'#fff':'var(--gn-text)')+';border:1px solid var(--gn-border);border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;white-space:nowrap;">'+(c.oferecidoEm?'✓ Contatei':'☐ Contatei')+'</button>'
       +(function(){ var temTel=String(c.tel||c.telefone||'').replace(/\D/g,'').length>=10; var temMail=String(c.email||'').indexOf('@')>0; var bb=''; if(temTel) bb+='<button onclick="renovEnviar(\''+c.id+'\',\'whatsapp\')" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">'+(precisaReenvio?'🔁 ':'')+'📲 WhatsApp</button>'; if(temMail) bb+='<button onclick="renovEnviar(\''+c.id+'\',\'email\')" style="background:#0e7490;color:#fff;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">✉️ E-mail</button>'; return bb||'<span style="font-size:11px;color:#dc2626;">sem contato</span>'; })()
       +(c.statusR!=='agendou'?('<button onclick="renovAgendar(\''+c.id+'\')" title="Cliente aceitou — agenda a revisita" style="background:#16a34a;color:#fff;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">✓ Aceitou</button>'):'')
       +(c.statusR!=='recusou'?('<button onclick="renovRecusou(\''+c.id+'\')" title="Cliente não quer renovar agora" style="background:var(--gn-surface2);color:var(--gn-text);border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;">✗</button>'):'')
@@ -9289,6 +9370,17 @@ function gnAvisos(){
         }).join('');
         html+='<div style="margin-top:8px;"><button onclick="goTab(\'gar\')" style="background:var(--gn-surface2);color:var(--gn-text);border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;">Ver todas as garantias →</button></div></div>';
       }
+    }
+  }catch(e){}
+  // Lembrete automático de backup (segurança dos dados)
+  try{
+    var lb=localStorage.getItem('gn_last_backup')||''; var diasB=lb?Math.floor((Date.now()-new Date(lb).getTime())/86400000):999;
+    var temDados=false; try{ temDados=(JSON.parse(localStorage.getItem('gn_cli')||'[]').length>0)||(JSON.parse(localStorage.getItem('gn_renov')||'[]').length>0); }catch(e){}
+    if(temDados && diasB>=7){
+      html+='<div style="background:rgba(22,163,74,.10);border:1px solid #16a34a;border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
+        +'<div style="font-weight:800;color:#16a34a;margin-bottom:4px;">💾 '+(lb?('Seu último backup foi há '+diasB+' dias'):'Você ainda não fez backup dos dados')+'</div>'
+        +'<div style="font-size:12.5px;color:var(--gn-text);margin-bottom:8px;">Proteja seu banco de clientes: exporte uma cópia de segurança (leva 1 clique).</div>'
+        +'<button onclick="goTab(\'cfg\')" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 13px;cursor:pointer;font-weight:700;font-size:12.5px;">Fazer backup agora →</button></div>';
     }
   }catch(e){}
   box.innerHTML=html;
@@ -10029,7 +10121,46 @@ function docsWhatsUm(store, id){
   window.bulkInfo=function(){ var n=arquivos().length; var el=document.getElementById('bulk-count'); if(el) el.textContent=n?(n+' arquivo(s) selecionado(s)'):''; };
   window.bulkInit=function(){ try{ bulkInfo(); }catch(e){} };
   function _wait(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
-  function _isDoc(f){ var n=(f.name||'').toLowerCase(); return /\.(pdf|docx)$/.test(n); }
+  function _isDoc(f){ var n=(f.name||'').toLowerCase(); return /\.(pdf|docx|xlsx|xls|csv)$/.test(n); }
+  function _isSheet(f){ return /\.(xlsx|xls|csv)$/.test((f.name||'').toLowerCase()); }
+  // Lê uma PLANILHA linha a linha (cada linha = um cliente/serviço) detectando as colunas
+  function bulkParseSheet(file){
+    return new Promise(function(res,rej){
+      if(typeof XLSX==='undefined'){ rej(new Error('XLSX indisponível')); return; }
+      var r=new FileReader(); r.onload=function(e){ try{
+        var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); var out=[];
+        var norm=function(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); };
+        var dISO=function(v){ var s=String(v||'').trim(); if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10); var m=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/); if(m){ var yy=m[3].length===2?('20'+m[3]):m[3]; return yy+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2); } return ''; };
+        wb.SheetNames.forEach(function(n){
+          var rows=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:'',raw:false}); if(!rows.length) return;
+          var hi=0; for(var k=0;k<Math.min(rows.length,8);k++){ var cnt=(rows[k]||[]).filter(function(x){return String(x||'').trim();}).length; if(cnt>=2){ hi=k; break; } }
+          var head=(rows[hi]||[]).map(norm);
+          var col=function(re){ for(var i=0;i<head.length;i++){ if(re.test(head[i])) return i; } return -1; };
+          var iN=col(/nome|cliente|raz[ãa]o|condom/), iC=col(/cpf|cnpj|documento/), iT=col(/tel|fone|whats|celular|contato/), iM=col(/mail/), iE=col(/endere|logradouro|^rua|bairro/), iD=col(/data|emiss|realiz|venc|^dt/), iS=col(/servi|descri|tipo|objeto|laudo/);
+          for(var rr=hi+1; rr<rows.length; rr++){ var row=rows[rr]||[]; if(!row.length) continue;
+            var nome=iN>=0?String(row[iN]||'').trim():'';
+            if(!nome){ for(var cc=0;cc<row.length;cc++){ var v=String(row[cc]||'').trim(); if(v.length>2 && isNaN(Number(v.replace(/[.,]/g,'')))){ nome=v; break; } } }
+            if(!nome || nome.length<2) continue;
+            out.push({ nome:nome, cpf:iC>=0?String(row[iC]||'').trim():'', telefone:iT>=0?String(row[iT]||'').replace(/\D/g,''):'', email:iM>=0?String(row[iM]||'').trim():'', endereco:iE>=0?String(row[iE]||'').trim():'', data:iD>=0?dISO(row[iD]):'', servico:iS>=0?String(row[iS]||'').trim():'' });
+          }
+        });
+        res(out);
+      }catch(err){ rej(err); } }; r.onerror=rej; r.readAsArrayBuffer(file);
+    });
+  }
+  function _applyRecFactory(ctx){ return function(rec){
+    var nome=(rec.nome||'').trim(); if(!nome||nome.length<2) return null;
+    var tel=String(rec.telefone||'').replace(/\D/g,''),email=(rec.email||'').trim(),cpf=(rec.cpf||'').trim(),data=(rec.data||'').trim(),serv=(rec.servico||'').trim(),end=(rec.endereco||'').trim();
+    var tm=tipoMeses(serv+' '+nome); var canon=nome;
+    if(typeof cliUpsertMerge==='function'){ var rc=cliUpsertMerge({nome:nome,cpf:cpf,tel:tel,email:email,endereco:end,laudoData:data,servico:serv||tm.tipo}); if(rc&&rc.cliente&&rc.cliente.nome) canon=rc.cliente.nome; if(rc&&rc.novo) ctx.nCli++; }
+    var cpfD=cpf.replace(/\D/g,''); var stipo=serv||tm.tipo; var cur=ctx.cur;
+    var ex=cur.filter(function(y){ var yc=String(y.cpf||'').replace(/\D/g,''); if(cpfD.length>=11&&yc===cpfD&&(y.servico||'')===stipo) return true; return (y.nome||'').toLowerCase()===canon.toLowerCase() && (y.servico||'')===stipo; })[0];
+    if(ex){ if(tel)ex.tel=tel; if(email)ex.email=email; if(data)ex.data=data; if(cpf)ex.cpf=cpf; ex.nome=canon; ex.servico=stipo; ex.validadeMeses=tm.meses; }
+    else { cur.unshift({id:'rn'+Date.now()+'_'+Math.floor(Math.random()*99999), nome:canon, cpf:cpf, tel:tel, email:email, data:data, servico:stipo, validadeMeses:tm.meses, oferecidoEm:'', criadoEm:new Date().toISOString()}); ctx.nRen++; }
+    return {canon:canon, stipo:stipo, data:data, meses:tm.meses};
+  }; }
+  window.bulkProcess=async function(){
+    if(running) return;
   function _ctrl(show){ var p=document.getElementById('bulk-pause'), c=document.getElementById('bulk-cancel'); if(p) p.style.display=show?'inline-block':'none'; if(c) c.style.display=show?'inline-block':'none'; }
   window.bulkPauseToggle=function(){ if(!running) return; window.__bulkPaused=!window.__bulkPaused; var p=document.getElementById('bulk-pause'); if(p) p.textContent=window.__bulkPaused?'▶️ Retomar':'⏸ Pausar'; };
   window.bulkCancel=function(){ if(!running) return; if(!confirm('Cancelar o processamento? O que já foi lido fica salvo.')) return; window.__bulkCancel=true; window.__bulkPaused=false; };
@@ -10055,13 +10186,13 @@ function docsWhatsUm(store, id){
     if(typeof gnAI!=='function'){ st('IA indisponível agora.'); return; }
     // lê somente DOCUMENTOS (PDF, Word, Excel, texto) — ignora imagens e outros
     files=files.filter(_isDoc);
-    if(!files.length){ st('Nenhum documento PDF ou Word (.docx) na seleção. Eu leio só PDF e Word.'); return; }
+    if(!files.length){ st('Nenhum documento na seleção. Eu leio PDF, Word (.docx) e planilhas (Excel/CSV).'); return; }
     if(files.length>400 && !confirm('Você selecionou '+files.length+' documento(s). Isso pode demorar bastante. Você pode Pausar/Cancelar a qualquer momento. Continuar?')) return;
     var enviarDrive=(document.getElementById('bulk-drive')||{}).checked;
     running=true; window.__bulkPaused=false; window.__bulkCancel=false;
     var btn=document.getElementById('bulk-btn'); if(btn){ btn.disabled=true; btn.textContent='⏳ Processando...'; }
     _ctrl(true);
-    var cur=(typeof renovData==='function')?renovData():[]; var nCli=0,nRen=0,nDrv=0,nFail=0,nIgnore=0;
+    var cur=(typeof renovData==='function')?renovData():[]; var ctx={cur:cur,nCli:0,nRen:0}; var _apply=_applyRecFactory(ctx); var nDrv=0,nFail=0,nIgnore=0,nRows=0;
     st('Processando '+files.length+' documento(s)...'); log('Início — '+files.length+' documento(s).');
     var sys='Você recebe o TEXTO de um documento de uma empresa de instalações de gás. Extraia e DEVOLVA SOMENTE um JSON: {"relevante":true,"nome":"","cpf":"","telefone":"","email":"","endereco":"","data":"AAAA-MM-DD","servico":""}. '
       +'"relevante"=true SOMENTE se o documento for sobre serviço/cliente do ramo de gás (laudo de estanqueidade, nota de serviço, orçamento/proposta, contrato de serviço, ficha de cliente). "relevante"=false se for algo SEM relação com o trabalho (propaganda, boleto avulso, documento pessoal, manual, nota fiscal de compra de loja, etc.) — nesse caso deixe os outros campos vazios. '
@@ -10074,6 +10205,7 @@ function docsWhatsUm(store, id){
       var batch=files.slice(i, i+CONC);
       st('Lendo ('+(i+1)+'–'+Math.min(i+CONC,files.length)+'/'+files.length+')...');
       var results=await Promise.all(batch.map(function(f){
+        if(_isSheet(f)){ return bulkParseSheet(f).then(function(recs){ return {f:f, recs:recs||[]}; }).catch(function(e){ return {f:f, err:(e&&e.message)||String(e)}; }); }
         return extrair(f).then(function(txt){
           if(!txt || txt.trim().length<8) return {f:f, err:'sem-texto'};
           var loc=bulkParseLocal(txt);
@@ -10088,32 +10220,29 @@ function docsWhatsUm(store, id){
         var R=results[r], rf=R.f;
         if(R.err==='sem-texto'){ log('⚠ '+rf.name+' sem texto legível (escaneado/imagem?) — pulado.'); nFail++; continue; }
         if(R.err){ log('✗ '+rf.name+' — erro: '+R.err); nFail++; continue; }
+        if(R.recs){ // PLANILHA: cada linha é um cliente/serviço
+          var add=0; for(var rw=0; rw<R.recs.length; rw++){ if(_apply(R.recs[rw])) add++; }
+          nRows+=add; log('📊 '+rf.name+' — planilha: '+add+' cliente(s)/serviço(s) importado(s).');
+          continue;
+        }
         var j=R.j||{};
         if(j.relevante===false){ log('⏭️ '+rf.name+' — ignorado (não tem relação com serviço/cliente).'); nIgnore++; continue; }
-        var nome=(j.nome||'').trim(); if(!nome){ log('⚠ '+rf.name+' — cliente não identificado.'); nFail++; continue; }
-        var tel=String(j.telefone||'').replace(/\D/g,''),email=(j.email||'').trim(),cpf=(j.cpf||'').trim(),data=(j.data||'').trim(),serv=(j.servico||'').trim(),end=(j.endereco||'').trim();
-        var tm=tipoMeses(serv+' '+String(R.txt||'').slice(0,500));
-        // cadastra/sincroniza o cliente (dedup CPF/CNPJ/telefone/e-mail/nome) e usa o NOME CANÔNICO p/ a pasta do Drive
-        var canon=nome;
-        if(typeof cliUpsertMerge==='function'){ var rc=cliUpsertMerge({nome:nome,cpf:cpf,tel:tel,email:email,endereco:end,laudoData:data,servico:serv||tm.tipo}); if(rc&&rc.cliente&&rc.cliente.nome) canon=rc.cliente.nome; if(rc&&rc.novo) nCli++; }
-        var cpfD=cpf.replace(/\D/g,''); var stipo=serv||tm.tipo;
-        var ex=cur.filter(function(y){ var yc=String(y.cpf||'').replace(/\D/g,''); if(cpfD.length>=11&&yc===cpfD&&(y.servico||'')===stipo) return true; return (y.nome||'').toLowerCase()===canon.toLowerCase() && (y.servico||'')===stipo; })[0];
-        if(ex){ if(tel)ex.tel=tel; if(email)ex.email=email; if(data)ex.data=data; if(cpf)ex.cpf=cpf; ex.nome=canon; ex.servico=stipo; ex.validadeMeses=tm.meses; }
-        else { cur.unshift({id:'rn'+Date.now()+'_'+i+'_'+r, nome:canon, cpf:cpf, tel:tel, email:email, data:data, servico:stipo, validadeMeses:tm.meses, oferecidoEm:'', criadoEm:new Date().toISOString()}); nRen++; }
-        log('✓ '+rf.name+' → '+canon+' · '+stipo+' · '+(data||'sem data')+' · renova em '+tm.meses+'m');
-        if(enviarDrive){ ups.push(driveUpload(canon,rf,'Documentos').then(function(ok){ if(ok) nDrv++; })); }
+        var ar=_apply(j);
+        if(!ar){ log('⚠ '+rf.name+' — cliente não identificado.'); nFail++; continue; }
+        log('✓ '+rf.name+' → '+ar.canon+' · '+ar.stipo+' · '+(ar.data||'sem data')+' · renova em '+ar.meses+'m');
+        if(enviarDrive){ ups.push(driveUpload(ar.canon,rf,'Documentos').then(function(ok){ if(ok) nDrv++; })); }
       }
       if(ups.length){ try{ await Promise.all(ups); }catch(e){} } // cria/atualiza a pasta de cada cliente no Drive (em paralelo)
       i+=CONC; prog((i/files.length)*100);
     }
     if(typeof renovSaveAll==='function') renovSaveAll(cur);
     prog(100); running=false; _ctrl(false); if(btn){ btn.disabled=false; btn.textContent='⚙️ Processar arquivos'; }
-    var fim=window.__bulkCancel?'⏹ Interrompido':'✅ Concluído';
-    st(fim+': '+nRen+' registro(s) de laudo na memória, '+nCli+' cliente(s) novo(s)'+(nDrv?(', '+nDrv+' no Drive'):'')+(nIgnore?(', '+nIgnore+' ignorado(s)'):'')+(nFail?(', '+nFail+' não lido(s)'):'')+'.');
-    log('FIM — '+nRen+' renovações · '+nCli+' clientes novos · '+nDrv+' no Drive · '+nIgnore+' ignorados · '+nFail+' falhas.');
+    var fim=window.__bulkCancel?'⏹ Interrompido':'✅ Concluído'; var nRen=ctx.nRen, nCli=ctx.nCli;
+    st(fim+': '+nRen+' registro(s) de laudo na memória, '+nCli+' cliente(s) novo(s)'+(nRows?(', '+nRows+' de planilha'):'')+(nDrv?(', '+nDrv+' no Drive'):'')+(nIgnore?(', '+nIgnore+' ignorado(s)'):'')+(nFail?(', '+nFail+' não lido(s)'):'')+'.');
+    log('FIM — '+nRen+' renovações · '+nCli+' clientes novos · '+nRows+' de planilha · '+nDrv+' no Drive · '+nIgnore+' ignorados · '+nFail+' falhas.');
     window.__bulkCancel=false; window.__bulkPaused=false;
     // alimenta a memória do assistente (cérebro) com o resumo da importação
-    try{ var mm=JSON.parse(localStorage.getItem('gn_assist_mem')||'[]'); if(!Array.isArray(mm)) mm=[]; mm.push('Importação em massa ('+new Date().toLocaleDateString('pt-BR')+'): li documentos antigos e atualizei a base — '+nRen+' serviço(s)/laudo(s) na memória e '+nCli+' cliente(s) novo(s). Para detalhes, consulte clientes/laudos/serviços.'); localStorage.setItem('gn_assist_mem', JSON.stringify(mm.slice(-250))); if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_assist_mem'); }catch(e){}
+    try{ var mm=JSON.parse(localStorage.getItem('gn_assist_mem')||'[]'); if(!Array.isArray(mm)) mm=[]; mm.push('Importação em massa ('+new Date().toLocaleDateString('pt-BR')+'): li documentos/planilhas e atualizei a base — '+nRen+' serviço(s)/laudo(s) na memória e '+nCli+' cliente(s) novo(s). Para detalhes, consulte clientes/laudos/serviços.'); localStorage.setItem('gn_assist_mem', JSON.stringify(mm.slice(-250))); if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_assist_mem'); }catch(e){}
     try{ if(typeof renderRenov==='function') renderRenov(); }catch(e){}
     try{ if(typeof renderCli==='function') renderCli(); }catch(e){}
     try{ if(typeof renderTarefasHub==='function') renderTarefasHub(); }catch(e){}
@@ -10132,6 +10261,8 @@ function renderTarefasHub(){
   var card=function(t,inner){ return '<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:14px;margin-bottom:14px;"><div style="font-weight:800;color:var(--gn-text);margin-bottom:8px;">'+t+'</div>'+inner+'</div>'; };
   var vazio=function(m){ return '<div style="color:var(--gn-dim);padding:10px;border:1px dashed var(--gn-border);border-radius:10px;">'+m+'</div>'; };
   var H='';
+  var hh=now.getHours(); var saud=hh<12?'Bom dia':(hh<18?'Boa tarde':'Boa noite');
+  H+='<div style="background:rgba(124,92,255,.10);border:1px solid #7c5cff;border-radius:12px;padding:11px 14px;margin-bottom:12px;font-size:13px;color:var(--gn-text);">'+saud+'! Aqui está tudo que precisa da sua atenção hoje — é só clicar e enviar. 🚀</div>';
   // 1) Notinhas do dia (Agenda)
   var ag=[]; try{ ag=(typeof gnStoreGet==='function')?gnStoreGet('agenda'):JSON.parse(localStorage.getItem('gn_agenda')||'[]'); }catch(e){}
   var hojeAg=(ag||[]).filter(function(a){ return String(a.data||'').slice(0,10)===hojeISO; }).sort(function(a,b){ return String(a.hora||'').localeCompare(String(b.hora||'')); });
@@ -10176,8 +10307,28 @@ function renderTarefasHub(){
         +'<button onclick="hubTarDel(\''+t.id+'\')" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;">✕</button></div>';
     }).join(''); }
   H+=card('🗒️ Minhas tarefas', inner3);
+  // 4) Aniversariantes (relacionamento)
+  try{ if(typeof gnAniversariantes==='function'){ var avs=gnAniversariantes(7); var i4; if(!avs.length){ i4=vazio('Nenhum aniversário nos próximos 7 dias.'); } else { i4=avs.map(function(a){ var q=(a.dias===0)?'hoje 🎉':('em '+a.dias+' dia(s)'); return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 12px;border:1px solid var(--gn-border);border-left:4px solid #0891b2;border-radius:10px;margin-bottom:6px;"><div><b style="color:var(--gn-text);">'+esc(a.cli.nome||'')+'</b> <span style="font-size:12px;color:var(--gn-dim);">· '+q+'</span></div><button onclick="gnAniverEnviar(\''+esc(String(a.cli.id||'')).replace(/\x27/g,"\\\x27")+'\')" style="background:#25d366;color:#fff;border:none;border-radius:8px;padding:7px 11px;cursor:pointer;font-weight:600;font-size:12px;">📲 Parabenizar</button></div>'; }).join(''); } H+=card('🎂 Aniversariantes', i4); } }catch(e){}
+  // 5) Pós-venda pendente
+  try{ if(typeof gnPosvendaPendentes==='function'){ var pvs=gnPosvendaPendentes(); var i5; if(!pvs.length){ i5=vazio('Nenhum pós-venda pendente no momento.'); } else { i5='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;"><b style="color:#7c5cff;">'+pvs.length+'</b> serviço(s) concluído(s) aguardando um contato de pós-venda.</div><button onclick="goTab(\'posvenda\')" style="background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:8px 13px;cursor:pointer;font-weight:700;font-size:12.5px;">Abrir Pós-venda →</button>'; } H+=card('⭐ Pós-venda', i5); } }catch(e){}
+  // 6) Cobranças (financeiro a receber / em atraso)
+  var fin=[]; try{ fin=JSON.parse(localStorage.getItem('gn_fin')||'[]'); }catch(e){}
+  var pend={}; (fin||[]).forEach(function(x){ if(x && x.tipo==='receita' && x.status && x.status!=='pago'){ var k=(x.cliente||'').trim(); if(k) pend[k]=(pend[k]||0)+(Number(x.valor)||0); } });
+  var pk=Object.keys(pend); var i6;
+  if(!pk.length){ i6=vazio('Nenhuma cobrança pendente. Valores a receber lançados no Financeiro aparecem aqui para cobrar com 1 toque.'); }
+  else { var totp=0; pk.forEach(function(k){ totp+=pend[k]; }); i6='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;"><b style="color:#f59e0b;">'+pk.length+'</b> cliente(s) com valor em aberto · total '+((typeof gnBRL==='function')?gnBRL(totp):('R$ '+totp.toFixed(2)))+'.</div>'+pk.slice(0,15).map(function(k){ return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 12px;border:1px solid var(--gn-border);border-left:4px solid #f59e0b;border-radius:10px;margin-bottom:6px;"><div><b style="color:var(--gn-text);">'+esc(k)+'</b> <span style="font-size:12px;color:var(--gn-dim);">· a receber '+((typeof gnBRL==='function')?gnBRL(pend[k]):('R$ '+pend[k].toFixed(2)))+'</span></div><button onclick="hubCobrar(\''+esc(String(k)).replace(/\x27/g,"\\\x27")+'\','+pend[k]+')" style="background:#25d366;color:#fff;border:none;border-radius:8px;padding:7px 11px;cursor:pointer;font-weight:600;font-size:12px;">📲 Cobrar</button></div>'; }).join(''); }
+  H+=card('📢 Cobranças a fazer', i6);
   box.innerHTML=H;
 }
+function hubCobrar(nome, valor){
+  var c=null; try{ var cl=JSON.parse(localStorage.getItem('gn_cli')||'[]'); var n=String(nome||'').toLowerCase().trim(); for(var i=0;i<cl.length;i++){ if((cl[i].nome||'').toLowerCase().trim()===n){ c=cl[i]; break; } } }catch(e){}
+  var brl=(typeof gnBRL==='function')?gnBRL(valor):('R$ '+(Number(valor)||0).toFixed(2));
+  var fb='Olá, {nome}! Tudo bem? Passando para lembrar, com todo cuidado, sobre o valor de '+brl+' em aberto referente ao nosso serviço. Quando puder, me avise para acertarmos. Obrigado!';
+  var msg=(typeof modeloMsg==='function')?modeloMsg('Cobrança', nome, fb):fb.replace(/\{nome\}/g, (String(nome).split(' ')[0]||'cliente'));
+  msg=msg.replace(/\{valor\}/g, brl);
+  if(typeof gnSendMsg==='function'){ gnSendMsg(nome, c?(c.whatsapp||c.tel):'', c?c.email:'', msg); } else if(typeof toast==='function'){ toast('Recurso de envio indisponível.','er'); }
+}
+window.hubCobrar=hubCobrar;
 function hubFazerNotinha(nome){ try{ if(typeof goTab==='function') goTab('os'); var el=document.getElementById('os-nome')||document.getElementById('os-cli')||document.getElementById('os-cliente'); if(el){ el.value=nome; try{ if(typeof osPickCli==='function') osPickCli(); }catch(e){} } if(typeof toast==='function') toast('Faça a Nota de Serviço de '+nome+'.','ok'); }catch(e){} }
 function hubTarAdd(){ var inp=document.getElementById('tarhub-tit'); var v=inp?(inp.value||'').trim():''; if(!v){ if(typeof toast==='function') toast('Escreva a tarefa.','er'); return; } var a=(typeof tarGet==='function')?tarGet():[]; a.unshift({id:'t'+Date.now(),titulo:v,prioridade:'Média',venc:'',cliente:'',status:'Aberta',criadoEm:new Date().toISOString()}); if(typeof tarSaveAll==='function') tarSaveAll(a); try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_tarefas'); }catch(e){} if(inp) inp.value=''; renderTarefasHub(); }
 function hubTarToggle(id){ var a=(typeof tarGet==='function')?tarGet():[]; a.forEach(function(x){ if(x.id===id) x.status=(x.status==='Concluída'?'Aberta':'Concluída'); }); if(typeof tarSaveAll==='function') tarSaveAll(a); try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_tarefas'); }catch(e){} renderTarefasHub(); }
