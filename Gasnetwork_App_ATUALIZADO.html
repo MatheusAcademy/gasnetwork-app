@@ -8907,7 +8907,7 @@ function renovEnviar(id, canalForcado){
   // NÃO marca automaticamente — você marca o check "Contatei" depois de enviar de verdade.
 }
 // marca/desmarca manualmente que você já contatou o cliente
-function renovToggleContato(id){ var a=renovData(); a.forEach(function(x){ if(x.id===id){ x.oferecidoEm = x.oferecidoEm ? '' : new Date().toISOString(); } }); renovSaveAll(a); renderRenov(); try{ if(document.getElementById('renov-det-modal') && document.getElementById('renov-det-modal').style.display==='block' && typeof renovDetalhe==='function') renovDetalhe(id); }catch(e){} }
+function renovToggleContato(id){ var a=renovData(); a.forEach(function(x){ if(x.id===id){ x.oferecidoEm = x.oferecidoEm ? '' : new Date().toISOString(); } }); renovSaveAll(a); renderRenov(); try{ if(typeof renderTarefasHub==='function') renderTarefasHub(); }catch(e){} try{ if(document.getElementById('renov-det-modal') && document.getElementById('renov-det-modal').style.display==='block' && typeof renovDetalhe==='function') renovDetalhe(id); }catch(e){} }
 function renovLimparContatados(){ if(!confirm('Limpar TODAS as marcações de "contatado"? (não afeta agendados/fechados) Use isso se o app marcou clientes que você ainda não contatou.')) return; var a=renovData(); a.forEach(function(x){ x.oferecidoEm=''; }); renovSaveAll(a); renderRenov(); if(typeof toast==='function') toast('✓ Marcações de contato limpas.','ok'); }
 // Fila de envio: o navegador bloqueia abrir vários WhatsApp/e-mails de uma vez, então enviamos 1 por clique do usuário.
 function renovEnviarLote(){
@@ -8952,6 +8952,18 @@ function renovDedup(arr){
   });
   return out;
 }
+// Lista ÚNICA de clientes a relembrar (usada no Início E nas Tarefas, pra o número bater igualzinho):
+// só serviços que pedem lembrete (laudo, mangueira, regulador, manutenção...), deduplicados, ainda não agendados/recusados, vencidos ou a vencer (30d).
+function gnRelembrarList(){
+  var rv=[]; try{ rv=(typeof renovData==='function')?renovData():JSON.parse(localStorage.getItem('gn_renov')||'[]'); }catch(e){}
+  var arr=(rv||[]).filter(function(c){ return (typeof gnServRegra==='function')?gnServRegra(c.servico).lembrete:true; });
+  if(typeof renovDedup==='function') arr=renovDedup(arr);
+  var out=[];
+  arr.forEach(function(c){ if(c.statusR==='agendou'||c.statusR==='recusou') return; var rg=(typeof gnServRegra==='function')?gnServRegra(c.servico):{meses:c.validadeMeses,lembrete:true}; var s=(typeof renovStatus==='function')?renovStatus(c.data,rg.meses):{status:'sem-data'}; if(s.status==='vencido'||s.status==='vence') out.push({c:c,s:s}); });
+  out.sort(function(a,b){ return (a.s.dias==null?9999:a.s.dias)-(b.s.dias==null?9999:b.s.dias); });
+  return out;
+}
+window.gnRelembrarList=gnRelembrarList;
 function renderRenov(){
   if(!window.__renovPulled){ window.__renovPulled=true; try{ if(typeof gnStorePull==='function') gnStorePull('renov', function(ch){ if(ch) renderRenov(); }); }catch(e){} }
   var vl=document.getElementById('renov-validade-lbl'); if(vl) vl.textContent=renovValMeses();
@@ -9021,7 +9033,7 @@ function renovSetTicket(){
   var n=(typeof gnParseVal==='function')?gnParseVal(v):(parseFloat(String(v).replace(/\./g,'').replace(',','.'))||0);
   try{ localStorage.setItem('gn_renov_ticket', String(n)); }catch(e){} renderRenov();
 }
-function renovRecusou(id){ var a=renovData(); var c=a.filter(function(x){return x.id===id;})[0]; if(c){ c.statusR='recusou'; renovSaveAll(a); renderRenov(); } }
+function renovRecusou(id){ var a=renovData(); var c=a.filter(function(x){return x.id===id;})[0]; if(c){ c.statusR='recusou'; renovSaveAll(a); renderRenov(); try{ if(typeof renderTarefasHub==='function') renderTarefasHub(); }catch(e){} } }
 function renovAgendar(id){
   var a=renovData(); var c=a.filter(function(x){return x.id===id;})[0]; if(!c) return;
   var dataI=prompt('Data da revisita para renovar o laudo de '+c.nome+' (AAAA-MM-DD ou DD/MM):', ''); if(dataI===null) return;
@@ -9033,7 +9045,7 @@ function renovAgendar(id){
   try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_agenda'); }catch(e){}
   c.statusR='agendou'; if(!c.oferecidoEm) c.oferecidoEm=new Date().toISOString(); renovSaveAll(a);
   if(typeof toast==='function') toast('✅ Revisita de '+c.nome+' agendada para '+iso.split('-').reverse().join('/')+' '+hora+' (e enviada ao Google Agenda).','ok');
-  renderRenov();
+  renderRenov(); try{ if(typeof renderTarefasHub==='function') renderTarefasHub(); }catch(e){}
 }
 function gnRelRenovPDF(){
   if(typeof gnDocPDF!=='function'){ if(typeof toast==='function') toast('Motor de PDF indisponível.','er'); return; }
@@ -9549,13 +9561,12 @@ function gnAvisos(){
   }
   // Campanha de renovação (item 19): clientes da lista importada com laudo vencido/a vencer
   try{
-    var rn=[]; try{ rn=JSON.parse(localStorage.getItem('gn_renov')||'[]'); }catch(e){}
-    if(rn.length && typeof renovStatus==='function'){
-      var rv=rn.filter(function(c){ var s=renovStatus(c.data); return (s.status==='vencido'||s.status==='vence') && c.statusR!=='agendou' && c.statusR!=='recusou'; });
+    var rv=(typeof gnRelembrarList==='function')?gnRelembrarList():[]; // MESMA base das Tarefas (dedup + serviços com lembrete) — número bate exatamente
+    {
       if(rv.length){
         html+='<div style="background:rgba(220,38,38,.10);border:1px solid #dc2626;border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
-          +'<div style="font-weight:800;color:#dc2626;margin-bottom:4px;">🔄 '+rv.length+' cliente(s) precisam renovar o laudo</div>'
-          +'<div style="font-size:12.5px;color:var(--gn-text);margin-bottom:8px;">Da sua lista importada. Abra a Renovação de Laudos pra disparar as mensagens (WhatsApp/e-mail) com um toque.</div>'
+          +'<div style="font-weight:800;color:#dc2626;margin-bottom:4px;">🔄 '+rv.length+' cliente(s) precisam renovar o laudo / manutenção</div>'
+          +'<div style="font-size:12.5px;color:var(--gn-text);margin-bottom:8px;">Da sua lista importada. Abra a Renovação de Laudos (ou as Tarefas) pra disparar as mensagens (WhatsApp/e-mail) com um toque.</div>'
           +'<button onclick="goTab(\'renov\')" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:7px 13px;cursor:pointer;font-weight:700;font-size:12.5px;">Abrir Renovação de Laudos →</button></div>';
       }
     }
@@ -10752,59 +10763,55 @@ function renderTarefasHub(){
     }).join('');
   }
   H+=card('📝 Notinhas de serviço — hoje', inner1);
-  // 2) Clientes a relembrar (laudos/manutenções vencendo)
-  var rv=[]; try{ rv=(typeof renovData==='function')?renovData():JSON.parse(localStorage.getItem('gn_renov')||'[]'); }catch(e){}
-  var devidos=[]; (rv||[]).forEach(function(c){ if(c.statusR==='agendou'||c.statusR==='recusou') return; var rg=(typeof gnServRegra==='function')?gnServRegra(c.servico):{meses:c.validadeMeses,lembrete:true}; if(!rg.lembrete) return; var s=(typeof renovStatus==='function')?renovStatus(c.data,rg.meses):{status:'sem-data'}; if(s.status==='vencido'||s.status==='vence') devidos.push({c:c,s:s}); });
-  devidos.sort(function(a,b){ return (a.s.dias==null?9999:a.s.dias)-(b.s.dias==null?9999:b.s.dias); });
+  // 2) Clientes a relembrar — MESMA base do Início (gnRelembrarList: dedup + serviços com lembrete). Mostra TODOS, em ordem,
+  //    com os mesmos controles da Renovação (contatei ✓, WhatsApp, e-mail, aceitou, recusou) pra a Mayara mandar 1 por 1.
+  var devidos=(typeof gnRelembrarList==='function')?gnRelembrarList():[];
   var inner2;
-  if(!devidos.length){ inner2=vazio('Nenhum cliente para relembrar agora. Conforme você sobe documentos/laudos, os vencimentos (laudo 12 meses, mangueira 5 anos, manutenção de aquecedor 12 meses) aparecem aqui.'); }
+  if(!devidos.length){ inner2=vazio('Nenhum cliente para relembrar agora. 🎉 Conforme você sobe laudos/serviços, os vencimentos (laudo 12 meses, mangueira/regulador 5 anos, manutenção 12 meses) aparecem aqui.'); }
   else {
-    inner2='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;"><b style="color:#dc2626;">'+devidos.length+'</b> cliente(s) para refazer serviço / manutenção. Mande mensagem pra manter o contato:</div>';
-    inner2+=devidos.slice(0,15).map(function(o){ var c=o.c,s=o.s; var venc=(s.venc)?s.venc.toLocaleDateString('pt-BR'):''; var info=(s.status==='vencido')?('vencido'+(venc?(' desde '+venc):'')):('vence em '+s.dias+' dia(s)');
-      return '<div data-cli="'+esc(c.nome||'')+'" onclick="gnClienteBalao(this.getAttribute(\'data-cli\'))" style="cursor:pointer;padding:9px 12px;border:1px solid var(--gn-border);border-left:4px solid '+(s.status==='vencido'?'#dc2626':'#f59e0b')+';border-radius:10px;margin-bottom:6px;">'
-        +'<div style="font-weight:700;color:var(--gn-text);">'+esc(c.nome||'')+' <span style="font-size:10px;color:var(--gn-dim);">· '+esc(c.servico||'serviço')+'</span> <span style="font-size:10px;color:#7c5cff;">› ver ficha</span></div><div style="font-size:12px;color:var(--gn-dim);">'+info+'</div></div>';
+    inner2='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;"><b style="color:#dc2626;">'+devidos.length+'</b> cliente(s) precisam renovar o laudo / manutenção. Mande mensagem de um por um e marque ✓ quando enviar (mesma lista do Início e da Renovação):</div>';
+    inner2+=devidos.map(function(o){ var c=o.c,s=o.s; var venc=(s.venc)?s.venc.toLocaleDateString('pt-BR'):''; var info=(s.status==='vencido')?('vencido'+(venc?(' desde '+venc):'')):('vence em '+s.dias+' dia(s)');
+      var temTel=String(c.tel||c.telefone||'').replace(/\D/g,'').length>=10; var feito=!!c.oferecidoEm; var cid=esc(String(c.id||'')).replace(/\x27/g,"\\\x27");
+      return '<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 12px;border:1px solid var(--gn-border);border-left:4px solid '+(s.status==='vencido'?'#dc2626':'#f59e0b')+';border-radius:10px;margin-bottom:6px;opacity:'+(feito?'0.6':'1')+';">'
+        +'<button onclick="renovToggleContato(\''+cid+'\')" title="Marque ✓ quando já mandou a mensagem" style="background:'+(feito?'#16a34a':'var(--gn-surface2,#243049)')+';color:#fff;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:13px;flex:0 0 auto;font-weight:700;">'+(feito?'✓':'☐')+'</button>'
+        +'<div onclick="renovDetalhe(\''+cid+'\')" title="Ver ficha completa do cliente" style="flex:1;min-width:0;cursor:pointer;"><div style="font-weight:700;color:var(--gn-text);'+(feito?'text-decoration:line-through;color:var(--gn-dim);':'')+'">'+esc(c.nome||'')+' <span style="font-size:10px;color:var(--gn-dim);">· '+esc(c.servico||'serviço')+'</span> <span style="font-size:10px;color:#7c5cff;">› ficha</span></div><div style="font-size:12px;color:var(--gn-dim);">'+info+(feito?' · <span style="color:#16a34a;">✓ mensagem enviada</span>':'')+'</div></div>'
+        +'<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">'
+        +(temTel?('<button onclick="renovEnviar(\''+cid+'\',\'whatsapp\')" title="WhatsApp" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;font-weight:600;">📲</button>'):'')
+        +'<button onclick="renovEnviar(\''+cid+'\',\'email\')" title="E-mail" style="background:#0e7490;color:#fff;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;font-weight:600;">✉️</button>'
+        +'<button onclick="renovAgendar(\''+cid+'\')" title="Cliente aceitou — agendar revisita" style="background:#16a34a;color:#fff;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;font-weight:600;">aceitou</button>'
+        +'<button onclick="renovRecusou(\''+cid+'\')" title="Cliente recusou" style="background:var(--gn-surface2,#243049);color:var(--gn-text);border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;">✗</button>'
+        +'</div></div>';
     }).join('');
-    inner2+='<button onclick="goTab(\'renov\')" style="margin-top:6px;background:#dc2626;color:#fff;border:none;border-radius:8px;padding:8px 13px;cursor:pointer;font-weight:700;font-size:12.5px;">Abrir Renovação de Laudos →</button>';
+    inner2+='<button onclick="goTab(\'renov\')" style="margin-top:6px;background:#dc2626;color:#fff;border:none;border-radius:8px;padding:8px 13px;cursor:pointer;font-weight:700;font-size:12.5px;">Abrir Renovação de Laudos (tela completa) →</button>';
   }
   // (prioridade baixa) — guardado para entrar NO FIM da lista, depois das notinhas, tarefas e cobranças
-  var secRelembrar=card('🔄 Clientes a relembrar (laudos / manutenções) — quando sobrar tempo', inner2);
-  // 3) Minhas tarefas (anotadas / do assistente)
+  var secRelembrar=card('🔄 Clientes a relembrar (laudos / manutenções) — '+devidos.length+' no total', inner2);
+  // 3) Minhas tarefas — independentes, em ORDEM (mais recente em cima). Concluída NÃO some na hora:
+  //    fica visível por 24h (riscada) e só desaparece depois disso.
   var ts=[]; try{ ts=(typeof tarGet==='function')?tarGet():JSON.parse(localStorage.getItem('gn_tarefas')||'[]'); }catch(e){}
-  var _tarPeso=function(t){ var s=(String(t.titulo||'')+' '+String(t.cliente||'')+' '+String(t.servico||'')).toLowerCase();
-    if(/document|contrat|propost|or[çc]ament|\bart\b|cadastr|assinatur/.test(s)) return 0;   // documentação tem preferência
-    if(/laudo|estanqueidad/.test(s)) return 1;                                                // laudos
-    if(/notinha|nota de servi|recibo/.test(s)) return 2;                                      // notinhas / notas
-    if(/envi|enviar|mandar|whats|e-?mail|cobran/.test(s)) return 3;                           // envios / cobranças
-    return 5; };
-  // data efetiva: SEM prazo = é do dia (urgente, topo). COM prazo ("até sexta") = ordena pela data.
-  var _efetiva=function(t){ var v=String(t.venc||'').slice(0,10); return /^\d{4}-\d{2}-\d{2}$/.test(v)?v:hojeISO; };
-  ts.sort(function(x,y){
-    var dx=(x.status==='Concluída'), dy=(y.status==='Concluída');
-    if(dx!==dy) return dx?1:-1;                                  // feitos vão pra baixo
-    var ex=_efetiva(x), ey=_efetiva(y); if(ex!==ey) return ex<ey?-1:1; // do dia/atrasadas no topo, prazos futuros depois
-    var px=_tarPeso(x), py=_tarPeso(y); if(px!==py) return px-py; // documentação tem preferência
-    var o={'Urgente':0,'Alta':1,'Média':2,'Baixa':3}; return (o[x.prioridade]||9)-(o[y.prioridade]||9);
-  });
+  var agoraMs=Date.now();
+  ts=ts.filter(function(t){ if(t.status!=='Concluída') return true; var cm=t.concluidoEm?Date.parse(t.concluidoEm):0; if(!cm) return true; return (agoraMs-cm)<86400000; });
+  ts.sort(function(x,y){ var cx=Date.parse(x.criadoEm||'')||0, cy=Date.parse(y.criadoEm||'')||0; return cy-cx; });
   var inner3;
   if(!ts.length){ inner3=vazio('Nenhuma tarefa anotada. Use o campo acima, ou peça ao assistente 🤖 ("anota pra eu ligar pro Sr. Pedro amanhã").'); }
   else { inner3=ts.map(function(t){ var done=t.status==='Concluída'; var cor={'Urgente':'#dc2626','Alta':'#f59e0b','Média':'#7c5cff','Baixa':'#64748b'}[t.prioridade]||'#7c5cff';
+      var doneHint=''; if(done){ if(t.concluidoEm){ var rest=24-Math.floor((agoraMs-Date.parse(t.concluidoEm))/3600000); doneHint=' · <span style="color:#16a34a;">✓ concluída'+(rest>0?(' — some em '+(rest<=1?'menos de 1h':rest+'h')):'')+'</span>'; } else { doneHint=' · <span style="color:#16a34a;">✓ concluída</span>'; } }
       return '<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--gn-border);border-left:4px solid '+cor+';border-radius:10px;margin-bottom:6px;opacity:'+(done?'0.6':'1')+';">'
         +'<input type="checkbox" '+(done?'checked':'')+' onchange="hubTarToggle(\''+t.id+'\')" style="width:18px;height:18px;cursor:pointer;">'
-        +'<div style="flex:1;min-width:0;"><div style="font-weight:600;color:var(--gn-text);'+(done?'text-decoration:line-through;color:var(--gn-dim);':'')+'">'+esc(t.titulo)+'</div><div style="font-size:11px;color:var(--gn-dim);">'+esc(t.prioridade||'')+(t.responsavel?(' · 👤 '+esc(t.responsavel)):'')+(t.venc?(' · vence '+String(t.venc).split('-').reverse().join('/')):'')+(t.cliente?(' · '+esc(t.cliente)):'')+'</div></div>'
+        +'<div style="flex:1;min-width:0;"><div style="font-weight:600;color:var(--gn-text);'+(done?'text-decoration:line-through;color:var(--gn-dim);':'')+'">'+esc(t.titulo)+'</div><div style="font-size:11px;color:var(--gn-dim);">'+esc(t.prioridade||'')+(t.responsavel?(' · 👤 '+esc(t.responsavel)):'')+(t.venc?(' · vence '+String(t.venc).split('-').reverse().join('/')):'')+(t.cliente?(' · '+esc(t.cliente)):'')+doneHint+'</div></div>'
         +'<button onclick="hubTarDel(\''+t.id+'\')" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;">✕</button></div>';
     }).join(''); }
   H+=card('🗒️ Minhas tarefas', inner3);
-  // 4) Aniversariantes (relacionamento)
-  try{ if(typeof gnAniversariantes==='function'){ var avs=gnAniversariantes(7); var i4; if(!avs.length){ i4=vazio('Nenhum aniversário nos próximos 7 dias.'); } else { i4=avs.map(function(a){ var q=(a.dias===0)?'hoje 🎉':('em '+a.dias+' dia(s)'); return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 12px;border:1px solid var(--gn-border);border-left:4px solid #0891b2;border-radius:10px;margin-bottom:6px;"><div><b style="color:var(--gn-text);">'+esc(a.cli.nome||'')+'</b> <span style="font-size:12px;color:var(--gn-dim);">· '+q+'</span></div><button onclick="gnAniverEnviar(\''+esc(String(a.cli.id||'')).replace(/\x27/g,"\\\x27")+'\')" style="background:#25d366;color:#fff;border:none;border-radius:8px;padding:7px 11px;cursor:pointer;font-weight:600;font-size:12px;">📲 Parabenizar</button></div>'; }).join(''); } H+=card('🎂 Aniversariantes', i4); } }catch(e){}
-  // 5) Pós-venda pendente
-  try{ if(typeof gnPosvendaPendentes==='function'){ var pvs=gnPosvendaPendentes(); var i5; if(!pvs.length){ i5=vazio('Nenhum pós-venda pendente no momento.'); } else { i5='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;"><b style="color:#7c5cff;">'+pvs.length+'</b> serviço(s) concluído(s) aguardando um contato de pós-venda.</div><button onclick="goTab(\'posvenda\')" style="background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:8px 13px;cursor:pointer;font-weight:700;font-size:12.5px;">Abrir Pós-venda →</button>'; } H+=card('⭐ Pós-venda', i5); } }catch(e){}
-  // 6) Cobranças — SÓ pagamentos EM ATRASO (vencido: data < hoje). Bate com o card "Em atraso" do Financeiro.
-  //    Não inclui "a receber" futuro nem orçamentos — só quem já passou do vencimento e você precisa cobrar.
+  // 6) Cobranças — SÓ pagamentos EM ATRASO (vencido). MESMO filtro do Financeiro (finCalc) pra o total bater IGUALZINHO:
+  //    tipo='receita', status!='pago', data preenchida e data < hoje (hoje em UTC, igual ao finHoje do Financeiro).
   var fin=[]; try{ fin=JSON.parse(localStorage.getItem('gn_fin')||'[]'); }catch(e){}
-  var pend={}; (fin||[]).forEach(function(x){ if(x && x.tipo==='receita' && x.status && x.status!=='pago' && x.data && String(x.data).slice(0,10)<hojeISO){ var k=(x.cliente||'').trim(); if(k) pend[k]=(pend[k]||0)+(Number(x.valor)||0); } });
+  var hojeFin=new Date().toISOString().slice(0,10);
+  var _brlC=function(v){ return (typeof gnBRL==='function')?gnBRL(Number(v)||0):('R$ '+(Number(v)||0).toFixed(2)); };
+  var pend={}, semNome=0, totAtrasoAll=0;
+  (fin||[]).forEach(function(x){ if(x && x.tipo==='receita' && x.status!=='pago' && x.data && x.data<hojeFin){ var vv=Number(x.valor)||0; totAtrasoAll+=vv; var k=(x.cliente||'').trim(); if(k) pend[k]=(pend[k]||0)+vv; else semNome+=vv; } });
   var pk=Object.keys(pend).sort(function(a,b){ return pend[b]-pend[a]; }); var i6;
-  if(!pk.length){ i6=vazio('Nenhuma cobrança em atraso. 🎉 Quando um recebimento passar do vencimento (lá no Financeiro), o cliente aparece aqui pra cobrar com 1 toque.'); }
-  else { var totp=0; pk.forEach(function(k){ totp+=pend[k]; }); i6='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;"><b style="color:#dc2626;">'+pk.length+'</b> cliente(s) <b>em atraso</b> · total '+((typeof gnBRL==='function')?gnBRL(totp):('R$ '+totp.toFixed(2)))+' (mesmo valor do card “Em atraso” do Financeiro).</div>'+pk.slice(0,40).map(function(k){ return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 12px;border:1px solid var(--gn-border);border-left:4px solid #dc2626;border-radius:10px;margin-bottom:6px;"><div><b style="color:var(--gn-text);">'+esc(k)+'</b> <span style="font-size:12px;color:var(--gn-dim);">· em atraso '+((typeof gnBRL==='function')?gnBRL(pend[k]):('R$ '+pend[k].toFixed(2)))+'</span></div><div style="display:flex;gap:5px;flex-wrap:wrap;"><button onclick="hubCobrar(\''+esc(String(k)).replace(/\x27/g,"\\\x27")+'\','+pend[k]+')" style="background:#25d366;color:#fff;border:none;border-radius:8px;padding:7px 11px;cursor:pointer;font-weight:600;font-size:12px;">📲 Cobrar</button><button onclick="hubCobrarPago(\''+esc(String(k)).replace(/\x27/g,"\\\x27")+'\')" title="Marca os valores em atraso desse cliente como recebidos" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 11px;cursor:pointer;font-weight:600;font-size:12px;">✓ Já pago</button></div></div>'; }).join(''); }
+  if(!totAtrasoAll){ i6=vazio('Nenhuma cobrança em atraso. 🎉 Quando um recebimento passar do vencimento (lá no Financeiro), o cliente aparece aqui pra cobrar com 1 toque.'); }
+  else { i6='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;">Total <b style="color:#dc2626;">'+_brlC(totAtrasoAll)+'</b> em atraso · '+pk.length+' cliente(s) com nome (mesmo valor do card “Em atraso” do Financeiro).</div>'+pk.slice(0,60).map(function(k){ return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 12px;border:1px solid var(--gn-border);border-left:4px solid #dc2626;border-radius:10px;margin-bottom:6px;"><div><b style="color:var(--gn-text);">'+esc(k)+'</b> <span style="font-size:12px;color:var(--gn-dim);">· em atraso '+_brlC(pend[k])+'</span></div><div style="display:flex;gap:5px;flex-wrap:wrap;"><button onclick="hubCobrar(\''+esc(String(k)).replace(/\x27/g,"\\\x27")+'\','+pend[k]+')" style="background:#25d366;color:#fff;border:none;border-radius:8px;padding:7px 11px;cursor:pointer;font-weight:600;font-size:12px;">📲 Cobrar</button><button onclick="hubCobrarPago(\''+esc(String(k)).replace(/\x27/g,"\\\x27")+'\')" title="Marca os valores em atraso desse cliente como recebidos" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 11px;cursor:pointer;font-weight:600;font-size:12px;">✓ Já pago</button></div></div>'; }).join('')+(semNome>0?('<div style="font-size:11.5px;color:#9fb0d0;margin-top:6px;padding:8px 10px;border:1px dashed var(--gn-border);border-radius:9px;">⚠ '+_brlC(semNome)+' em atraso estão em lançamentos <b>sem nome de cliente</b> no Financeiro — por isso não aparecem com botão de cobrar aqui, mas entram no total. Abra o Financeiro e preencha o cliente nesses lançamentos pra poder cobrá-los.</div>'):''); }
   H+=card('📢 Cobranças a fazer (em atraso)', i6);
   H+=secRelembrar; // relembrar laudos/manutenções fica por último (prioridade baixa)
   box.innerHTML=H;
@@ -10835,7 +10842,7 @@ function hubCobrarPago(nome){
 window.hubCobrarPago=hubCobrarPago;
 function hubFazerNotinha(nome){ try{ if(typeof goTab==='function') goTab('os'); var el=document.getElementById('os-nome')||document.getElementById('os-cli')||document.getElementById('os-cliente'); if(el){ el.value=nome; try{ if(typeof osPickCli==='function') osPickCli(); }catch(e){} } if(typeof toast==='function') toast('Faça a Nota de Serviço de '+nome+'.','ok'); }catch(e){} }
 function hubTarAdd(){ var inp=document.getElementById('tarhub-tit'); var v=inp?(inp.value||'').trim():''; if(!v){ if(typeof toast==='function') toast('Escreva a tarefa.','er'); return; } var a=(typeof tarGet==='function')?tarGet():[]; a.unshift({id:'t'+Date.now(),titulo:v,prioridade:'Média',venc:'',cliente:'',status:'Aberta',criadoEm:new Date().toISOString()}); if(typeof tarSaveAll==='function') tarSaveAll(a); try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_tarefas'); }catch(e){} if(inp) inp.value=''; renderTarefasHub(); }
-function hubTarToggle(id){ var a=(typeof tarGet==='function')?tarGet():[]; a.forEach(function(x){ if(x.id===id) x.status=(x.status==='Concluída'?'Aberta':'Concluída'); }); if(typeof tarSaveAll==='function') tarSaveAll(a); try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_tarefas'); }catch(e){} renderTarefasHub(); }
+function hubTarToggle(id){ var a=(typeof tarGet==='function')?tarGet():[]; a.forEach(function(x){ if(x.id===id){ if(x.status==='Concluída'){ x.status='Aberta'; x.concluidoEm=''; } else { x.status='Concluída'; x.concluidoEm=new Date().toISOString(); } } }); if(typeof tarSaveAll==='function') tarSaveAll(a); try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_tarefas'); }catch(e){} renderTarefasHub(); }
 function hubTarDel(id){ var a=((typeof tarGet==='function')?tarGet():[]).filter(function(x){return x.id!==id;}); if(typeof tarSaveAll==='function') tarSaveAll(a); try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_tarefas'); }catch(e){} renderTarefasHub(); }
 function hubNotinhaToggle(id){ var a=[]; try{ a=JSON.parse(localStorage.getItem('gn_notinha_done')||'[]'); }catch(e){} if(!Array.isArray(a))a=[]; var i=a.indexOf(id); if(i>=0) a.splice(i,1); else a.push(id); try{ localStorage.setItem('gn_notinha_done', JSON.stringify(a)); }catch(e){} try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_notinha_done'); }catch(e){} try{ renderTarefasHub(); }catch(e){} }
 window.renderTarefasHub=renderTarefasHub; window.hubFazerNotinha=hubFazerNotinha; window.hubTarAdd=hubTarAdd; window.hubTarToggle=hubTarToggle; window.hubTarDel=hubTarDel; window.hubNotinhaToggle=hubNotinhaToggle;
