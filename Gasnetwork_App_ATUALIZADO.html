@@ -8524,6 +8524,7 @@ function docsWhatsUm(store, id){
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   var TABLBL={age:'Agenda',novo:'Nova Proposta',os:'Nota de Serviço',rec:'Recibo',laudo:'Laudo de Estanqueidade',docrap:'Documento Rápido',fin:'Financeiro',compras:'Compras',cli:'Clientes',prod:'Materiais',arquivos:'Arquivos & Mídia',ped:'Pedidos',tarefas:'Tarefas',docs:'Documentos do Cliente',contatos:'Contatos'};
   var _pendingImg=null;
+  var _pendingAcao=null;
   function build(){
     if(document.getElementById('gn-assist-btn')) return;
     var st=document.createElement('style'); st.textContent='#gn-assist-btn{position:fixed;left:18px;bottom:18px;z-index:1200;width:56px;height:56px;border-radius:50%;border:none;background:linear-gradient(135deg,#7c5cff,#4338ca);color:#fff;font-size:26px;cursor:pointer;box-shadow:0 6px 18px rgba(124,92,255,.5);} #gn-assist-panel{position:fixed;left:18px;bottom:84px;z-index:1200;width:370px;max-width:94vw;height:640px;max-height:86vh;background:var(--gn-bg,#15161c);border:1px solid var(--gn-border,rgba(255,255,255,.14));border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.55);display:none;flex-direction:column;overflow:hidden;} #gn-assist-msgs{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px;} .gn-am{max-width:85%;padding:9px 12px;border-radius:12px;font-size:13.5px;line-height:1.4;white-space:pre-wrap;} .gn-am.u{align-self:flex-end;background:#4338ca;color:#fff;border-bottom-right-radius:4px;} .gn-am.a{align-self:flex-start;background:var(--gn-card,#222);color:var(--gn-text,#eee);border:1px solid var(--gn-border);border-bottom-left-radius:4px;} @media(max-width:680px){#gn-assist-panel{left:8px;right:8px;width:auto;height:88vh;max-height:88vh;bottom:74px;} #gn-assist-in{min-height:150px !important;}}';
@@ -8561,6 +8562,20 @@ function docsWhatsUm(store, id){
   function send(){
     var inp=document.getElementById('gn-assist-in'); var txt=(inp.value||'').trim(); if(!txt && !_pendingImg) return;
     var h=hist(); h.push({r:'u',t:txt||'(imagem enviada)'}); saveHist(h); inp.value=''; renderMsgs();
+    // ── CONFIRMAÇÃO DETERMINÍSTICA (controlada por código, não pela IA) ──
+    if(_pendingAcao && !_pendingImg){
+      var t2=String(txt||'').toLowerCase().trim();
+      var yes=(t2==='ok'||t2==='👍'||/^(ok|okk|okay|sim|pode|pode ser|pode mandar|pode gerar|manda|mandar|gera|gerar|gere|isso|isso ai|isso mesmo|beleza|blz|confirmo|confirmar|confirmado|claro|vai|bora|perfeito|aprovado|fechado)\b/.test(t2));
+      var no=/^(n[aã]o|nao|cancela|cancelar|deixa|esquece|para|negativo|pera|espera)\b/.test(t2);
+      if(yes){
+        var ac=_pendingAcao; _pendingAcao=null;
+        var res=null; try{ res=gnAssistExec(ac); }catch(e){ res={ok:false,msg:'Tive um erro ao gerar: '+(e&&e.message||e)}; }
+        var hh=hist(); hh.push({r:'a', t:(res&&res.msg)||'Feito! ✅', abrir:(res&&res.abrir)||null, abrirLbl:(res&&res.abrir&&TABLBL[res.abrir])||(res&&res.abrir)}); saveHist(hh); renderMsgs(); return;
+      }
+      if(no){ _pendingAcao=null; var hn=hist(); hn.push({r:'a',t:'Beleza, cancelei. 👍 Me diz o que você quer fazer.'}); saveHist(hn); renderMsgs(); return; }
+      // não foi sim nem não → usuário está mudando/complementando; descarta o pendente e segue normal
+      _pendingAcao=null;
+    }
     var co={}; try{ co=(typeof gnCO==='function')?gnCO():{}; }catch(e){}
     var hoje=new Date().toISOString().slice(0,10);
     var clientesNomes=''; try{ clientesNomes=(JSON.parse(localStorage.getItem('gn_cli')||'[]')).map(function(c){return c.nome;}).filter(Boolean).slice(0,60).join(', '); }catch(e){}
@@ -8569,7 +8584,7 @@ function docsWhatsUm(store, id){
       +'LEIA TODO O HISTÓRICO ABAIXO antes de responder: entenda o contexto e NUNCA repita perguntas já respondidas nem ignore o que o usuário já disse.\n'
       +(ctx?('===== HISTÓRICO DA CONVERSA =====\n'+ctx+'\n===== FIM DO HISTÓRICO =====\n'):'')
       +'VOCÊ MESMO GERA OS DOCUMENTOS (PDF pronto), exatamente como os geradores do app — recibo, nota de serviço, orçamento, laudo técnico e laudo de estanqueidade — todos no layout e na numeração corretos, prontos para BAIXAR aqui na conversa. NUNCA mande o usuário "ir para a tela" para gerar; você gera por ele. '
-      +'REGRA DE OURO (confirmação obrigatória): NUNCA gere/envie um documento sem o usuário CONFIRMAR, mesmo que ele mande várias mensagens. Fluxo: (1) entenda o pedido lendo a conversa; (2) responda com um resumo curto do que vai gerar (tipo, cliente, serviço, valor) e pergunte "Posso gerar? (responda ok)"; (3) só inclua "acao" DEPOIS que o usuário confirmar (ok/sim/pode/manda/gera/isso/beleza). Enquanto ele não confirmar, "acao" = null. Quando confirmar, devolva a acao e não pergunte de novo. '
+      +'COMO FUNCIONA A CONFIRMAÇÃO (NÃO se preocupe com ela): quando você ENTENDER um pedido de documento, agendamento ou lista de compras, SEMPRE devolva a "acao" já com os dados preenchidos + um resumo curto e natural no "fala". O PRÓPRIO APP mostra seu resumo, espera o usuário responder "ok" e SÓ ENTÃO gera — isso é automático. Você NÃO deve pedir "ok" repetidamente nem ficar repetindo o resumo: devolva a acao UMA vez e pronto. Se o usuário responder "ok", o app já executa sozinho (você nem é chamado). Para CONSULTAS/ANÁLISES o app responde na hora, sem confirmação. '
       +'OBEDIÊNCIA: nunca exija dados nem fique pedindo informação. Para orçamento e a maioria dos documentos NENHUM campo é obrigatório — gere com o que o usuário deu. Se ele disser "não precisa", obedeça. '
       +'INTELIGÊNCIA: interprete textos bagunçados, com erros de digitação e fora de ordem; identifique sozinho nome, CPF/CNPJ, telefone, e-mail, endereço, CEP, valor e serviço, e organize certinho. Aprenda com a conversa e guarde fatos úteis (nome de cliente, preferências, dados da empresa) em "lembrar". '
       +(clientesNomes?('Clientes já cadastrados: '+clientesNomes+'. '):'')
@@ -8588,26 +8603,36 @@ function docsWhatsUm(store, id){
       +'compras:{itens:[{material,qtd}]}; '
       +'consulta:{entidade,periodo,limite,ordem}. '
       +'Para orçamento: se o usuário citar 1 serviço e um valor (ex.: "instalação e conversão de cooktop, 320"), monte servicos:[{descricao:"Instalação e conversão de cooktop",quantidade:1,valor_unitario:320}]. '
+      +'O QUE CADA DOCUMENTO PRECISA (você é o sábio do gás e sabe disso de cabeça): recibo → nome do cliente + valor; nota de serviço → nome do cliente + descrição do serviço; orçamento → cliente + serviço(s) + valor; laudo técnico → cliente + objetivo; laudo de estanqueidade → cliente + (idealmente) nº de etapas (2 ou 3), nº de pontos de consumo, tipo de gás (GLP ou GN), ponto de partida do teste e resultado (aprovado/reprovado). O resto é opcional. Se o usuário perguntar "o que você precisa para gerar X?", explique esses itens (sempre dentro do JSON, no campo "fala"). '
+      +'NUNCA invente nem reaproveite o nome do cliente de um documento anterior. Se o documento atual não tiver cliente informado, faça UMA pergunta curta: "Para qual cliente?" — não assuma nenhum nome. '
+      +'RESPONDA SEMPRE E SOMENTE no formato JSON pedido, mesmo quando estiver só explicando algo (use o campo "fala"). Nunca responda em texto fora do JSON. '
       +'CONSULTAS/ANÁLISES (NÃO precisam de confirmação): para rankings/listas/totais (ex.: "os 20 clientes que mais lucraram mês passado", "quanto faturei essa semana", "o que falta comprar", "próximos compromissos"), use acao {tipo:"consulta", dados:{entidade,periodo,limite,ordem}}. entidade=clientes|orcamentos|financeiro|materiais|agenda; periodo=hoje|semana|mes|mespassado|ano|tudo; ordem=desc|asc; "20 clientes"→limite:20, "mês passado"→periodo:"mespassado", "que mais lucraram"→ordem:"desc".';
     function done(j){
       var hh=hist();
       var falaMsg=(j&&j.fala)||'(sem resposta)';
       var abrirTab=(j&&j.abrir)||null;
-      // Executa a ação, se houver
+      if(j&&j.lembrar){ var mm0=mem(); mm0.push(String(j.lembrar)); saveMem(mm0); }
       if(j&&j.acao&&j.acao.tipo){
-        var res=null; try{ res=gnAssistExec(j.acao); }catch(e){ res={ok:false,msg:'Tive um erro ao executar: '+(e&&e.message||e)}; }
-        hh.push({r:'a', t:falaMsg, abrir:abrirTab, abrirLbl:(abrirTab&&TABLBL[abrirTab])||abrirTab});
-        if(res){ hh.push({r:'a', t:res.msg, abrir:(res.abrir||null), abrirLbl:(res.abrir&&TABLBL[res.abrir])||res.abrir}); }
-        saveHist(hh);
-        if(j&&j.lembrar){ var mm0=mem(); mm0.push(String(j.lembrar)); saveMem(mm0); }
-        renderMsgs(); return;
+        var tipo=String(j.acao.tipo);
+        var ehConsulta=/^(consulta|consultar|relatorio|análise|analise|ranking|listar)$/.test(tipo);
+        if(ehConsulta){
+          // consulta/análise: responde na hora, sem confirmação
+          var res=null; try{ res=gnAssistExec(j.acao); }catch(e){ res={ok:false,msg:'Erro na consulta: '+(e&&e.message||e)}; }
+          if(falaMsg && falaMsg!=='(sem resposta)') hh.push({r:'a', t:falaMsg});
+          if(res){ hh.push({r:'a', t:res.msg, abrir:(res.abrir||null), abrirLbl:(res.abrir&&TABLBL[res.abrir])||res.abrir}); }
+          saveHist(hh); renderMsgs(); return;
+        }
+        // documento/agendamento/compras: guarda como PENDENTE e pede confirmação (o "ok" é tratado por código)
+        _pendingAcao=j.acao;
+        var pergunta=falaMsg;
+        if(!/\?\s*$|responda ok|confirma|posso (gerar|agendar)/i.test(falaMsg)) pergunta=falaMsg+'\n\nConfirma? (responda **ok**)';
+        hh.push({r:'a', t:pergunta, abrir:abrirTab, abrirLbl:(abrirTab&&TABLBL[abrirTab])||abrirTab});
+        saveHist(hh); renderMsgs(); return;
       }
       hh.push({r:'a', t:falaMsg, abrir:abrirTab, abrirLbl:(abrirTab&&TABLBL[abrirTab])||abrirTab});
-      saveHist(hh);
-      if(j&&j.lembrar){ var mm=mem(); mm.push(String(j.lembrar)); saveMem(mm); }
-      renderMsgs();
+      saveHist(hh); renderMsgs();
     }
-    function go(imgURL){ (typeof gnAIVision==='function'?gnAIVision(sys,txt,imgURL):gnAI(sys,txt)).then(done).catch(function(e){ var hh=hist(); hh.push({r:'a',t:'Tive um problema pra responder agora ('+(e&&e.message||e)+'). Tenta de novo?'}); saveHist(hh); renderMsgs(); }); }
+    function go(imgURL){ (typeof gnAIVision==='function'?gnAIVision(sys,txt,imgURL):gnAI(sys,txt)).then(done).catch(function(e){ var hh=hist(); var raw=(e&&e.raw)?String(e.raw).trim():''; hh.push({r:'a',t: raw || ('Tive um problema pra responder agora ('+(e&&e.message||e)+'). Tenta de novo?')}); saveHist(hh); renderMsgs(); }); }
     if(_pendingImg){ var f=_pendingImg; _pendingImg=null; var ib=document.getElementById('gn-assist-img'); if(ib) ib.textContent='📷'; var r=new FileReader(); r.onload=function(e){ go(String(e.target.result||'')); }; r.readAsDataURL(f); }
     else { go(''); }
   }
@@ -8671,9 +8696,14 @@ function docsWhatsUm(store, id){
     d=d||{};
     if(!d.cliente && !d.nome){ return {ok:false,msg:'Pra emitir o laudo de estanqueidade preciso pelo menos do nome do cliente. Pode confirmar?'}; }
     function setv(id,v){ var el=document.getElementById(id); if(el && v!=null && v!=='') el.value=v; }
+    function setr(name,val){ try{ var el=document.querySelector('input[name="'+name+'"][value="'+val+'"]'); if(el) el.checked=true; }catch(e){} }
     setv('lae-cli', d.cliente||d.nome); setv('lae-data', d.data||new Date().toISOString().slice(0,10));
     setv('lae-doc', d.doc||d.cpf||''); setv('lae-end', d.end||d.endereco||''); setv('lae-tel', d.tel||'');
     setv('lae-ponto', d.ponto||''); setv('lae-qtd', d.qtdPontos||d.pontos||''); setv('lae-escopo', d.escopo||''); setv('lae-recom', d.recomendacoes||'');
+    // etapas (2/3), gás (GN/GLP) e resultado (ok/fail)
+    if(d.etapas){ setr('lae-et', (String(d.etapas).indexOf('3')>=0?'3':'2')); }
+    if(d.gas){ setr('lae-gas', (String(d.gas).toUpperCase().indexOf('GN')>=0||String(d.gas).toLowerCase().indexOf('natural')>=0)?'GN':'GLP'); }
+    if(d.resultado){ setr('lae-res', (String(d.resultado).toLowerCase().indexOf('repro')>=0||String(d.resultado).toLowerCase().indexOf('fail')>=0)?'fail':'ok'); }
     if(typeof laudoEstGerar==='function'){ try{ laudoEstGerar(false); }catch(e){ return {ok:false,msg:'Não consegui gerar: '+(e&&e.message||e)}; } return {ok:true, msg:'✅ Laudo de Estanqueidade de '+(d.cliente||d.nome)+' gerado e baixado, no modelo completo (capa, etapas e numeração). Quer que eu mande no WhatsApp?'}; }
     return {ok:false, msg:'Gerador de estanqueidade indisponível.'};
   }
