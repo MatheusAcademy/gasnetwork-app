@@ -10348,17 +10348,35 @@ function docsWhatsUm(store, id){
       }catch(err){ rej(err); } }; r.onerror=rej; r.readAsArrayBuffer(file);
     });
   }
-  function _applyRecFactory(ctx){ return function(rec){
-    var nome=(rec.nome||'').trim(); if(!nome||nome.length<2) return null;
-    var tel=String(rec.telefone||'').replace(/\D/g,''),email=(rec.email||'').trim(),cpf=(rec.cpf||'').trim(),data=(rec.data||'').trim(),serv=(rec.servico||'').trim(),end=(rec.endereco||'').trim();
-    var tm=tipoMeses(serv+' '+nome); var canon=nome;
-    if(typeof cliUpsertMerge==='function'){ var rc=cliUpsertMerge({nome:nome,cpf:cpf,tel:tel,email:email,endereco:end,laudoData:data,servico:serv||tm.tipo}); if(rc&&rc.cliente&&rc.cliente.nome) canon=rc.cliente.nome; if(rc&&rc.novo) ctx.nCli++; }
-    var cpfD=cpf.replace(/\D/g,''); var stipo=serv||tm.tipo; var cur=ctx.cur;
-    var ex=cur.filter(function(y){ var yc=String(y.cpf||'').replace(/\D/g,''); if(cpfD.length>=11&&yc===cpfD&&(y.servico||'')===stipo) return true; return (y.nome||'').toLowerCase()===canon.toLowerCase() && (y.servico||'')===stipo; })[0];
-    if(ex){ if(tel)ex.tel=tel; if(email)ex.email=email; if(data)ex.data=data; if(cpf)ex.cpf=cpf; ex.nome=canon; ex.servico=stipo; ex.validadeMeses=tm.meses; }
-    else { cur.unshift({id:'rn'+Date.now()+'_'+Math.floor(Math.random()*99999), nome:canon, cpf:cpf, tel:tel, email:email, data:data, servico:stipo, validadeMeses:tm.meses, oferecidoEm:'', criadoEm:new Date().toISOString()}); ctx.nRen++; }
-    return {canon:canon, stipo:stipo, data:data, meses:tm.meses};
-  }; }
+  function _norm2(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim(); }
+  function _tail2(s){ var d=String(s||'').replace(/\D/g,''); return d.length>8?d.slice(-8):d; }
+  // Aplica cada registro EM MEMÓRIA (rápido, sem gravar/sincronizar a cada linha — evita travar com planilhas grandes)
+  function _applyRecFactory(ctx){
+    ctx.cli=(typeof cliData==='function')?cliData():[];
+    ctx.idxCpf={}; ctx.idxTel={}; ctx.idxMail={}; ctx.idxNome={};
+    ctx.cli.forEach(function(c){ var cd=String(c.cpf||'').replace(/\D/g,''); if(cd.length>=11&&ctx.idxCpf[cd]==null)ctx.idxCpf[cd]=c; var t=_tail2(c.whatsapp)||_tail2(c.tel); if(t.length>=8&&ctx.idxTel[t]==null)ctx.idxTel[t]=c; var e=String(c.email||'').toLowerCase().trim(); if(e.indexOf('@')>0&&ctx.idxMail[e]==null)ctx.idxMail[e]=c; var n=_norm2(c.nome); if(n&&ctx.idxNome[n]==null)ctx.idxNome[n]=c; });
+    ctx.renIdx={};
+    (ctx.cur||[]).forEach(function(r){ var cd=String(r.cpf||'').replace(/\D/g,''); var k=(cd.length>=11?('c'+cd):('n'+_norm2(r.nome)))+'::'+(r.servico||''); if(ctx.renIdx[k]==null) ctx.renIdx[k]=r; });
+    return function(rec){
+      var nome=(rec.nome||'').trim(); if(!nome||nome.length<2) return null;
+      var tel=String(rec.telefone||'').replace(/\D/g,''),email=(rec.email||'').trim(),cpf=(rec.cpf||'').trim(),data=(rec.data||'').trim(),serv=(rec.servico||'').trim(),end=(rec.endereco||'').trim();
+      var tm=tipoMeses(serv+' '+nome); var canon=nome;
+      var cpfD=cpf.replace(/\D/g,''), telT=_tail2(tel), emailL=email.toLowerCase(), nomeN=_norm2(nome);
+      var c=null;
+      if(cpfD.length>=11) c=ctx.idxCpf[cpfD];
+      if(!c && telT.length>=8) c=ctx.idxTel[telT];
+      if(!c && emailL.indexOf('@')>0) c=ctx.idxMail[emailL];
+      if(!c) c=ctx.idxNome[nomeN];
+      if(c){ if(!c.cpf&&cpf)c.cpf=cpf; if(!c.tel&&tel)c.tel=tel; if(!c.whatsapp&&tel)c.whatsapp=tel; if(!c.email&&email)c.email=email; if(!c.endereco&&end)c.endereco=end; if(data)c.laudoData=data; if(serv)c.laudoServico=serv; canon=c.nome||canon; }
+      else { c={ id:'c'+Date.now()+'_'+Math.floor(Math.random()*99999), tipo:(cpfD.length>11?'PJ':'PF'), nome:nome, cpf:cpf, cep:'', tel:tel, whatsapp:tel, email:email, endereco:end, cidade:'', obs:'(importação em massa)', status:'ativo', laudoData:data, laudoServico:serv }; ctx.cli.unshift(c); ctx.nCli++; canon=nome;
+        if(cpfD.length>=11)ctx.idxCpf[cpfD]=c; if(telT.length>=8&&ctx.idxTel[telT]==null)ctx.idxTel[telT]=c; if(emailL.indexOf('@')>0&&ctx.idxMail[emailL]==null)ctx.idxMail[emailL]=c; if(nomeN&&ctx.idxNome[nomeN]==null)ctx.idxNome[nomeN]=c; }
+      ctx.cliChg=true;
+      var stipo=serv||tm.tipo; var rkey=(cpfD.length>=11?('c'+cpfD):('n'+_norm2(canon)))+'::'+stipo; var ex=ctx.renIdx[rkey];
+      if(ex){ if(tel)ex.tel=tel; if(email)ex.email=email; if(data)ex.data=data; if(cpf)ex.cpf=cpf; ex.nome=canon; ex.servico=stipo; ex.validadeMeses=tm.meses; }
+      else { var nr={id:'rn'+Date.now()+'_'+Math.floor(Math.random()*99999), nome:canon, cpf:cpf, tel:tel, email:email, data:data, servico:stipo, validadeMeses:tm.meses, oferecidoEm:'', criadoEm:new Date().toISOString()}; ctx.cur.unshift(nr); ctx.renIdx[rkey]=nr; ctx.nRen++; }
+      return {canon:canon, stipo:stipo, data:data, meses:tm.meses};
+    };
+  }
   function _ctrl(show){ var p=document.getElementById('bulk-pause'), c=document.getElementById('bulk-cancel'); if(p) p.style.display=show?'inline-block':'none'; if(c) c.style.display=show?'inline-block':'none'; }
   window.bulkPauseToggle=function(){ if(!running) return; window.__bulkPaused=!window.__bulkPaused; var p=document.getElementById('bulk-pause'); if(p) p.textContent=window.__bulkPaused?'▶️ Retomar':'⏸ Pausar'; };
   window.bulkCancel=function(){ if(!running) return; if(!confirm('Cancelar o processamento? O que já foi lido fica salvo.')) return; window.__bulkCancel=true; window.__bulkPaused=false; };
@@ -10381,7 +10399,6 @@ function docsWhatsUm(store, id){
     if(running) return;
     var files=arquivos();
     if(!files.length){ st('Selecione uma pasta ou arquivos primeiro.'); return; }
-    if(typeof gnAI!=='function'){ st('IA indisponível agora.'); return; }
     // lê somente DOCUMENTOS (PDF, Word, Excel, texto) — ignora imagens e outros
     files=files.filter(_isDoc);
     if(!files.length){ st('Nenhum documento na seleção. Eu leio PDF, Word (.docx) e planilhas (Excel/CSV).'); return; }
@@ -10408,7 +10425,8 @@ function docsWhatsUm(store, id){
           if(!txt || txt.trim().length<8) return {f:f, err:'sem-texto'};
           var loc=bulkParseLocal(txt);
           if(loc && loc.nome && loc.nome.length>=2){ loc.relevante=true; return {f:f, j:loc, txt:txt, via:'local'}; } // padrão reconhecido → SEM IA
-          // só usa IA quando o padrão não bate
+          // só usa IA quando o padrão não bate (e se a IA estiver disponível)
+          if(typeof gnAI!=='function'){ return {f:f, j:(loc&&loc.nome?(function(){loc.relevante=true;return loc;})():{relevante:false}), txt:txt, via:'local'}; }
           return gnAI(sys, txt.slice(0,4000)).then(function(j){ if(Array.isArray(j)) j=j[0]||{}; return {f:f, j:j, txt:txt, via:'ia'}; })
             .catch(function(){ return {f:f, j:(loc&&loc.nome?(function(){loc.relevante=true;return loc;})():{relevante:false}), txt:txt, via:'local'}; });
         }).catch(function(e){ return {f:f, err:(e&&e.message)||String(e)}; });
@@ -10434,6 +10452,7 @@ function docsWhatsUm(store, id){
       i+=CONC; prog((i/files.length)*100);
     }
     if(typeof renovSaveAll==='function') renovSaveAll(cur);
+    if(ctx.cliChg && ctx.cli && typeof cliSaveAll==='function'){ try{ cliSaveAll(ctx.cli); if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_cli'); }catch(e){} }
     prog(100); running=false; _ctrl(false); if(btn){ btn.disabled=false; btn.textContent='⚙️ Processar arquivos'; }
     var fim=window.__bulkCancel?'⏹ Interrompido':'✅ Concluído'; var nRen=ctx.nRen, nCli=ctx.nCli;
     st(fim+': '+nRen+' registro(s) de laudo na memória, '+nCli+' cliente(s) novo(s)'+(nRows?(', '+nRows+' de planilha'):'')+(nDrv?(', '+nDrv+' no Drive'):'')+(nIgnore?(', '+nIgnore+' ignorado(s)'):'')+(nFail?(', '+nFail+' não lido(s)'):'')+'.');
