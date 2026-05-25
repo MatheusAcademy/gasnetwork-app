@@ -1122,6 +1122,16 @@ textarea.fi{resize:vertical;}
     <div id="cob-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px;"></div>
     <div id="cob-list"></div>
   </div>
+  <div id="pane-tarefas" style="display:none;">
+    <div class="eyebrow">Operação</div>
+    <div class="pgtitle" style="margin-bottom:4px;">✅ Tarefas</div>
+    <div class="pgsub" style="margin-bottom:14px;">Tudo que precisa ser feito num lugar: as <b>notinhas de serviço do dia</b> (puxadas da Agenda), os <b>clientes a relembrar</b> (laudos/manutenções vencendo) e as tarefas que o assistente anotou. Some sozinho conforme você atende e sobe documentos.</div>
+    <div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <input id="tarhub-tit" placeholder="Anotar uma tarefa rápida (ex.: ligar pro Sr. Pedro)" style="flex:1;min-width:200px;box-sizing:border-box;padding:9px;border:1px solid var(--gn-border);border-radius:8px;">
+      <button onclick="hubTarAdd()" style="background:#16a34a;color:#fff;border:none;padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:700;">+ Anotar</button>
+    </div>
+    <div id="tarefas-hub"></div>
+  </div>
   <div id="pane-hoje" style="display:none;">
     <div class="eyebrow">Operação</div>
     <div class="pgtitle" style="margin-bottom:4px;">Hoje</div>
@@ -2200,7 +2210,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // TABS
 // ══════════════════════════════════════════════
 function goTab(t) {
-  ['inicio','ped','age','tec','novo','hist','laudo','relvist','fin','cli','svc','rec','os','prod','rel','chk','ctr','cfg','imp','pro','docrap','hoje','cob','atend','forn','compras','chamados','posvenda','arquivos','contatos','docs','nf','renov','msgs','gar','upload'].forEach(id => {
+  ['inicio','ped','age','tec','novo','hist','laudo','relvist','fin','cli','svc','rec','os','prod','rel','chk','ctr','cfg','imp','pro','docrap','hoje','tarefas','cob','atend','forn','compras','chamados','posvenda','arquivos','contatos','docs','nf','renov','msgs','gar','upload'].forEach(id => {
     var p=document.getElementById('pane-'+id); if(p) p.style.display = id===t?'block':'none';
     var tb=document.getElementById('tab-'+id); if(tb) tb.classList.toggle('on', id===t);
   });
@@ -2221,6 +2231,7 @@ function goTab(t) {
   if (t==='ctr'){renderCtr();}
   if (t==='cfg'){renderCfg();}
   if (t==='inicio'){renderInicio(); try{ if(window.renderResumoDia) renderResumoDia(); }catch(e){}}
+  if (t==='tarefas'){ try{ if(window.renderTarefasHub) renderTarefasHub(); }catch(e){} }
   if (t==='docrap'){ try{ if(window.drInit) drInit(); }catch(e){} }
   if (t==='hoje'){ try{ if(window.renderHoje) renderHoje(); }catch(e){} }
   if (t==='cob'){ try{ if(window.renderCob) renderCob(); }catch(e){} }
@@ -6990,7 +7001,7 @@ function renderInicio(){
 // ══════════════════════════════════════════════
 (function(){
   var GROUPS=[
-    ['Principal', [['inicio','Inicio','Início'], ['docrap','Doc','Documento Rápido'], ['hoje','Hoje','Hoje'], ['ped','Ped','Pedidos'], ['age','Age','Agenda'], ['tec','Tec','Técnico em Campo']]],
+    ['Principal', [['inicio','Inicio','Início'], ['docrap','Doc','Documento Rápido'], ['hoje','Hoje','Hoje'], ['tarefas','Tar','Tarefas'], ['ped','Ped','Pedidos'], ['age','Age','Agenda'], ['tec','Tec','Técnico em Campo']]],
     ['⭐ Emitir (mais usados)', [['laudo','Laudo','Laudo de Estanqueidade'], ['os','NS','Nota de Serviço'], ['rec','Rec','Recibo'], ['nf','NF','Nota Fiscal (NFS-e)']]],
     ['Ferramentas', [['novo','Prop','Nova Proposta'], ['relvist','Rel','Relatório de Vistoria']]],
     ['Comercial', [['atend','Atend','Atendimentos & Funil'], ['renov','Renov','Renovação de Laudos'], ['posvenda','PV','Pós-venda'], ['msgs','Msgs','Modelos de Mensagem'], ['chamados','Cham','Chamados técnicos']]],
@@ -9429,7 +9440,18 @@ function gnConsulta(d){
     var ll=log.map(function(e,i){ var dt=''; try{ dt=new Date(e.em).toLocaleString('pt-BR'); }catch(x){ dt=e.em||''; } return (i+1)+'. ['+dt+'] '+(e.t||'')+' — '+(e.r||''); }).join('\n');
     return {ok:true, msg:'🗂️ O que eu fiz por último:\n\n'+ll};
   }
-  return {ok:false, msg:'Posso consultar: clientes (faturamento), orçamentos, financeiro, materiais, agenda ou o histórico do que eu fiz. Sobre qual você quer?'};
+  // LAUDOS / SERVIÇOS / RENOVAÇÕES / MANUTENÇÕES (memória alimentada pelo Upload em massa)
+  if(ent.indexOf('laudo')>=0 || ent.indexOf('renov')>=0 || ent.indexOf('servic')>=0 || ent.indexOf('serviç')>=0 || ent.indexOf('manuten')>=0 || ent.indexOf('vencim')>=0 || ent.indexOf('vencid')>=0 || ent.indexOf('estanqu')>=0){
+    var rn=js('gn_renov');
+    if(!rn.length) return {ok:true, abrir:'upload', msg:'Ainda não tenho laudos/serviços na memória. Use o Upload em massa para eu ler seus documentos antigos — aí passo a saber as datas e vencimentos.'};
+    var rows=rn.map(function(c){ var s=(typeof renovStatus==='function')?renovStatus(c.data,c.validadeMeses):{status:'sem-data',dias:null,venc:null}; return {c:c,s:s}; })
+      .filter(function(o){ return o.s.status==='vencido'||o.s.status==='vence'; })
+      .sort(function(a,b){ return (a.s.dias==null?9999:a.s.dias)-(b.s.dias==null?9999:b.s.dias); }).slice(0,lim);
+    if(!rows.length) return {ok:true, abrir:'renov', msg:'Nenhum laudo/serviço vencido ou a vencer agora. Tenho '+rn.length+' registro(s) de serviço na memória.'};
+    var lr=rows.map(function(o,i){ var venc=(o.s.venc)?o.s.venc.toLocaleDateString('pt-BR'):''; return (i+1)+'. '+(o.c.nome||'—')+' — '+(o.c.servico||'serviço')+' — '+(o.s.status==='vencido'?'vencido':('vence em '+o.s.dias+' dia(s)'))+(venc?(' · '+venc):''); }).join('\n');
+    return {ok:true, abrir:'renov', msg:'🔄 Laudos/serviços a relembrar (de '+rn.length+' na memória):\n\n'+lr+'\n\nAbra a Renovação de Laudos para disparar as mensagens.'};
+  }
+  return {ok:false, msg:'Posso consultar: clientes (faturamento), orçamentos, financeiro, materiais, agenda, laudos/serviços a renovar, ou o histórico do que eu fiz. Sobre qual você quer?'};
 }
 
 // ─── #6 Autodiagnóstico anti-bug: ao abrir, confere se as funções essenciais existem ───
@@ -9719,9 +9741,11 @@ function docsWhatsUm(store, id){
       +'OBEDIÊNCIA: nunca exija dados nem fique pedindo informação. Para orçamento e a maioria dos documentos NENHUM campo é obrigatório — gere com o que o usuário deu. Se ele disser "não precisa", obedeça. '
       +'INTELIGÊNCIA: interprete textos bagunçados, com erros de digitação e fora de ordem; identifique sozinho nome, CPF/CNPJ, telefone, e-mail, endereço, CEP, valor e serviço, e organize certinho. Aprenda com a conversa e guarde fatos úteis (nome de cliente, preferências, dados da empresa) em "lembrar". '
       +(clientesNomes?('Clientes já cadastrados: '+clientesNomes+'. '):'')
-      +'Memória de longo prazo: '+JSON.stringify(mem()).slice(0,1200)+'. '
+      +(function(){ var nfc={}; try{ nfc=JSON.parse(localStorage.getItem('gn_nf_cfg')||'{}'); }catch(e){} return 'DADOS DA EMPRESA (responda perguntas sobre a empresa com base nisto; se um dado NÃO estiver aqui — ex.: inscrição estadual — diga que ainda não está cadastrado e ofereça cadastrar em Configurações, NÃO invente): Razão social: '+(co.razao||'—')+' · Nome fantasia: '+(co.fantasia||'—')+' · CNPJ: '+(co.cnpj||'—')+(nfc.im?(' · Inscrição Municipal: '+nfc.im):'')+((co.ie||nfc.ie)?(' · Inscrição Estadual: '+(co.ie||nfc.ie)):'')+' · Endereço: '+[(co.rua||''),(co.cidade||''),(co.cep||'')].filter(Boolean).join(', ')+' · Telefone: '+(co.fone||'—')+' · E-mail: '+(co.email||'—')+' · Site: '+(co.site||'—')+' · Responsável técnico: '+(co.responsavel||'—')+(co.crea?(' ('+co.crea+')'):'')+' · PIX: '+(co.pix||co.cnpj||'—')+'. '; })()
+      +'Você tem acesso à base do sistema: clientes, orçamentos/pedidos, financeiro, materiais, agenda, laudos/serviços (vencimentos) e o histórico — para qualquer pergunta sobre a empresa, clientes ou serviços, use a "acao" consulta. Se o usuário pedir para importar/subir documentos antigos, use abrir:"upload". '
+      +'Memória de longo prazo (fatos aprendidos e importações): '+JSON.stringify(mem()).slice(0,1500)+'. '
       +'Quando o usuário informar um CEP, coloque no campo "cep" da ação — o sistema completa o endereço (rua, bairro, cidade) pela internet. Converta datas relativas ("sexta","amanhã") para AAAA-MM-DD com base em hoje. Valores sempre em número (ex.: 320.00). '
-      +'Telas (para o campo "abrir", quando fizer sentido): age=Agenda, novo=Orçamento, os=Nota de Serviço, rec=Recibo, laudo=Laudo, fin=Financeiro, compras=Compras, cli=Clientes, contatos=Contatos, docs=Documentos do Cliente, prod=Materiais, nf=Nota Fiscal, ped=Pedidos. '
+      +'Telas (para o campo "abrir", quando fizer sentido): age=Agenda, novo=Orçamento, os=Nota de Serviço, rec=Recibo, laudo=Laudo, fin=Financeiro, compras=Compras, cli=Clientes, contatos=Contatos, docs=Documentos do Cliente, prod=Materiais, nf=Nota Fiscal, ped=Pedidos, tarefas=Tarefas, upload=Upload em massa, renov=Renovação de Laudos. '
       +'DEVOLVA SOMENTE um JSON válido: {"fala":"sua resposta","abrir":null,"lembrar":null,"acao":null}. '
       +'"acao" = null OU {"tipo":"recibo|nota_servico|orcamento|laudo|laudo_estanqueidade|agendar|compras|tarefa|organizar|consulta","dados":{...}}. '
       +'Campos por tipo: '
@@ -9980,6 +10004,7 @@ function docsWhatsUm(store, id){
     {re:/instala[çc][ãa]o de ponto|ponto de g[áa]s|adequa[çc][ãa]o/i, tipo:'Instalação/Adequação de ponto', meses:12},
     {re:/convers[ãa]o|fog[ãa]o|cooktop|forno/i, tipo:'Conversão/Instalação de fogão', meses:12},
     {re:/aquecedor/i, tipo:'Aquecedor a gás', meses:12},
+    {re:/manuten[çc][ãa]o\s*preventiva|manuten[çc][ãa]o/i, tipo:'Manutenção preventiva', meses:12},
     {re:/vistoria|visita t[ée]cnica|vazamento/i, tipo:'Vistoria / Visita técnica', meses:12}
   ];
   function tipoMeses(txt){ var s=String(txt||''); for(var i=0;i<TIPOS.length;i++){ if(TIPOS[i].re.test(s)) return TIPOS[i]; } return {tipo:'Serviço de gás', meses:12}; }
@@ -10087,10 +10112,77 @@ function docsWhatsUm(store, id){
     st(fim+': '+nRen+' registro(s) de laudo na memória, '+nCli+' cliente(s) novo(s)'+(nDrv?(', '+nDrv+' no Drive'):'')+(nIgnore?(', '+nIgnore+' ignorado(s)'):'')+(nFail?(', '+nFail+' não lido(s)'):'')+'.');
     log('FIM — '+nRen+' renovações · '+nCli+' clientes novos · '+nDrv+' no Drive · '+nIgnore+' ignorados · '+nFail+' falhas.');
     window.__bulkCancel=false; window.__bulkPaused=false;
+    // alimenta a memória do assistente (cérebro) com o resumo da importação
+    try{ var mm=JSON.parse(localStorage.getItem('gn_assist_mem')||'[]'); if(!Array.isArray(mm)) mm=[]; mm.push('Importação em massa ('+new Date().toLocaleDateString('pt-BR')+'): li documentos antigos e atualizei a base — '+nRen+' serviço(s)/laudo(s) na memória e '+nCli+' cliente(s) novo(s). Para detalhes, consulte clientes/laudos/serviços.'); localStorage.setItem('gn_assist_mem', JSON.stringify(mm.slice(-250))); if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_assist_mem'); }catch(e){}
     try{ if(typeof renderRenov==='function') renderRenov(); }catch(e){}
     try{ if(typeof renderCli==='function') renderCli(); }catch(e){}
+    try{ if(typeof renderTarefasHub==='function') renderTarefasHub(); }catch(e){}
   };
 })();
+</script>
+<script>
+// ══════════════════════════════════════════════
+// ═══ CENTRAL DE TAREFAS (pendências do dia: notinhas, relembrar laudos/manutenções, tarefas) ═══
+// ══════════════════════════════════════════════
+function renderTarefasHub(){
+  var box=document.getElementById('tarefas-hub'); if(!box) return;
+  var esc=(typeof gnEsc==='function')?gnEsc:function(s){return String(s==null?'':s);};
+  var now=new Date(); var hojeISO=now.getFullYear()+'-'+('0'+(now.getMonth()+1)).slice(-2)+'-'+('0'+now.getDate()).slice(-2);
+  var agoraMin=now.getHours()*60+now.getMinutes();
+  var card=function(t,inner){ return '<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:14px;margin-bottom:14px;"><div style="font-weight:800;color:var(--gn-text);margin-bottom:8px;">'+t+'</div>'+inner+'</div>'; };
+  var vazio=function(m){ return '<div style="color:var(--gn-dim);padding:10px;border:1px dashed var(--gn-border);border-radius:10px;">'+m+'</div>'; };
+  var H='';
+  // 1) Notinhas do dia (Agenda)
+  var ag=[]; try{ ag=(typeof gnStoreGet==='function')?gnStoreGet('agenda'):JSON.parse(localStorage.getItem('gn_agenda')||'[]'); }catch(e){}
+  var hojeAg=(ag||[]).filter(function(a){ return String(a.data||'').slice(0,10)===hojeISO; }).sort(function(a,b){ return String(a.hora||'').localeCompare(String(b.hora||'')); });
+  var inner1;
+  if(!hojeAg.length){ inner1=vazio('Nenhum cliente agendado para hoje. Quando você tiver atendimentos na Agenda, eles aparecem aqui para gerar a Nota de Serviço.'); }
+  else {
+    inner1='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;">Hoje você tem <b style="color:var(--gn-text);">'+hojeAg.length+'</b> atendimento(s). Faça a Nota de Serviço de cada cliente atendido (tarefa da Mayara):</div>';
+    inner1+=hojeAg.map(function(a){
+      var hm=String(a.hora||'').split(':'); var amin=hm.length>=2?(parseInt(hm[0],10)*60+parseInt(hm[1],10)):-1; var futuro=(amin>=0 && amin>agoraMin);
+      var quando=futuro?('<span style="color:#0891b2;">às '+(a.hora||'')+' — ainda vai atender</span>'):('<span style="color:#16a34a;">já atendido — fazer a notinha</span>');
+      var nome=a.cliente||a.titulo||'Cliente';
+      return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--gn-border);border-left:4px solid '+(futuro?'#0891b2':'#16a34a')+';border-radius:10px;margin-bottom:6px;">'
+        +'<div style="min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+esc(nome)+'</div><div style="font-size:12px;color:var(--gn-dim);">'+esc(a.hora||'')+' · '+esc(a.titulo||'')+' · '+quando+'</div></div>'
+        +'<button onclick="hubFazerNotinha(\''+esc(String(nome)).replace(/\x27/g,"\\\x27")+'\')" style="background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-weight:600;font-size:12.5px;white-space:nowrap;">📝 Fazer Nota de Serviço</button></div>';
+    }).join('');
+  }
+  H+=card('📝 Notinhas de serviço — hoje', inner1);
+  // 2) Clientes a relembrar (laudos/manutenções vencendo)
+  var rv=[]; try{ rv=(typeof renovData==='function')?renovData():JSON.parse(localStorage.getItem('gn_renov')||'[]'); }catch(e){}
+  var devidos=[]; (rv||[]).forEach(function(c){ if(c.statusR==='agendou'||c.statusR==='recusou') return; var s=(typeof renovStatus==='function')?renovStatus(c.data,c.validadeMeses):{status:'sem-data'}; if(s.status==='vencido'||s.status==='vence') devidos.push({c:c,s:s}); });
+  devidos.sort(function(a,b){ return (a.s.dias==null?9999:a.s.dias)-(b.s.dias==null?9999:b.s.dias); });
+  var inner2;
+  if(!devidos.length){ inner2=vazio('Nenhum cliente para relembrar agora. Conforme você sobe documentos/laudos, os vencimentos (laudo 12 meses, mangueira 5 anos, manutenção de aquecedor 12 meses) aparecem aqui.'); }
+  else {
+    inner2='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;"><b style="color:#dc2626;">'+devidos.length+'</b> cliente(s) para refazer serviço / manutenção. Mande mensagem pra manter o contato:</div>';
+    inner2+=devidos.slice(0,15).map(function(o){ var c=o.c,s=o.s; var venc=(s.venc)?s.venc.toLocaleDateString('pt-BR'):''; var info=(s.status==='vencido')?('vencido'+(venc?(' desde '+venc):'')):('vence em '+s.dias+' dia(s)');
+      return '<div style="padding:9px 12px;border:1px solid var(--gn-border);border-left:4px solid '+(s.status==='vencido'?'#dc2626':'#f59e0b')+';border-radius:10px;margin-bottom:6px;">'
+        +'<div style="font-weight:700;color:var(--gn-text);">'+esc(c.nome||'')+' <span style="font-size:10px;color:var(--gn-dim);">· '+esc(c.servico||'serviço')+'</span></div><div style="font-size:12px;color:var(--gn-dim);">'+info+'</div></div>';
+    }).join('');
+    inner2+='<button onclick="goTab(\'renov\')" style="margin-top:6px;background:#dc2626;color:#fff;border:none;border-radius:8px;padding:8px 13px;cursor:pointer;font-weight:700;font-size:12.5px;">Abrir Renovação de Laudos →</button>';
+  }
+  H+=card('🔄 Clientes a relembrar (laudos / manutenções)', inner2);
+  // 3) Minhas tarefas (anotadas / do assistente)
+  var ts=[]; try{ ts=(typeof tarGet==='function')?tarGet():JSON.parse(localStorage.getItem('gn_tarefas')||'[]'); }catch(e){}
+  ts.sort(function(x,y){ if((x.status==='Concluída')!==(y.status==='Concluída')) return x.status==='Concluída'?1:-1; var o={'Urgente':0,'Alta':1,'Média':2,'Baixa':3}; return (o[x.prioridade]||9)-(o[y.prioridade]||9); });
+  var inner3;
+  if(!ts.length){ inner3=vazio('Nenhuma tarefa anotada. Use o campo acima, ou peça ao assistente 🤖 ("anota pra eu ligar pro Sr. Pedro amanhã").'); }
+  else { inner3=ts.map(function(t){ var done=t.status==='Concluída'; var cor={'Urgente':'#dc2626','Alta':'#f59e0b','Média':'#7c5cff','Baixa':'#64748b'}[t.prioridade]||'#7c5cff';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--gn-border);border-left:4px solid '+cor+';border-radius:10px;margin-bottom:6px;opacity:'+(done?'0.6':'1')+';">'
+        +'<input type="checkbox" '+(done?'checked':'')+' onchange="hubTarToggle(\''+t.id+'\')" style="width:18px;height:18px;cursor:pointer;">'
+        +'<div style="flex:1;min-width:0;"><div style="font-weight:600;color:var(--gn-text);'+(done?'text-decoration:line-through;color:var(--gn-dim);':'')+'">'+esc(t.titulo)+'</div><div style="font-size:11px;color:var(--gn-dim);">'+esc(t.prioridade||'')+(t.venc?(' · vence '+String(t.venc).split('-').reverse().join('/')):'')+(t.cliente?(' · '+esc(t.cliente)):'')+'</div></div>'
+        +'<button onclick="hubTarDel(\''+t.id+'\')" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;">✕</button></div>';
+    }).join(''); }
+  H+=card('🗒️ Minhas tarefas', inner3);
+  box.innerHTML=H;
+}
+function hubFazerNotinha(nome){ try{ if(typeof goTab==='function') goTab('os'); var el=document.getElementById('os-nome')||document.getElementById('os-cli')||document.getElementById('os-cliente'); if(el){ el.value=nome; try{ if(typeof osPickCli==='function') osPickCli(); }catch(e){} } if(typeof toast==='function') toast('Faça a Nota de Serviço de '+nome+'.','ok'); }catch(e){} }
+function hubTarAdd(){ var inp=document.getElementById('tarhub-tit'); var v=inp?(inp.value||'').trim():''; if(!v){ if(typeof toast==='function') toast('Escreva a tarefa.','er'); return; } var a=(typeof tarGet==='function')?tarGet():[]; a.unshift({id:'t'+Date.now(),titulo:v,prioridade:'Média',venc:'',cliente:'',status:'Aberta',criadoEm:new Date().toISOString()}); if(typeof tarSaveAll==='function') tarSaveAll(a); try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_tarefas'); }catch(e){} if(inp) inp.value=''; renderTarefasHub(); }
+function hubTarToggle(id){ var a=(typeof tarGet==='function')?tarGet():[]; a.forEach(function(x){ if(x.id===id) x.status=(x.status==='Concluída'?'Aberta':'Concluída'); }); if(typeof tarSaveAll==='function') tarSaveAll(a); try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_tarefas'); }catch(e){} renderTarefasHub(); }
+function hubTarDel(id){ var a=((typeof tarGet==='function')?tarGet():[]).filter(function(x){return x.id!==id;}); if(typeof tarSaveAll==='function') tarSaveAll(a); try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_tarefas'); }catch(e){} renderTarefasHub(); }
+window.renderTarefasHub=renderTarefasHub; window.hubFazerNotinha=hubFazerNotinha; window.hubTarAdd=hubTarAdd; window.hubTarToggle=hubTarToggle; window.hubTarDel=hubTarDel;
 </script>
 </body>
 </html>
