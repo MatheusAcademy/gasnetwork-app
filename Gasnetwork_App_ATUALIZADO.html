@@ -1449,22 +1449,25 @@ textarea.fi{resize:vertical;}
   <div id="pane-docs" style="display:none;">
     <div class="eyebrow">Documentos</div>
     <div class="pgtitle" style="margin-bottom:4px;">Documentos do Cliente</div>
-    <div class="pgsub" style="margin-bottom:14px;">Todos os documentos emitidos de um cliente num lugar só (recibos, notas de serviço e contratos). Selecione vários e envie de uma vez pelo WhatsApp ou baixe em lote.</div>
+    <div class="pgsub" style="margin-bottom:14px;">Todos os seus clientes que têm documento — emitidos aqui no app e os arquivos guardados no seu Google Drive (inclusive clientes antigos que você só tem o arquivo). Clique num cliente para ver a ficha completa.</div>
 
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
-      <label style="font-size:13px;color:var(--gn-dim);">Cliente:</label>
-      <select id="docs-cli" onchange="renderDocsCliente()" style="padding:9px 11px;border:1px solid var(--gn-border);border-radius:9px;min-width:220px;"></select>
-      <input id="docs-busca" oninput="renderDocsCliente()" placeholder="🔎 buscar nº, tipo ou data..." style="flex:1;min-width:160px;padding:9px 11px;border:1px solid var(--gn-border);border-radius:9px;">
+    <!-- LISTA DE CLIENTES -->
+    <div id="docs-lista-wrap">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+        <input id="docs-busca-cli" oninput="renderDocsCliente()" placeholder="🔎 buscar cliente por nome, CPF/CNPJ, telefone ou e-mail..." style="flex:1;min-width:220px;padding:10px 12px;border:1px solid var(--gn-border);border-radius:9px;">
+        <button onclick="docsAnalisarDrive()" id="docs-drive-btn" style="background:#0891b2;color:#fff;border:none;padding:10px 16px;border-radius:9px;cursor:pointer;font-weight:700;white-space:nowrap;">🔄 Analisar Google Drive</button>
+      </div>
+      <div id="docs-drive-status" style="font-size:12px;color:var(--gn-dim);margin-bottom:12px;"></div>
+      <div id="docs-clientes"></div>
     </div>
 
-    <div id="docs-actions" style="display:none;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;background:rgba(37,211,102,.10);border:1px solid rgba(37,211,102,.30);border-radius:12px;padding:11px 13px;">
-      <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--gn-text);cursor:pointer;"><input type="checkbox" id="docs-selall" onchange="docsSelAll(this.checked)"> Selecionar todos</label>
-      <button onclick="docsBaixarSelec()" style="background:#4338ca;color:#fff;border:none;padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:700;">⬇ Baixar selecionados</button>
-      <button onclick="docsWhatsSelec()" style="background:#25d366;color:#fff;border:none;padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:700;">📲 Enviar pelo WhatsApp</button>
-      <span id="docs-selcount" style="font-size:12px;color:var(--gn-dim);"></span>
-    </div>
+    <!-- FICHA DO CLIENTE -->
+    <div id="docs-ficha" style="display:none;"></div>
 
-    <div id="docs-list"></div>
+    <!-- estado reaproveitado pelas ações de WhatsApp/baixar em lote -->
+    <input type="hidden" id="docs-cli" value="">
+    <input type="hidden" id="docs-busca" value="">
+    <div id="docs-list" style="display:none;"></div>
   </div>
 
   <div id="pane-renov" style="display:none;">
@@ -4084,7 +4087,7 @@ function gnCor(){ var c=gnCfg(); return c.cor||'#7c5cff'; }
 // Dados compartilhados por toda a equipe + auto-save de documentos no Drive.
 // ══════════════════════════════════════════════
 var GN_CLOUD2 = 'https://script.google.com/macros/s/AKfycbycnK4Fx0J4QphoLr-LQJPkh04RTy6zbBto-Sqlgr306GqjggZkKhyOsJXypeprS0Loww/exec';
-var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user','gn_upload_hist'];
+var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user','gn_upload_hist','gn_drive_idx'];
 var _gnSynced = {};        // último valor conhecido por chave (string)
 var _gnSyncBusy = false;
 var _gnSyncOn = true;
@@ -9657,37 +9660,215 @@ function docsWhatsSelec(){
   setTimeout(function(){ window.open('https://wa.me/'+num+'?text='+encodeURIComponent(msg),'_blank'); }, 400);
   toast('📲 Baixei '+ok+' PDF(s) e abri o WhatsApp de '+nome+'. É só anexar os arquivos que acabei de baixar.','ok');
 }
+// ── Chave canônica p/ deduplicar clientes (CPF/CNPJ > telefone > e-mail > nome) ──
+function _docsKey(o){
+  var cpf=String(o.cpf||'').replace(/\D/g,''); if(cpf.length>=11) return 'c'+cpf;
+  var tel=String(o.tel||o.whatsapp||o.telefone||'').replace(/\D/g,''); if(tel.length>=8) return 't'+tel.slice(-8);
+  var em=String(o.email||'').toLowerCase().trim(); if(em.indexOf('@')>0) return 'e'+em;
+  return 'n'+docsNorm(o.nome||'');
+}
+var _docsAgg=[];
+// Agrega TODOS os clientes que têm documento: cadastrados + emitidos + laudos + Drive (sem repetir)
+function docsClientesAgg(){
+  var map={};
+  function ensure(o, src){
+    var k=_docsKey(o);
+    if(!map[k]) map[k]={key:k, nome:'', cpf:'', tel:'', email:'', endereco:'', cidade:'', cliId:'', emit:[], laudos:[], drive:[], src:{}};
+    var c=map[k];
+    if(o.nome){ if(src==='cli' || !c.nome) c.nome=String(o.nome).trim(); else if(String(o.nome).trim().length>c.nome.length) c.nome=String(o.nome).trim(); }
+    if(!c.cpf && o.cpf) c.cpf=String(o.cpf);
+    var t=String(o.tel||o.whatsapp||o.telefone||'').replace(/\D/g,''); if(!c.tel && t) c.tel=t;
+    var e=String(o.email||'').toLowerCase().trim(); if(!c.email && e.indexOf('@')>0) c.email=e;
+    if(!c.endereco && o.endereco) c.endereco=o.endereco;
+    if(!c.cidade && o.cidade) c.cidade=o.cidade;
+    if(src) c.src[src]=true;
+    return c;
+  }
+  // 1) clientes cadastrados (gn_cli)
+  try{ var cli=(typeof cliData==='function')?cliData():JSON.parse(localStorage.getItem('gn_cli')||'[]'); cli.forEach(function(c){ var x=ensure(c,'cli'); x.cliId=c.id||x.cliId; }); }catch(e){}
+  // 2) documentos emitidos no app (recibo / nota de serviço / contrato)
+  try{ docsTodos().forEach(function(d){ if(!d.nome) return; var x=ensure({nome:d.nome},'emit'); x.emit.push(d); }); }catch(e){}
+  // 3) laudos / renovações
+  try{ var rv=(typeof renovData==='function')?renovData():JSON.parse(localStorage.getItem('gn_renov')||'[]'); rv.forEach(function(r){ if(!r.nome) return; var x=ensure(r,'laudo'); x.laudos.push(r); }); }catch(e){}
+  // 4) índice do Google Drive (clientes antigos que só têm arquivo no Drive entram aqui)
+  try{ var di=JSON.parse(localStorage.getItem('gn_drive_idx')||'null'); if(di&&di.clientes){ di.clientes.forEach(function(d){ if(!d.nome) return; var x=ensure({nome:d.nome},'drive'); (d.arquivos||[]).forEach(function(a){ x.drive.push(a); }); }); } }catch(e){}
+  return Object.keys(map).map(function(k){ return map[k]; });
+}
+function docsDriveIdxInfo(){
+  try{ var di=JSON.parse(localStorage.getItem('gn_drive_idx')||'null'); if(di&&di.em){ var n=0; (di.clientes||[]).forEach(function(c){ n+=(c.arquivos||[]).length; }); return 'Última leitura do Drive: '+new Date(di.em).toLocaleString('pt-BR')+' · '+(di.clientes||[]).length+' cliente(s) · '+n+' arquivo(s).'; } }catch(e){}
+  return 'O app já lista os clientes com documento aqui no sistema. Clique em "Analisar Google Drive" para incluir também os arquivos antigos guardados no seu Drive.';
+}
+// ENTRADA da tela: lista de clientes
 function renderDocsCliente(){
   if(!docsPulled){ docsPulled=true; try{ ['rec','os','ctr'].forEach(function(k){ gnStorePull(k, function(ch){ if(ch) renderDocsCliente(); }); }); }catch(e){} }
-  docsFillCli();
-  var sel=document.getElementById('docs-cli'); var nome=sel?sel.value:'';
-  var actions=document.getElementById('docs-actions');
-  var list=document.getElementById('docs-list'); if(!list) return;
-  if(!nome){
-    if(actions) actions.style.display='none';
-    var total=docsTodos().length;
-    list.innerHTML='<div style="color:var(--gn-dim);padding:16px;border:1px dashed var(--gn-border);border-radius:12px;">Escolha um cliente acima para ver todos os documentos dele.'+(total?(' Há '+total+' documento(s) emitido(s) no total.'):' Ainda não há documentos emitidos.')+'</div>';
-    return;
-  }
-  var busca=docsNorm((document.getElementById('docs-busca')||{}).value||'');
-  var arr=docsTodos().filter(function(d){ return docsNorm(d.nome)===docsNorm(nome); });
-  if(busca) arr=arr.filter(function(d){ return docsNorm(d.tipo+' '+d.numero+' '+d.data).indexOf(busca)>=0; });
-  arr.sort(function(a,b){ return (b.criadoEm||b.data||'').localeCompare(a.criadoEm||a.data||''); });
-  if(actions) actions.style.display=arr.length?'flex':'none';
-  var fone=docsFone(nome);
-  if(!arr.length){ list.innerHTML='<div style="color:var(--gn-dim);padding:16px;border:1px dashed var(--gn-border);border-radius:12px;">Nenhum documento encontrado para este cliente'+(busca?' com esse filtro':'')+'.</div>'; return; }
-  var head='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;">'+arr.length+' documento(s) de <strong style="color:var(--gn-text);">'+gnEsc(nome)+'</strong>'+(fone?(' · 📱 '+gnEsc(fone)):' · <span style="color:#dc2626;">sem telefone cadastrado</span>')+'</div>';
-  list.innerHTML=head+arr.map(function(d){
-    return '<div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--gn-border);border-left:4px solid '+d.cor+';border-radius:10px;margin-bottom:6px;">'
-      + '<input type="checkbox" class="docs-chk" data-store="'+d.store+'" data-id="'+d.id+'" data-tipo="'+gnEsc(d.tipo)+'" data-num="'+gnEsc(d.numero)+'" data-val="'+d.valor+'" onchange="docsUpdCount()" style="width:18px;height:18px;cursor:pointer;flex:0 0 auto;">'
-      + '<div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+d.emoji+' '+gnEsc(d.tipo)+(d.valor?(' · <span style="color:#16a34a;">'+gnBRL(d.valor)+'</span>'):'')+'</div>'
-      + '<div style="font-size:12px;color:var(--gn-dim);">'+gnEsc(d.numero)+' · '+((d.data||'').split('-').reverse().join('/'))+'</div></div>'
-      + '<button onclick="docsRegen(\''+d.store+'\',\''+d.id+'\')" style="background:#4338ca;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:600;">⬇ PDF</button>'
-      + '<button onclick="docsWhatsUm(\''+d.store+'\',\''+d.id+'\')" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:600;">WhatsApp</button>'
-      + '</div>';
-  }).join('');
-  docsUpdCount();
+  var wrap=document.getElementById('docs-lista-wrap'); var ficha=document.getElementById('docs-ficha');
+  if(wrap) wrap.style.display='block'; if(ficha){ ficha.style.display='none'; ficha.innerHTML=''; }
+  var stt=document.getElementById('docs-drive-status'); if(stt && !stt.innerHTML.trim()) stt.textContent=docsDriveIdxInfo();
+  var box=document.getElementById('docs-clientes'); if(!box) return;
+  _docsAgg=docsClientesAgg().filter(function(c){ return c.emit.length||c.drive.length||c.laudos.length; });
+  var q=docsNorm((document.getElementById('docs-busca-cli')||{}).value||'');
+  var arr=_docsAgg.slice();
+  if(q) arr=arr.filter(function(c){ return docsNorm(c.nome+' '+c.cpf+' '+c.tel+' '+c.email).indexOf(q)>=0; });
+  arr.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||'','pt-BR'); });
+  if(!arr.length){ box.innerHTML='<div style="color:var(--gn-dim);padding:16px;border:1px dashed var(--gn-border);border-radius:12px;">'+(q?'Nenhum cliente encontrado com esse filtro.':'Ainda não há clientes com documento. Emita um documento, importe laudos/planilhas ou clique em "Analisar Google Drive".')+'</div>'; return; }
+  var nDrive=arr.filter(function(c){ return c.src.drive && !c.src.cli && !c.emit.length; }).length;
+  var resumo='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:10px;"><b style="color:var(--gn-text);">'+arr.length+'</b> cliente(s) com documento'+(nDrive?(' · <b style="color:#0891b2;">'+nDrive+'</b> antigo(s) só no Drive'):'')+'. Clique para abrir a ficha.</div>';
+  box.innerHTML=resumo+'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">'+arr.map(function(c){
+    var nEmit=c.emit.length, nDr=c.drive.length, nLa=c.laudos.length;
+    var tot=0; c.emit.forEach(function(d){ tot+=Number(d.valor)||0; });
+    var soDrive=(c.src.drive && !c.src.cli && !nEmit);
+    var badges=[];
+    if(nEmit) badges.push('<span style="background:rgba(67,56,202,.15);color:#a5b4fc;border-radius:20px;padding:2px 9px;font-size:11px;">📄 '+nEmit+' emitido(s)</span>');
+    if(nDr) badges.push('<span style="background:rgba(8,145,178,.15);color:#67e8f9;border-radius:20px;padding:2px 9px;font-size:11px;">☁ '+nDr+' no Drive</span>');
+    if(nLa) badges.push('<span style="background:rgba(245,158,11,.15);color:#fcd34d;border-radius:20px;padding:2px 9px;font-size:11px;">🔄 '+nLa+' laudo(s)</span>');
+    var contato=[c.tel?('📱 '+gnEsc(c.tel)):'', c.email?('✉ '+gnEsc(c.email)):''].filter(Boolean).join(' · ');
+    return '<div onclick="docsAbrirFicha(\''+c.key.replace(/'/g,"\\'")+'\')" style="cursor:pointer;background:var(--gn-card);border:1px solid var(--gn-border);border-left:4px solid '+(soDrive?'#0891b2':'#7c5cff')+';border-radius:12px;padding:13px 14px;transition:.15s;" onmouseover="this.style.borderColor=\'#7c5cff\'" onmouseout="this.style.borderColor=\'var(--gn-border)\'">'
+      +'<div style="font-weight:800;color:var(--gn-text);margin-bottom:3px;">'+gnEsc(c.nome||'(sem nome)')+(soDrive?' <span style="font-size:10px;color:#0891b2;font-weight:700;">· só no Drive</span>':'')+'</div>'
+      +(contato?('<div style="font-size:11.5px;color:var(--gn-dim);margin-bottom:7px;">'+contato+'</div>'):'<div style="font-size:11.5px;color:#dc2626;margin-bottom:7px;">sem contato cadastrado</div>')
+      +'<div style="display:flex;gap:5px;flex-wrap:wrap;">'+badges.join('')+'</div>'
+      +(tot?('<div style="font-size:11.5px;color:#16a34a;margin-top:7px;font-weight:600;">Faturado: '+gnBRL(tot)+'</div>'):'')
+      +'</div>';
+  }).join('')+'</div>';
 }
+// Abre a FICHA completa de um cliente
+function docsAbrirFicha(key){
+  var c=_docsAgg.filter(function(x){ return x.key===key; })[0];
+  if(!c){ renderDocsCliente(); return; }
+  var wrap=document.getElementById('docs-lista-wrap'); var ficha=document.getElementById('docs-ficha');
+  if(wrap) wrap.style.display='none'; if(!ficha) return; ficha.style.display='block';
+  var hid=document.getElementById('docs-cli'); if(hid) hid.value=c.nome||''; // p/ envio em lote
+  var soDrive=(c.src.drive && !c.src.cli && !c.emit.length);
+  var sec=function(t,inner){ return '<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:15px;margin-bottom:14px;"><div style="font-weight:800;color:var(--gn-text);margin-bottom:11px;">'+t+'</div>'+inner+'</div>'; };
+  var H='';
+  // topo
+  H+='<button onclick="renderDocsCliente()" style="background:var(--gn-card);border:1px solid var(--gn-border);color:var(--gn-text);border-radius:9px;padding:8px 14px;cursor:pointer;font-weight:700;margin-bottom:14px;">← Voltar para a lista</button>';
+  H+='<div style="font-size:22px;font-weight:800;color:var(--gn-text);margin-bottom:4px;">'+gnEsc(c.nome||'(sem nome)')+'</div>';
+  H+='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:16px;">'+(soDrive?'Cliente antigo — encontrado nos arquivos do seu Google Drive.':'Cliente com documentos no sistema.')+'</div>';
+  // 1) Dados de contato (editável)
+  var inp=function(id,ph,val){ return '<input id="'+id+'" placeholder="'+ph+'" value="'+gnEsc(val||'')+'" style="width:100%;padding:9px 11px;border:1px solid var(--gn-border);border-radius:9px;background:var(--gn-bg);color:var(--gn-text);box-sizing:border-box;">'; };
+  var lbl=function(t){ return '<div style="font-size:11px;color:var(--gn-dim);margin:8px 0 3px;">'+t+'</div>'; };
+  var contato='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
+    +'<div>'+lbl('Nome / Razão social')+inp('df-nome','Nome',c.nome)+'</div>'
+    +'<div>'+lbl('CPF / CNPJ')+inp('df-cpf','CPF ou CNPJ',c.cpf)+'</div>'
+    +'<div>'+lbl('Telefone / WhatsApp')+inp('df-tel','(11) 90000-0000',c.tel)+'</div>'
+    +'<div>'+lbl('E-mail')+inp('df-email','email@cliente.com',c.email)+'</div>'
+    +'<div style="grid-column:1 / -1;">'+lbl('Endereço')+inp('df-end','Rua, nº, bairro, cidade',c.endereco)+'</div>'
+    +'</div>'
+    +'<button onclick="docsFichaSalvar(\''+c.key.replace(/'/g,"\\'")+'\')" style="margin-top:12px;background:#16a34a;color:#fff;border:none;border-radius:9px;padding:9px 16px;cursor:pointer;font-weight:700;">💾 Salvar dados</button>';
+  H+=sec('👤 Dados de contato', contato);
+  // 2) Documentos (emitidos + Drive)
+  var emit=c.emit.slice().sort(function(a,b){ return (b.criadoEm||b.data||'').localeCompare(a.criadoEm||a.data||''); });
+  var docHtml='';
+  if(emit.length){
+    docHtml+='<div id="docs-actions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:11px;background:rgba(37,211,102,.10);border:1px solid rgba(37,211,102,.30);border-radius:12px;padding:10px 12px;">'
+      +'<label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--gn-text);cursor:pointer;"><input type="checkbox" id="docs-selall" onchange="docsSelAll(this.checked)"> Selecionar todos</label>'
+      +'<button onclick="docsBaixarSelec()" style="background:#4338ca;color:#fff;border:none;padding:8px 13px;border-radius:8px;cursor:pointer;font-weight:700;">⬇ Baixar selecionados</button>'
+      +'<button onclick="docsWhatsSelec()" style="background:#25d366;color:#fff;border:none;padding:8px 15px;border-radius:8px;cursor:pointer;font-weight:700;">📲 Enviar pelo WhatsApp</button>'
+      +'<span id="docs-selcount" style="font-size:12px;color:var(--gn-dim);"></span></div>';
+    docHtml+='<div style="font-weight:700;font-size:12.5px;color:var(--gn-dim);margin-bottom:6px;">Emitidos no app ('+emit.length+')</div>';
+    docHtml+=emit.map(function(d){
+      return '<div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--gn-border);border-left:4px solid '+d.cor+';border-radius:10px;margin-bottom:6px;">'
+        +'<input type="checkbox" class="docs-chk" data-store="'+d.store+'" data-id="'+d.id+'" data-tipo="'+gnEsc(d.tipo)+'" data-num="'+gnEsc(d.numero)+'" data-val="'+d.valor+'" onchange="docsUpdCount()" style="width:18px;height:18px;cursor:pointer;flex:0 0 auto;">'
+        +'<div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+d.emoji+' '+gnEsc(d.tipo)+(d.valor?(' · <span style="color:#16a34a;">'+gnBRL(d.valor)+'</span>'):'')+'</div>'
+        +'<div style="font-size:12px;color:var(--gn-dim);">'+gnEsc(d.numero)+' · '+((d.data||'').split('-').reverse().join('/'))+'</div></div>'
+        +'<button onclick="docsRegen(\''+d.store+'\',\''+d.id+'\')" style="background:#4338ca;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:600;">⬇ PDF</button>'
+        +'<button onclick="docsWhatsUm(\''+d.store+'\',\''+d.id+'\')" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:600;">WhatsApp</button>'
+        +'</div>';
+    }).join('');
+  }
+  if(c.drive.length){
+    var dr=c.drive.slice().sort(function(a,b){ return String(b.data||'').localeCompare(String(a.data||'')); });
+    docHtml+='<div style="font-weight:700;font-size:12.5px;color:var(--gn-dim);margin:12px 0 6px;">No Google Drive ('+dr.length+')</div>';
+    docHtml+=dr.map(function(a){
+      var dt=''; try{ if(a.data) dt=new Date(a.data).toLocaleDateString('pt-BR'); }catch(e){}
+      var url=String(a.url||'').replace(/'/g,"\\'");
+      return '<div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--gn-border);border-left:4px solid #0891b2;border-radius:10px;margin-bottom:6px;">'
+        +'<div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--gn-text);word-break:break-word;">☁ '+gnEsc(a.nome||'arquivo')+'</div>'
+        +'<div style="font-size:12px;color:var(--gn-dim);">'+(a.tipo?gnEsc(a.tipo)+' · ':'')+(dt||'')+'</div></div>'
+        +(a.url?('<button onclick="docsAbrirDrive(\''+url+'\')" style="background:#0891b2;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:600;">Abrir no Drive</button>'):'')
+        +'</div>';
+    }).join('');
+  }
+  if(!emit.length && !c.drive.length) docHtml='<div style="color:var(--gn-dim);padding:10px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum documento ainda. Os laudos deste cliente aparecem abaixo.</div>';
+  H+=sec('📂 Documentos', docHtml);
+  // 3) Laudos e vencimentos
+  var laudoHtml='';
+  if(c.laudos.length){
+    var la=c.laudos.slice().sort(function(a,b){ return String(b.data||'').localeCompare(String(a.data||'')); });
+    laudoHtml=la.map(function(r){
+      var s=(typeof renovStatus==='function')?renovStatus(r.data,r.validadeMeses):{status:'sem-data',venc:null,dias:null};
+      var cor=s.status==='vencido'?'#dc2626':(s.status==='vence'?'#f59e0b':(s.status==='ok'?'#16a34a':'#64748b'));
+      var info=s.status==='vencido'?('vencido'+(s.venc?(' em '+s.venc.toLocaleDateString('pt-BR')):'')):(s.status==='vence'?('vence em '+s.dias+' dia(s)'):(s.status==='ok'?('em dia'+(s.venc?(' até '+s.venc.toLocaleDateString('pt-BR')):'')):'sem data de execução'));
+      return '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 12px;border:1px solid var(--gn-border);border-left:4px solid '+cor+';border-radius:10px;margin-bottom:6px;">'
+        +'<div style="min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(r.servico||'Serviço/Laudo')+'</div><div style="font-size:12px;color:var(--gn-dim);">executado em '+((r.data||'').split('-').reverse().join('/')||'—')+' · '+info+'</div></div>'
+        +'</div>';
+    }).join('');
+    laudoHtml+='<button onclick="goTab(\'renov\')" style="margin-top:4px;background:#7c5cff;color:#fff;border:none;border-radius:9px;padding:8px 14px;cursor:pointer;font-weight:700;font-size:12.5px;">Abrir Renovação de Laudos →</button>';
+  } else { laudoHtml='<div style="color:var(--gn-dim);padding:10px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum laudo/serviço com vencimento registrado para este cliente.</div>'; }
+  H+=sec('🔄 Laudos e vencimentos', laudoHtml);
+  // 4) Histórico de serviços e valores
+  var histArr=emit.slice().sort(function(a,b){ return (b.data||b.criadoEm||'').localeCompare(a.data||a.criadoEm||''); });
+  var totF=0; histArr.forEach(function(d){ totF+=Number(d.valor)||0; });
+  var histHtml='';
+  if(histArr.length){
+    histHtml='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;">'+histArr.length+' serviço(s) · total faturado <b style="color:#16a34a;">'+gnBRL(totF)+'</b></div>';
+    histHtml+=histArr.map(function(d){ return '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 12px;border:1px solid var(--gn-border);border-radius:9px;margin-bottom:5px;"><div style="min-width:0;"><span style="color:var(--gn-text);font-weight:600;">'+d.emoji+' '+gnEsc(d.tipo)+'</span> <span style="color:var(--gn-dim);font-size:12px;">'+gnEsc(d.numero)+'</span></div><div style="white-space:nowrap;font-size:12.5px;"><span style="color:var(--gn-dim);">'+((d.data||'').split('-').reverse().join('/'))+'</span>'+(d.valor?(' · <b style="color:#16a34a;">'+gnBRL(d.valor)+'</b>'):'')+'</div></div>'; }).join('');
+  } else { histHtml='<div style="color:var(--gn-dim);padding:10px;border:1px dashed var(--gn-border);border-radius:10px;">Sem serviços faturados registrados no app para este cliente'+(c.drive.length?' (ele tem arquivos no Drive acima).':'.')+'</div>'; }
+  H+=sec('🧾 Histórico de serviços e valores', histHtml);
+  document.getElementById('docs-ficha').innerHTML=H;
+  try{ docsUpdCount(); }catch(e){}
+  try{ window.scrollTo(0,0); }catch(e){}
+}
+// Salvar dados de contato da ficha (cadastra/atualiza no banco, sem duplicar)
+function docsFichaSalvar(key){
+  var c=_docsAgg.filter(function(x){ return x.key===key; })[0]; if(!c) return;
+  var g=function(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; };
+  var nome=g('df-nome')||c.nome, cpf=g('df-cpf'), tel=g('df-tel'), email=g('df-email'), end=g('df-end');
+  var arr=[]; try{ arr=(typeof cliData==='function')?cliData():JSON.parse(localStorage.getItem('gn_cli')||'[]'); }catch(e){ arr=[]; }
+  var rec=c.cliId?arr.filter(function(x){ return x.id===c.cliId; })[0]:null;
+  if(rec){
+    rec.nome=nome; rec.cpf=cpf; rec.tel=tel; rec.whatsapp=tel; rec.email=email; rec.endereco=end;
+    try{ if(typeof cliSaveAll==='function') cliSaveAll(arr); }catch(e){}
+    try{ if(typeof cliCloudPush==='function') cliCloudPush(rec); }catch(e){}
+  } else if(typeof cliUpsertMerge==='function'){
+    var r=cliUpsertMerge({nome:nome,cpf:cpf,tel:tel,email:email,endereco:end});
+    if(r&&r.cliente) c.cliId=r.cliente.id;
+  } else {
+    arr.unshift({id:'c'+Date.now(),tipo:(cpf.replace(/\D/g,'').length>11?'PJ':'PF'),nome:nome,cpf:cpf,tel:tel,whatsapp:tel,email:email,endereco:end,status:'ativo',obs:'(cadastrado pela tela de Documentos)'});
+    try{ if(typeof cliSaveAll==='function') cliSaveAll(arr); }catch(e){}
+  }
+  c.nome=nome; c.cpf=cpf; c.tel=tel.replace(/\D/g,''); c.email=email.toLowerCase(); c.endereco=end; c.src.cli=true;
+  if(typeof toast==='function') toast('✓ Dados de '+(nome||'cliente')+' salvos.','ok');
+  try{ if(typeof renderCli==='function') renderCli(); }catch(e){}
+  docsAbrirFicha(key);
+}
+// Abrir um arquivo do Drive (próprio do usuário, ação iniciada por clique)
+function docsAbrirDrive(url){ if(url) try{ window.open(url,'_blank','noopener'); }catch(e){} }
+// Ler as pastas do Google Drive (precisa da ação listDrive no backend Apps Script)
+function docsAnalisarDrive(){
+  var btn=document.getElementById('docs-drive-btn'); var stt=document.getElementById('docs-drive-status');
+  if(typeof GN_CLOUD2==='undefined' || !GN_CLOUD2){ if(stt) stt.innerHTML='<span style="color:#dc2626;">A nuvem (Google Drive) não está configurada neste app.</span>'; return; }
+  if(btn){ btn.disabled=true; btn.textContent='🔄 Analisando...'; }
+  if(stt) stt.textContent='Lendo as pastas dos clientes no seu Google Drive...';
+  fetch(GN_CLOUD2,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'listDrive'})})
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if(!j || !j.ok || !Array.isArray(j.clientes)) throw new Error('sem-listDrive');
+      var idx={ em:new Date().toISOString(), clientes:j.clientes };
+      try{ localStorage.setItem('gn_drive_idx', JSON.stringify(idx)); }catch(e){}
+      try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_drive_idx'); }catch(e){}
+      var nF=0; j.clientes.forEach(function(c){ nF+=(c.arquivos||[]).length; });
+      if(stt) stt.innerHTML='☁ Drive lido: <b style="color:var(--gn-text);">'+j.clientes.length+'</b> cliente(s) · <b style="color:var(--gn-text);">'+nF+'</b> arquivo(s). Atualizado agora.';
+      if(btn){ btn.disabled=false; btn.textContent='🔄 Analisar Google Drive'; }
+      if(typeof toast==='function') toast('✓ Google Drive analisado: '+j.clientes.length+' cliente(s), '+nF+' arquivo(s).','ok');
+      renderDocsCliente();
+    })
+    .catch(function(){
+      if(btn){ btn.disabled=false; btn.textContent='🔄 Analisar Google Drive'; }
+      if(stt) stt.innerHTML='<span style="color:#dc2626;">Não consegui ler o Drive. Seu backend (script do Google) ainda não tem a função <b>listDrive</b>. Cole o código que eu te entreguei no editor do Apps Script e republique — depois clique aqui de novo.</span>';
+    });
+}
+window.renderDocsCliente=renderDocsCliente; window.docsClientesAgg=docsClientesAgg; window.docsAbrirFicha=docsAbrirFicha; window.docsFichaSalvar=docsFichaSalvar; window.docsAbrirDrive=docsAbrirDrive; window.docsAnalisarDrive=docsAnalisarDrive;
 // Envia um único documento pelo WhatsApp (baixa + abre conversa)
 function docsWhatsUm(store, id){
   var b=docsBuild(store, id); if(!b) return; var d=b.d;
@@ -10175,8 +10356,6 @@ function docsWhatsUm(store, id){
     else { cur.unshift({id:'rn'+Date.now()+'_'+Math.floor(Math.random()*99999), nome:canon, cpf:cpf, tel:tel, email:email, data:data, servico:stipo, validadeMeses:tm.meses, oferecidoEm:'', criadoEm:new Date().toISOString()}); ctx.nRen++; }
     return {canon:canon, stipo:stipo, data:data, meses:tm.meses};
   }; }
-  window.bulkProcess=async function(){
-    if(running) return;
   function _ctrl(show){ var p=document.getElementById('bulk-pause'), c=document.getElementById('bulk-cancel'); if(p) p.style.display=show?'inline-block':'none'; if(c) c.style.display=show?'inline-block':'none'; }
   window.bulkPauseToggle=function(){ if(!running) return; window.__bulkPaused=!window.__bulkPaused; var p=document.getElementById('bulk-pause'); if(p) p.textContent=window.__bulkPaused?'▶️ Retomar':'⏸ Pausar'; };
   window.bulkCancel=function(){ if(!running) return; if(!confirm('Cancelar o processamento? O que já foi lido fica salvo.')) return; window.__bulkCancel=true; window.__bulkPaused=false; };
