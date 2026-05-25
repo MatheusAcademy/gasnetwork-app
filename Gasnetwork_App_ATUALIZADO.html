@@ -10045,10 +10045,10 @@ function docsWhatsUm(store, id){
       +'ATENÇÃO LAUDO DE ESTANQUEIDADE: preencha SEMPRE os dados estruturados, NÃO apenas o texto. Se o usuário disser que vazou / deu vazamento / reprovou → "resultado":"reprovado"; se disser aprovado/sem vazamento → "resultado":"aprovado". Coloque a recomendação em "recomendacoes" (ex.: aplicação de resina) e o detalhe do vazamento (ex.: "20 mmca") em "observacoes". Informe também "etapas" (2 ou 3), "gas" (GLP/GN), "qtdPontos" e "ponto" (partida do teste) quando o usuário mencionar. Nunca deixe o resultado em branco quando ele foi informado. '
       +'agendar:{titulo,cliente,data,hora,horaFim,obs,servico}; '
       +'compras:{itens:[{material,qtd}]}; '
-      +'tarefa:{titulo,prioridade,venc,cliente}; '
+      +'tarefa:{titulo,prioridade,venc,cliente,responsavel}; '
       +'organizar:{texto}; '
       +'consulta:{entidade,periodo,limite,ordem}. '
-      +'TAREFAS (não existe mais a tela de Tarefas — você cuida disso): para um lembrete/tarefa simples (ligar, conferir, retornar cliente, comprar X) use {tipo:"tarefa",dados:{titulo,prioridade,venc,cliente}}. Se o usuário despejar VÁRIAS pendências misturadas numa frase (ex.: "comprar 20m de mangueira, ligar pro Pedro amanhã, visita técnica na Maria sexta 14h"), use {tipo:"organizar",dados:{texto:"<copie aqui o texto do usuário>"}} para eu separar sozinho em tarefas, agenda e compras. '
+      +'TAREFAS (existe a tela "Tarefas", que mostra a lista do dia com check): para qualquer tarefa/pendência/lembrete que alguém precisa FAZER (ligar, conferir, retornar cliente, fazer documentação, enviar laudo/notinha, comprar X) use {tipo:"tarefa",dados:{titulo,prioridade,venc,cliente,responsavel}}. IMPORTANTE: se o pedido for "agendar uma tarefa", "criar tarefa", "tarefa para a Mayara", "põe na lista da Mayara", "lembrar de fazer" → é {tipo:"tarefa"} (vai para a tela Tarefas), NUNCA {tipo:"agendar"}. Use {tipo:"agendar"} SÓ para compromisso/visita com data e hora marcadas com um cliente. Quando o usuário disser para quem é a tarefa (ex.: "para a Mayara"), preencha "responsavel" com esse nome. Para documentação/laudo/notinha use prioridade "Alta" ou "Urgente". Se o usuário despejar VÁRIAS pendências misturadas numa frase (ex.: "comprar 20m de mangueira, ligar pro Pedro amanhã, visita técnica na Maria sexta 14h"), use {tipo:"organizar",dados:{texto:"<copie aqui o texto do usuário>"}} para eu separar sozinho em tarefas, agenda e compras. '
       +'Para orçamento: se o usuário citar 1 serviço e um valor (ex.: "instalação e conversão de cooktop, 320"), monte servicos:[{descricao:"Instalação e conversão de cooktop",quantidade:1,valor_unitario:320}]. '
       +'O QUE CADA DOCUMENTO PRECISA (você é o sábio do gás e sabe disso de cabeça): recibo → nome do cliente + valor; nota de serviço → nome do cliente + descrição do serviço; orçamento → cliente + serviço(s) + valor; laudo técnico → cliente + objetivo; laudo de estanqueidade → cliente + (idealmente) nº de etapas (2 ou 3), nº de pontos de consumo, tipo de gás (GLP ou GN), ponto de partida do teste e resultado (aprovado/reprovado). O resto é opcional. Se o usuário perguntar "o que você precisa para gerar X?", explique esses itens (sempre dentro do JSON, no campo "fala"). '
       +'NUNCA invente nem reaproveite o nome do cliente de um documento anterior. Se o documento atual não tiver cliente informado, faça UMA pergunta curta: "Para qual cliente?" — não assuma nenhum nome. '
@@ -10231,10 +10231,12 @@ function docsWhatsUm(store, id){
     try{
       var a=(typeof tarGet==='function')?tarGet():(JSON.parse(localStorage.getItem('gn_tarefas')||'[]'));
       var prio=(['Baixa','Média','Alta','Urgente'].indexOf(d.prioridade)>=0)?d.prioridade:'Média';
-      a.unshift({id:'t'+Date.now(), titulo:tit, prioridade:prio, venc:String(d.venc||d.vencimento||''), cliente:String(d.cliente||''), status:'Aberta', criadoEm:new Date().toISOString()});
+      var resp=String(d.responsavel||d.resp||d.para||d.responsável||'').trim();
+      a.unshift({id:'t'+Date.now(), titulo:tit, prioridade:prio, venc:String(d.venc||d.vencimento||''), cliente:String(d.cliente||''), responsavel:resp, status:'Aberta', criadoEm:new Date().toISOString()});
       if(typeof tarSaveAll==='function') tarSaveAll(a); else localStorage.setItem('gn_tarefas', JSON.stringify(a));
       try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_tarefas'); }catch(e){}
-      return {ok:true, msg:'✅ Tarefa anotada: "'+tit+'"'+(d.venc||d.vencimento?(' (vence '+String(d.venc||d.vencimento).split('-').reverse().join('/')+')'):'')+'.'};
+      try{ if(typeof renderTarefasHub==='function') renderTarefasHub(); }catch(e){}
+      return {ok:true, msg:'✅ Tarefa adicionada na tela Tarefas: "'+tit+'"'+(resp?(' — responsável: '+resp):'')+(d.venc||d.vencimento?(' (vence '+String(d.venc||d.vencimento).split('-').reverse().join('/')+')'):'')+'.'};
     }catch(e){ return {ok:false,msg:'Não consegui salvar a tarefa: '+(e&&e.message||e)}; }
   }
   function _organizarTudo(d){
@@ -10496,13 +10498,25 @@ function renderTarefasHub(){
   H+=card('🔄 Clientes a relembrar (laudos / manutenções)', inner2);
   // 3) Minhas tarefas (anotadas / do assistente)
   var ts=[]; try{ ts=(typeof tarGet==='function')?tarGet():JSON.parse(localStorage.getItem('gn_tarefas')||'[]'); }catch(e){}
-  ts.sort(function(x,y){ if((x.status==='Concluída')!==(y.status==='Concluída')) return x.status==='Concluída'?1:-1; var o={'Urgente':0,'Alta':1,'Média':2,'Baixa':3}; return (o[x.prioridade]||9)-(o[y.prioridade]||9); });
+  var _tarPeso=function(t){ var s=(String(t.titulo||'')+' '+String(t.cliente||'')+' '+String(t.servico||'')).toLowerCase();
+    if(/document|contrat|propost|or[çc]ament|\bart\b|cadastr|assinatur/.test(s)) return 0;   // documentação tem preferência
+    if(/laudo|estanqueidad/.test(s)) return 1;                                                // laudos
+    if(/notinha|nota de servi|recibo/.test(s)) return 2;                                      // notinhas / notas
+    if(/envi|enviar|mandar|whats|e-?mail|cobran/.test(s)) return 3;                           // envios / cobranças
+    return 5; };
+  ts.sort(function(x,y){
+    var dx=(x.status==='Concluída'), dy=(y.status==='Concluída');
+    if(dx!==dy) return dx?1:-1;                                  // feitos vão pra baixo
+    var px=_tarPeso(x), py=_tarPeso(y); if(px!==py) return px-py; // categoria do dia (documentação primeiro)
+    var o={'Urgente':0,'Alta':1,'Média':2,'Baixa':3}; var pr=(o[x.prioridade]||9)-(o[y.prioridade]||9); if(pr) return pr;
+    return String(x.venc||'9999').localeCompare(String(y.venc||'9999')); // vence antes, primeiro
+  });
   var inner3;
   if(!ts.length){ inner3=vazio('Nenhuma tarefa anotada. Use o campo acima, ou peça ao assistente 🤖 ("anota pra eu ligar pro Sr. Pedro amanhã").'); }
   else { inner3=ts.map(function(t){ var done=t.status==='Concluída'; var cor={'Urgente':'#dc2626','Alta':'#f59e0b','Média':'#7c5cff','Baixa':'#64748b'}[t.prioridade]||'#7c5cff';
       return '<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--gn-border);border-left:4px solid '+cor+';border-radius:10px;margin-bottom:6px;opacity:'+(done?'0.6':'1')+';">'
         +'<input type="checkbox" '+(done?'checked':'')+' onchange="hubTarToggle(\''+t.id+'\')" style="width:18px;height:18px;cursor:pointer;">'
-        +'<div style="flex:1;min-width:0;"><div style="font-weight:600;color:var(--gn-text);'+(done?'text-decoration:line-through;color:var(--gn-dim);':'')+'">'+esc(t.titulo)+'</div><div style="font-size:11px;color:var(--gn-dim);">'+esc(t.prioridade||'')+(t.venc?(' · vence '+String(t.venc).split('-').reverse().join('/')):'')+(t.cliente?(' · '+esc(t.cliente)):'')+'</div></div>'
+        +'<div style="flex:1;min-width:0;"><div style="font-weight:600;color:var(--gn-text);'+(done?'text-decoration:line-through;color:var(--gn-dim);':'')+'">'+esc(t.titulo)+'</div><div style="font-size:11px;color:var(--gn-dim);">'+esc(t.prioridade||'')+(t.responsavel?(' · 👤 '+esc(t.responsavel)):'')+(t.venc?(' · vence '+String(t.venc).split('-').reverse().join('/')):'')+(t.cliente?(' · '+esc(t.cliente)):'')+'</div></div>'
         +'<button onclick="hubTarDel(\''+t.id+'\')" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;">✕</button></div>';
     }).join(''); }
   H+=card('🗒️ Minhas tarefas', inner3);
