@@ -274,7 +274,6 @@ textarea.fi{resize:vertical;}
   <button class="tab" id="tab-svc" onclick="goTab('svc')">🛠️ Serviços</button>
   <button class="tab" id="tab-prod" onclick="goTab('prod')">📦 Materiais</button>
   <button class="tab" id="tab-ctr" onclick="goTab('ctr')">📄 Contratos</button>
-  <button class="tab" id="tab-imp" onclick="goTab('imp')">📥 Importar</button>
   <button class="tab" id="tab-cfg" onclick="goTab('cfg')">⚙️ Config</button>
 </div>
 
@@ -1867,6 +1866,19 @@ textarea.fi{resize:vertical;}
         <button onclick="ctrLimpar()" style="background:var(--gn-surface2);color:var(--gn-text);border:none;padding:10px 16px;border-radius:8px;cursor:pointer;">Limpar</button>
       </div>
     </div>
+
+    <div style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.4);border-radius:14px;padding:16px;margin-bottom:16px;">
+      <div style="font-weight:800;color:var(--gn-text);margin-bottom:4px;">✦ Gerar contrato com IA a partir de uma proposta</div>
+      <div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:10px;">Escolha o cliente acima (ou digite o nome), cole o texto da proposta/orçamento — ou envie uma foto dela — e a IA redige um contrato completo, formal e detalhado, preenchendo os campos acima. Depois é só revisar e clicar em "Gerar contrato (PDF)".</div>
+      <textarea id="ctr-ia-txt" rows="5" placeholder="Cole aqui a proposta/orçamento (serviços, valores, prazos, condições de pagamento)..." style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--gn-border);border-radius:9px;"></textarea>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px;">
+        <label style="background:#0e7490;color:#fff;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:600;font-size:12.5px;">📷 Enviar foto da proposta<input type="file" accept="image/*" onchange="ctrIAImgPick(this)" style="display:none;"></label>
+        <span id="ctr-ia-imgname" style="font-size:12px;color:var(--gn-dim);"></span>
+        <button id="ctr-ia-btn" onclick="ctrIAGerar()" style="background:#a855f7;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:700;">✦ Gerar contrato completo com IA</button>
+      </div>
+      <div id="ctr-ia-status" style="font-size:12.5px;color:var(--gn-dim);margin-top:10px;display:none;"></div>
+    </div>
+
     <div style="font-weight:600;margin-bottom:8px;">Contratos emitidos</div>
     <div id="ctr-list"></div>
   </div>
@@ -1920,7 +1932,7 @@ textarea.fi{resize:vertical;}
         <button onclick="gnExportarBackup()" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:700;">⬇ Exportar (arquivo)</button>
         <label style="background:#0e7490;color:#fff;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:700;">⬆ Importar backup<input type="file" accept=".json,application/json" onchange="gnImportarBackup(this)" style="display:none;"></label>
       </div>
-      <div style="font-size:11px;color:var(--gn-dim);margin-top:8px;">O backup na nuvem é feito <b>automaticamente</b> (a cada ~12h) numa pasta "Backups do Sistema" no seu Google Drive. Use "Exportar" para guardar também uma cópia no seu computador.</div>
+      <div style="font-size:11px;color:var(--gn-dim);margin-top:8px;">O backup na nuvem é feito <b>automaticamente a cada 2 horas</b> numa pasta "Backups do Sistema" no seu Google Drive — você não precisa fazer nada. Use "Exportar" para guardar também uma cópia no seu computador.</div>
     </div>
 
     <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
@@ -4467,7 +4479,7 @@ function pedSyncFinance(numero, entry){
   if(idx>=0) arr[idx]=rec; else arr.unshift(rec);
   finSaveAll(arr); if(typeof finCloudPush==='function') finCloudPush(rec);
 }
-function pedEditar(numero){ var h=pedHist(); var i=h.findIndex(function(e){ return e.numero===numero; }); if(i<0){ toast('Pedido sem dados','er'); return; } if(typeof editarHist==='function') editarHist(i); else if(typeof goTab==='function') goTab('novo'); }
+function pedEditar(numero){ try{ if(typeof pdClose==='function') pdClose(); }catch(e){} try{ var m=document.getElementById('pd-modal'); if(m) m.style.display='none'; }catch(e){} var h=pedHist(); var i=h.findIndex(function(e){ return e.numero===numero; }); if(i<0){ toast('Pedido sem dados','er'); return; } if(typeof editarHist==='function') editarHist(i); else if(typeof goTab==='function') goTab('novo'); }
 function pedExcluir(numero){
   if(!confirm('Excluir este pedido? (remove o pedido e o lançamento financeiro ligado a ele)')) return;
   try{ var h=pedHist().filter(function(e){ return e.numero!==numero; }); localStorage.setItem('gn_hist', JSON.stringify(h)); }catch(e){}
@@ -5143,16 +5155,42 @@ async function ageAgendarPorImagem(){
   var btn=document.getElementById('age-img-btn'); var old; if(btn){ old=btn.textContent; btn.textContent='✨ Lendo...'; btn.disabled=true; }
   function fim(){ if(btn){ btn.textContent=old||'✨ Ler imagem e agendar'; btn.disabled=false; } }
   var hoje=new Date().toISOString().slice(0,10);
-  var sys='Você é o assistente da Gás Network. Recebe uma IMAGEM (print com endereço/serviço/conversa) e uma INSTRUÇÃO do usuário. '
-    +'Extraia os dados e DEVOLVA SOMENTE um JSON válido: {"titulo":"","cliente":"","endereco":"","data":"AAAA-MM-DD","hora":"HH:MM","horaFim":"","servico":""}. '
+  var sys='Você é o assistente da Gás Network. Recebe uma IMAGEM (print com endereço/serviço/conversa/dados do cliente) e uma INSTRUÇÃO do usuário. '
+    +'Extraia TODOS os dados que aparecerem e DEVOLVA SOMENTE um JSON válido: {"titulo":"","cliente":"","cpf":"","endereco":"","cep":"","telefone":"","email":"","servico":"","valor":"","data":"AAAA-MM-DD","hora":"HH:MM","horaFim":""}. '
     +'A data de hoje é '+hoje+'. Converta "sexta", "amanhã", "semana que vem" para AAAA-MM-DD. Se não houver hora, use "09:00". '
-    +'"titulo" = um resumo curto (ex.: "Visita - <serviço> - <cliente>"). "endereco" e "servico" devem vir da imagem. NÃO invente o que não estiver na imagem/instrução. Responda em português do Brasil.';
+    +'"titulo" = um resumo curto (ex.: "Visita - <serviço> - <cliente>"). Preencha cliente, cpf, endereco, cep, telefone, email, servico e valor com TUDO o que estiver na imagem/instrução — não deixe de fora nenhum dado cadastral. Deixe "" apenas quando o dado realmente não aparecer. NÃO invente. Responda em português do Brasil.';
   function envia(imgURL){
-    gnAIVision(sys, txt||'Agende o serviço solicitado na imagem.', imgURL).then(function(j){
+    gnAIVision(sys, txt||'Agende o serviço solicitado na imagem, incluindo todos os dados do cliente.', imgURL).then(function(j){
       var dataI=(j.data||hoje); var hora=(j.hora||'09:00');
       var titulo=j.titulo||((j.servico?j.servico:'Visita técnica')+(j.cliente?(' - '+j.cliente):''));
-      var obs=[j.endereco,j.servico].filter(Boolean).join(' · ');
-      var c={ id:'a'+Date.now(), titulo:titulo, cliente:(j.cliente||''), data:dataI, hora:hora, horaFim:(j.horaFim||''), obs:obs, criadoEm:new Date().toISOString() };
+      var obsLines=[];
+      if(j.servico) obsLines.push('Serviço: '+j.servico);
+      if(j.valor) obsLines.push('Valor: '+j.valor);
+      if(j.endereco) obsLines.push('Endereço: '+j.endereco);
+      if(j.cep) obsLines.push('CEP: '+j.cep);
+      if(j.telefone) obsLines.push('Telefone: '+j.telefone);
+      if(j.email) obsLines.push('E-mail: '+j.email);
+      if(j.cpf) obsLines.push('CPF/CNPJ: '+j.cpf);
+      var obs=obsLines.join(' · ');
+      var c={ id:'a'+Date.now(), titulo:titulo, cliente:(j.cliente||''), cpf:(j.cpf||''), endereco:(j.endereco||''), cep:(j.cep||''), tel:(j.telefone||''), email:(j.email||''), servico:(j.servico||''), valor:(j.valor||''), data:dataI, hora:hora, horaFim:(j.horaFim||''), obs:obs, criadoEm:new Date().toISOString() };
+      // registra/atualiza o cliente automaticamente, para não perder os dados cadastrais
+      try{
+        if(j.cliente && (j.telefone||j.endereco||j.email||j.cpf) && typeof JSON!=='undefined'){
+          var cli=[]; try{ cli=JSON.parse(localStorage.getItem('gn_cli')||'[]'); }catch(_){ cli=[]; }
+          var nomeLow=String(j.cliente).trim().toLowerCase();
+          var existe=cli.filter(function(x){ return String(x.nome||'').trim().toLowerCase()===nomeLow; })[0];
+          if(existe){
+            if(j.telefone&&!existe.tel) existe.tel=j.telefone; if(j.telefone&&!existe.whatsapp) existe.whatsapp=j.telefone;
+            if(j.email&&!existe.email) existe.email=j.email; if(j.endereco&&!existe.endereco) existe.endereco=j.endereco;
+            if(j.cep&&!existe.cep) existe.cep=j.cep; if(j.cpf&&!existe.cpf) existe.cpf=j.cpf;
+          } else {
+            cli.push({ id:'c'+Date.now(), nome:String(j.cliente), cpf:(j.cpf||''), tel:(j.telefone||''), whatsapp:(j.telefone||''), email:(j.email||''), endereco:(j.endereco||''), cep:(j.cep||''), criadoEm:new Date().toISOString() });
+          }
+          localStorage.setItem('gn_cli', JSON.stringify(cli));
+          try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_cli'); }catch(_){}
+          try{ if(typeof renderCli==='function') renderCli(); }catch(_){}
+        }
+      }catch(e){}
       try{ gnStoreUpsert('agenda', c); }catch(e){}
       try{ if(typeof ageCloudCalendar==='function') ageCloudCalendar(c); }catch(e){}
       try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_agenda'); }catch(e){}
@@ -6932,7 +6970,7 @@ var ctrPulled=false;
 function ctrClientes(){ try{ return JSON.parse(localStorage.getItem('gn_cli')||'[]'); }catch(e){ return []; } }
 function ctrFillSelect(){ var sel=document.getElementById('ctr-cli'); if(!sel) return; var cur=sel.value; var cls=ctrClientes().slice().sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); }); sel.innerHTML='<option value="">— digitar manualmente —</option>'+cls.map(function(c){ return '<option value="'+c.id+'">'+gnEsc(c.nome)+'</option>'; }).join(''); if(cur) sel.value=cur; }
 function ctrPickCli(){ var id=document.getElementById('ctr-cli').value; var c=ctrClientes().filter(function(x){ return x.id===id; })[0]; if(c){ document.getElementById('ctr-nome').value=c.nome||''; document.getElementById('ctr-cpf').value=c.cpf||''; } }
-function ctrLimpar(){ ['ctr-nome','ctr-cpf','ctr-valor','ctr-pgto','ctr-prazo','ctr-gar','ctr-obj'].forEach(function(id){ document.getElementById(id).value=''; }); document.getElementById('ctr-cli').value=''; }
+function ctrLimpar(){ ['ctr-nome','ctr-cpf','ctr-valor','ctr-pgto','ctr-prazo','ctr-gar','ctr-obj'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); var cl=document.getElementById('ctr-cli'); if(cl) cl.value=''; var iat=document.getElementById('ctr-ia-txt'); if(iat) iat.value=''; var ian=document.getElementById('ctr-ia-imgname'); if(ian) ian.textContent=''; var ias=document.getElementById('ctr-ia-status'); if(ias){ ias.style.display='none'; ias.textContent=''; } window.__ctrBlocosIA=null; window.__ctrIAImg=null; }
 
 function ctrGerar(){
   var nome=(document.getElementById('ctr-nome').value||'').trim(); if(!nome){ toast('Informe o cliente','er'); return; }
@@ -6940,20 +6978,29 @@ function ctrGerar(){
     valor:gnParseVal(document.getElementById('ctr-valor').value), pgto:document.getElementById('ctr-pgto').value||'',
     prazo:document.getElementById('ctr-prazo').value||'', garantia:document.getElementById('ctr-gar').value||'',
     objeto:document.getElementById('ctr-obj').value||'', data:new Date().toISOString().slice(0,10), criadoEm:new Date().toISOString() };
+  if(window.__ctrBlocosIA && window.__ctrBlocosIA.length){ ct.blocosIA=window.__ctrBlocosIA; }
   gnStoreUpsert('ctr', ct); ctrDoc(ct, true); ctrLimpar(); renderCtr(); toast('✓ Contrato gerado e salvo','ok');
 }
 function ctrDoc(ct, save){
   var co=(typeof gnCO==='function')?gnCO():{};
-  var blocos=[
+  var cabecalho=[
     {titulo:'CONTRATANTE', texto:ct.nome+(ct.cpf?(' — CPF/CNPJ: '+ct.cpf):'')},
-    {titulo:'CONTRATADA', texto:(co.razao||co.fantasia||'')+(co.cnpj?(' — CNPJ: '+co.cnpj):'')},
-    {titulo:'Cláusula 1ª — Objeto', texto:ct.objeto||'Prestação dos serviços técnicos descritos e acordados entre as partes.'},
-    {titulo:'Cláusula 2ª — Valor e pagamento', texto:'O valor total dos serviços é de '+gnBRL(ct.valor)+'. Condições: '+(ct.pgto||'a combinar')+'.'},
-    {titulo:'Cláusula 3ª — Prazo', texto:'Prazo de execução: '+(ct.prazo||'a combinar')+'.'},
-    {titulo:'Cláusula 4ª — Garantia', texto:'Garantia dos serviços executados: '+(ct.garantia||co.garantia||'conforme legislação aplicável')+'.'},
-    {titulo:'Cláusula 5ª — Obrigações', texto:'A CONTRATADA executará os serviços com técnica e segurança. O CONTRATANTE fornecerá acesso ao local e efetuará os pagamentos nas datas acordadas.'},
-    {titulo:'Cláusula 6ª — Foro', texto:'Fica eleito o foro da comarca da CONTRATADA para dirimir eventuais dúvidas oriundas deste contrato.'}
+    {titulo:'CONTRATADA', texto:(co.razao||co.fantasia||'')+(co.cnpj?(' — CNPJ: '+co.cnpj):'')+(co.endereco?(' — '+co.endereco):'')}
   ];
+  var blocos;
+  if(ct.blocosIA && ct.blocosIA.length){
+    // Contrato robusto redigido pela IA (cláusulas detalhadas)
+    blocos=cabecalho.concat(ct.blocosIA.map(function(c){ return {titulo:String(c.titulo||'Cláusula'), texto:String(c.texto||'')}; }));
+  } else {
+    blocos=cabecalho.concat([
+      {titulo:'Cláusula 1ª — Objeto', texto:ct.objeto||'Prestação dos serviços técnicos descritos e acordados entre as partes.'},
+      {titulo:'Cláusula 2ª — Valor e pagamento', texto:'O valor total dos serviços é de '+gnBRL(ct.valor)+'. Condições: '+(ct.pgto||'a combinar')+'.'},
+      {titulo:'Cláusula 3ª — Prazo', texto:'Prazo de execução: '+(ct.prazo||'a combinar')+'.'},
+      {titulo:'Cláusula 4ª — Garantia', texto:'Garantia dos serviços executados: '+(ct.garantia||co.garantia||'conforme legislação aplicável')+'.'},
+      {titulo:'Cláusula 5ª — Obrigações', texto:'A CONTRATADA executará os serviços com técnica e segurança. O CONTRATANTE fornecerá acesso ao local e efetuará os pagamentos nas datas acordadas.'},
+      {titulo:'Cláusula 6ª — Foro', texto:'Fica eleito o foro da comarca da CONTRATADA para dirimir eventuais dúvidas oriundas deste contrato.'}
+    ]);
+  }
   var doc=gnDocPDF({ titulo:'CONTRATO DE PRESTAÇÃO DE SERVIÇO', numero:ct.numero, data:(ct.data||'').split('-').reverse().join('/'),
     cliente:null, total:null, blocos:blocos, rodape:'Contrato firmado entre as partes.' });
   if(doc && save){ var _fn='Contrato '+ct.numero+' - '+(ct.nome||'')+'.pdf'; doc.save(_fn); try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(doc, _fn, {numero:ct.numero, cliente:(ct.nome||''), tipo:'Contrato'}); }catch(er){} }
@@ -6962,10 +7009,61 @@ function ctrDoc(ct, save){
 function ctrPreview(){
   var nome=(document.getElementById('ctr-nome').value||'').trim(); if(!nome){ toast('Informe o cliente','er'); return; }
   var ct={ numero:'(pré-visualização)', nome:nome, cpf:document.getElementById('ctr-cpf').value||'', valor:gnParseVal(document.getElementById('ctr-valor').value), pgto:document.getElementById('ctr-pgto').value||'', prazo:document.getElementById('ctr-prazo').value||'', garantia:document.getElementById('ctr-gar').value||'', objeto:document.getElementById('ctr-obj').value||'', data:new Date().toISOString().slice(0,10) };
+  if(window.__ctrBlocosIA && window.__ctrBlocosIA.length){ ct.blocosIA=window.__ctrBlocosIA; }
   var doc=ctrDoc(ct, false); if(!doc) return;
   try{ window.open(doc.output('bloburl'),'_blank'); toast('👁 Pré-visualização aberta. Confira e clique em Gerar contrato.','ok'); }catch(e){ toast('Não consegui pré-visualizar: '+e.message,'er'); }
 }
 function ctrDel(id){ if(!confirm('Excluir este contrato?')) return; gnStoreDel('ctr',id); renderCtr(); }
+
+// ═══ GERAR CONTRATO COM IA (a partir de uma proposta/orçamento — texto ou foto) ═══
+window.__ctrIAImg=null; window.__ctrBlocosIA=null;
+function ctrIAImgPick(input){
+  var f=input&&input.files&&input.files[0]; var lb=document.getElementById('ctr-ia-imgname');
+  if(!f){ window.__ctrIAImg=null; if(lb) lb.textContent=''; return; }
+  if(typeof pdResizeImg==='function'){ pdResizeImg(f,function(durl){ window.__ctrIAImg=durl||null; if(lb) lb.textContent=window.__ctrIAImg?('📎 '+f.name):'(não consegui ler a imagem)'; }); }
+  else { var r=new FileReader(); r.onload=function(e){ window.__ctrIAImg=e.target.result; if(lb) lb.textContent='📎 '+f.name; }; r.onerror=function(){ if(lb) lb.textContent='(erro ao ler imagem)'; }; r.readAsDataURL(f); }
+}
+function ctrIAGerar(){
+  if(typeof gnAI!=='function'){ toast('IA indisponível agora.','er'); return; }
+  var txt=((document.getElementById('ctr-ia-txt')||{}).value||'').trim();
+  var img=window.__ctrIAImg;
+  if(!txt && !img){ toast('Cole a proposta ou envie uma foto dela.','er'); return; }
+  var nome=((document.getElementById('ctr-nome')||{}).value||'').trim();
+  var cpf=((document.getElementById('ctr-cpf')||{}).value||'').trim();
+  var co=(typeof gnCO==='function')?gnCO():{};
+  var dadosEmpresa='EMPRESA (CONTRATADA): '+(co.razao||co.fantasia||'Gás Network Engenharia')+(co.cnpj?(' — CNPJ '+co.cnpj):'')+(co.endereco?(' — Endereço '+co.endereco):'')+(co.tel?(' — Tel '+co.tel):'')+(co.email?(' — '+co.email):'');
+  var dadosCliente='CLIENTE (CONTRATANTE): '+(nome||'(extrair da proposta, se houver)')+(cpf?(' — CPF/CNPJ '+cpf):'');
+  var sys='Você é o departamento jurídico da Gás Network Engenharia (instalações e manutenção de gás, São Paulo). '
+    +'A partir de uma PROPOSTA/ORÇAMENTO e dos dados das partes, redija um CONTRATO DE PRESTAÇÃO DE SERVIÇOS completo, formal, robusto e detalhado. '
+    +'Devolva SOMENTE um JSON válido (sem markdown, sem comentários) no formato: '
+    +'{"cliente":"","cpf":"","objeto":"","valor":0,"pagamento":"","prazo":"","garantia":"","clausulas":[{"titulo":"Cláusula 1ª — Do Objeto","texto":""}]}. '
+    +'REGRAS: 1) Extraia da proposta o objeto, valores, prazos e condições. 2) "valor" deve ser apenas número (em reais). '
+    +'3) "clausulas" deve conter de 8 a 14 cláusulas numeradas, bem redigidas e detalhadas, cobrindo: objeto detalhado do serviço, obrigações da CONTRATADA, obrigações do CONTRATANTE, valor e forma de pagamento, prazo de execução, garantia dos serviços, normas técnicas aplicáveis (NBR 15358, NBR 13523, NBR 15526, NBR 13103 e IT28/IT29 do Corpo de Bombeiros), segurança do trabalho, alterações de escopo, rescisão e penalidades, responsabilidade civil, e foro. '
+    +'4) Linguagem jurídica formal brasileira, clara e profissional. 5) Não invente dados pessoais que não constem na proposta. Responda em português do Brasil.';
+  var userMsg=dadosEmpresa+'\n'+dadosCliente+'\n\nPROPOSTA/ORÇAMENTO:\n'+(txt||'(ver imagem anexa da proposta)');
+  var btn=document.getElementById('ctr-ia-btn'); var old; if(btn){ old=btn.textContent; btn.textContent='✨ Redigindo contrato...'; btn.disabled=true; }
+  var st=document.getElementById('ctr-ia-status'); if(st){ st.style.display='block'; st.innerHTML='<span style="color:#a855f7;">✨ A IA está redigindo o contrato completo — pode levar alguns segundos...</span>'; }
+  var prom=(img && typeof gnAIVision==='function') ? gnAIVision(sys, userMsg, img) : gnAI(sys, userMsg);
+  prom.then(function(j){
+    if(!j) throw new Error('resposta-vazia');
+    function setV(id,v){ var el=document.getElementById(id); if(el && v!=null && String(v)!=='') el.value=String(v); }
+    if(j.cliente && !nome) setV('ctr-nome', j.cliente);
+    if(j.cpf && !cpf) setV('ctr-cpf', j.cpf);
+    if(j.valor!=null && !isNaN(Number(j.valor)) && Number(j.valor)>0) setV('ctr-valor', j.valor);
+    setV('ctr-pgto', j.pagamento); setV('ctr-prazo', j.prazo); setV('ctr-gar', j.garantia); setV('ctr-obj', j.objeto);
+    var cls=Array.isArray(j.clausulas)?j.clausulas.filter(function(c){ return c && (c.titulo||c.texto); }).map(function(c){ return {titulo:String(c.titulo||'Cláusula'), texto:String(c.texto||'')}; }):[];
+    window.__ctrBlocosIA=cls.length?cls:null;
+    if(btn){ btn.textContent=old||'✦ Gerar contrato completo com IA'; btn.disabled=false; }
+    if(st){ st.innerHTML='<span style="color:#16a34a;">✓ Contrato redigido com '+cls.length+' cláusula(s)! Revise os campos acima e clique em "👁 Pré-visualizar" ou "Gerar contrato (PDF)".</span>'; }
+    if(typeof toast==='function') toast('✓ Contrato redigido pela IA — revise e gere o PDF.','ok');
+    try{ var f=document.getElementById('ctr-obj'); if(f) f.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){}
+  }).catch(function(err){
+    if(btn){ btn.textContent=old||'✦ Gerar contrato completo com IA'; btn.disabled=false; }
+    if(st){ st.innerHTML='<span style="color:#dc2626;">Não consegui gerar agora: '+gnEsc((err&&err.message)||String(err))+'. Confira se a chave da IA está configurada na nuvem.</span>'; }
+    if(typeof toast==='function') toast('Falha ao gerar contrato com IA.','er');
+  });
+}
+window.ctrIAGerar=ctrIAGerar; window.ctrIAImgPick=ctrIAImgPick;
 
 function renderCtr(){
   if(!ctrPulled){ ctrPulled=true; gnStorePull('ctr', function(ch){ if(ch) renderCtr(); }); }
@@ -7193,11 +7291,11 @@ function renderInicio(){
     ['Principal', [['inicio','Inicio','Início'], ['docrap','Doc','Documento Rápido'], ['hoje','Hoje','Hoje'], ['tarefas','Tar','Tarefas'], ['ped','Ped','Pedidos'], ['age','Age','Agenda'], ['tec','Tec','Técnico em Campo']]],
     ['⭐ Emitir (mais usados)', [['laudo','Laudo','Laudo de Estanqueidade'], ['os','NS','Nota de Serviço'], ['rec','Rec','Recibo'], ['nf','NF','Nota Fiscal (NFS-e)']]],
     ['Ferramentas', [['novo','Prop','Nova Proposta'], ['relvist','Rel','Relatório de Vistoria']]],
-    ['Comercial', [['atend','Atend','Atendimentos & Funil'], ['renov','Renov','Renovação de Laudos'], ['posvenda','PV','Pós-venda'], ['msgs','Msgs','Modelos de Mensagem'], ['chamados','Cham','Chamados técnicos']]],
+    ['Comercial', [['atend','Atend','Atendimentos & Funil'], ['renov','Renov','Renovação de Laudos'], ['msgs','Msgs','Modelos de Mensagem'], ['chamados','Cham','Chamados técnicos']]],
     ['Gestão', [['fin','Fin','Financeiro'], ['cob','Cob','Cobranças'], ['gar','Gar','Garantias'], ['arquivos','Arq','Arquivos & Mídia']]],
     ['Suprimentos', [['forn','Forn','Fornecedores'], ['compras','Compras','Compras']]],
     ['Cadastros', [['cli','Cli','Clientes'], ['contatos','Cont','Contatos'], ['docs','Docs','Documentos do Cliente'], ['svc','Svc','Serviços'], ['prod','Prod','Materiais'], ['ctr','Ctr','Contratos']]],
-    ['Sistema', [['upload','Upload','Upload em massa'], ['imp','Imp','Importar / Migração'], ['cfg','Cfg','Configurações']]]
+    ['Sistema', [['upload','Upload','Upload em massa'], ['cfg','Cfg','Configurações']]]
   ];
   var ICON={inicio:'🏠',hoje:'☀️',ped:'📋',tarefas:'✅',age:'📅',novo:'✨',rec:'🧾',os:'📝',ctr:'📄',laudo:'🔬',relvist:'📑',cli:'👥',contatos:'📇',docs:'🗂️',nf:'🏛️',renov:'🔄',svc:'🛠️',prod:'📦',fin:'💰',cob:'📢',arquivos:'📁',atend:'📞',posvenda:'⭐',msgs:'💬',gar:'🛡️',chamados:'🛎️',forn:'🏭',compras:'🛒',tec:'🔧',cfg:'⚙️',imp:'📥',docrap:'⚡',upload:'📂'};
   function build(){
@@ -7717,8 +7815,7 @@ function renderInicio(){
       +'<div style="font-size:12px;color:var(--gn-dim);margin-bottom:12px;">Mantém os mesmos dados em todos os aparelhos (você e sua assistente) e mostra o histórico de criações e alterações. Requer o servidor na nuvem publicado.</div>'
       +'<label style="font-size:12px;color:var(--gn-dim);">Nome deste aparelho/usuário (aparece no histórico)</label>'
       +'<input id="sync-dev" value="'+esc(dev())+'" placeholder="Ex.: Matheus (computador) ou Assistente (celular)" oninput="gnSetDevice(this.value)" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;margin:4px 0 12px;box-sizing:border-box;">'
-      +'<div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" onclick="gnSyncNow()" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:9px;cursor:pointer;font-weight:700;">🔄 Sincronizar agora</button>'
-      +'<button type="button" onclick="gnPushAll()" style="background:#7c5cff;color:#fff;border:none;padding:10px 16px;border-radius:9px;cursor:pointer;font-weight:700;">⬆️ Enviar tudo para a nuvem</button>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><span style="display:inline-flex;align-items:center;gap:7px;background:rgba(22,163,74,.14);color:#16a34a;font-weight:700;border-radius:9px;padding:9px 14px;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#16a34a;"></span> Sincronizando automaticamente</span>'
       +'<button type="button" onclick="gnLoadActivity()" style="background:#1f2937;color:#fff;border:none;padding:10px 16px;border-radius:9px;cursor:pointer;font-weight:600;">↻ Atualizar histórico</button></div>'
       +'<div id="sync-push-status" style="font-size:12px;color:var(--gn-dim);margin-top:8px;"></div>'
       +'<div style="font-weight:700;color:var(--gn-text);margin:16px 0 6px;">Últimas atividades</div>'
@@ -8393,7 +8490,7 @@ function renderInicio(){
 // ═══ TRAVA DE SINCRONIZAÇÃO — edições não voltam ao atualizar
 // ══════════════════════════════════════════════
 (function(){
-  function autoOn(){ return localStorage.getItem('gn_autosync')==='on'; }
+  function autoOn(){ return true; } /* sincronização sempre ligada — obrigatória em todos os aparelhos */
   window.__gnManualSync=false;
   function gate(fn){ if(typeof window[fn]==='function' && !window[fn].__pgate){ var o=window[fn]; window[fn]=function(){ if(window.__gnManualSync||autoOn()){ return o.apply(this,arguments); } }; window[fn].__pgate=true; } }
   function gateAll(){ gate('cliCloudPull'); gate('svcCloudPull'); gate('finCloudPull'); gate('gnStorePull');
@@ -8405,8 +8502,8 @@ function renderInicio(){
     var card=document.createElement('div'); card.id='autosync-card';
     card.style.cssText='border:1px solid rgba(34,197,94,.35);background:rgba(34,197,94,.08);border-radius:14px;padding:16px;margin-bottom:18px;';
     card.innerHTML='<div style="font-weight:800;color:var(--gn-text);margin-bottom:4px;">🔄 Sincronização automática</div>'
-      +'<div style="font-size:12px;color:var(--gn-dim);margin-bottom:10px;">DESLIGADA: suas edições neste aparelho <b>nunca</b> são sobrescritas ao atualizar a página (recomendado enquanto você edita). Seus dados continuam subindo pra nuvem; baixe quando quiser em "Sincronizar agora". LIGADA: o app baixa da nuvem sozinho (pode sobrescrever edições recentes).</div>'
-      +'<label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;color:var(--gn-text);"><input type="checkbox" id="autosync-ck" '+(on?'checked':'')+' onchange="gnSetAutosync(this.checked)" style="width:20px;height:20px;"> Sincronização automática</label>';
+      +'<div style="font-size:12px;color:var(--gn-dim);margin-bottom:8px;">Sempre <b>ligada</b> e em tempo real, em todos os aparelhos. Tudo o que você cria ou altera aqui aparece automaticamente nos outros celulares (e vice-versa). Não há nada para ligar ou desligar — funciona sozinha.</div>'
+      +'<div style="display:inline-flex;align-items:center;gap:8px;font-weight:700;color:#16a34a;"><span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#16a34a;"></span> Ativa e contínua</div>';
     var anchor=pane.querySelector('.pgtitle,.eyebrow'); if(anchor&&anchor.parentNode===pane){ pane.insertBefore(card, anchor.nextSibling); } else { pane.insertBefore(card, pane.firstChild); }
   }
   function hook(){ gateAll(); if(typeof window.goTab==='function' && !window.goTab.__asWrap){ var o=window.goTab; window.goTab=function(t){ o(t); if(t==='cfg') buildToggle(); }; window.goTab.__asWrap=true; } buildToggle(); }
@@ -8421,7 +8518,7 @@ function renderInicio(){
   function gj(k){ try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];} }
   function tomb(){ try{return JSON.parse(localStorage.getItem('gn_tomb')||'{}');}catch(e){return {};} }
   function saveTomb(m){ try{ localStorage.setItem('gn_tomb',JSON.stringify(m)); }catch(e){} }
-  function on(){ return localStorage.getItem('gn_autosync')!=='off'; }
+  function on(){ return true; } /* sincronização sempre ligada */
   function CU(){ return (typeof CLOUD_URL==='string'&&CLOUD_URL.indexOf('http')===0)?CLOUD_URL:''; }
   function mergeAdd(arr, items, tb){ var byId={}; arr.forEach(function(x){ if(x&&x.id!=null) byId[x.id]=true; }); var changed=false;
     items.forEach(function(it){ if(!it||it.id==null) return; if(tb[it.id]) return; if(!byId[it.id]){ arr.push(it); byId[it.id]=true; changed=true; } });
@@ -9583,23 +9680,7 @@ function gnAvisos(){
     }).join('');
     html+='</div>';
   }
-  // Relacionamento (item 4): aniversariantes
-  try{
-    if(typeof gnAniversariantes==='function'){
-      var av=gnAniversariantes(7);
-      if(av.length){
-        html+='<div style="background:rgba(8,145,178,.10);border:1px solid #0891b2;border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
-          +'<div style="font-weight:800;color:#0891b2;margin-bottom:6px;">🎂 '+av.length+' aniversário(s) por perto</div>';
-        html+=av.slice(0,6).map(function(a){
-          var q=(a.dias===0)?'hoje 🎉':('em '+a.dias+' dia(s)');
-          return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--gn-border);">'
-            +'<span style="color:var(--gn-text);"><strong>'+gnEsc(a.cli.nome||'')+'</strong> · '+q+'</span>'
-            +'<button onclick="gnAniverEnviar(\''+gnEsc(a.cli.id||'')+'\')" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">📲 Parabenizar</button></div>';
-        }).join('');
-        html+='</div>';
-      }
-    }
-  }catch(e){}
+  // Aniversariantes: removido dos avisos da Início a pedido do usuário.
   // Relacionamento (item 4): marco de 1 ano de instalação
   try{
     if(typeof gnMarcos1Ano==='function'){
@@ -9619,18 +9700,7 @@ function gnAvisos(){
       }
     }
   }catch(e){}
-  // Pós-venda automático (item 5)
-  try{
-    if(typeof gnPosvendaPendentes==='function'){
-      var pv=gnPosvendaPendentes();
-      if(pv.length){
-        html+='<div style="background:rgba(124,92,255,.10);border:1px solid #7c5cff;border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
-          +'<div style="font-weight:800;color:#7c5cff;margin-bottom:4px;">⭐ '+pv.length+' serviço(s) prontos para pós-venda</div>'
-          +'<div style="font-size:12.5px;color:var(--gn-text);margin-bottom:8px;">Concluídos há alguns dias. Que tal um contato de pós-venda? Ex.: '+pv.slice(0,3).map(function(x){return gnEsc(x.entry.cliente||'');}).join(', ')+'.</div>'
-          +'<button onclick="goTab(\'posvenda\')" style="background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:7px 13px;cursor:pointer;font-weight:700;font-size:12.5px;">Abrir Pós-venda →</button></div>';
-      }
-    }
-  }catch(e){}
+  // Pós-venda: removido dos avisos da Início a pedido do usuário.
   // Garantias vencendo (item 8)
   try{
     if(typeof gnGarantiasVencendo==='function'){
@@ -10285,7 +10355,7 @@ function docsWhatsUm(store, id){
       +(_ultimaProposta?('ÚLTIMA PROPOSTA EM ABERTO (o usuário pode estar ajustando este documento — se ele pedir uma mudança, ex.: "muda o valor pra 400" ou "troca a data pra sexta", devolva a acao ATUALIZADA mantendo o resto): '+JSON.stringify(_ultimaProposta)+'\n'):'')
       +'CONHECIMENTO TÉCNICO (você é especialista em gás): instalações de GLP e GN seguem as normas ABNT NBR 15526 (redes internas), NBR 13103 (aparelhos a gás), NBR 15358 e as Instruções Técnicas do Corpo de Bombeiros (IT 28/29). Teste de estanqueidade usa manômetro de coluda d\'água (~40 mbar) e/ou Bourdon (2,5 bar). Você sabe falar de instalação, conversão de fogão/cooktop, regulador, medidor, ponto de consumo, central de GLP, abrigo. Responda dúvidas técnicas com propriedade. '
       +'APRENDER: quando o usuário corrigir um dado ou informar uma preferência/padrão (ex.: "o ISS é 5%", "esse cliente é PJ", "use sempre tubo de cobre"), salve isso no campo "lembrar" para usar sempre. '
-      +'IMAGEM: se vier uma imagem (print de conversa, endereço, documento), LEIA e extraia dela cliente, endereço, telefone, valores e serviço, e use nos dados da ação. '
+      +'IMAGEM: se vier uma imagem (print de conversa, endereço, documento), LEIA e extraia dela TODOS os dados — cliente, CPF/CNPJ, endereço completo, CEP, telefone, e-mail, serviço, valor e horário — e coloque TUDO nos dados da ação (ex.: num agendamento, preencha endereco, cep, telefone, email, valor e servico, não só o nome). Nunca descarte um dado que apareça na imagem. '
       +'VOCÊ MESMO GERA OS DOCUMENTOS (PDF pronto), exatamente como os geradores do app — recibo, nota de serviço, orçamento, laudo técnico e laudo de estanqueidade — todos no layout e na numeração corretos, prontos para BAIXAR aqui na conversa. NUNCA mande o usuário "ir para a tela" para gerar; você gera por ele. '
       +'COMO FUNCIONA A CONFIRMAÇÃO (NÃO se preocupe com ela): quando você ENTENDER um pedido de documento, agendamento ou lista de compras, SEMPRE devolva a "acao" já com os dados preenchidos + um resumo curto e natural no "fala". O PRÓPRIO APP mostra seu resumo, espera o usuário responder "ok" e SÓ ENTÃO gera — isso é automático. Você NÃO deve pedir "ok" repetidamente nem ficar repetindo o resumo: devolva a acao UMA vez e pronto. Se o usuário responder "ok", o app já executa sozinho (você nem é chamado). Para CONSULTAS/ANÁLISES o app responde na hora, sem confirmação. '
       +'OBEDIÊNCIA: nunca exija dados nem fique pedindo informação. Para orçamento e a maioria dos documentos NENHUM campo é obrigatório — gere com o que o usuário deu. Se ele disser "não precisa", obedeça. '
@@ -10306,7 +10376,7 @@ function docsWhatsUm(store, id){
       +'laudo_estanqueidade:{cliente,data,escopo,qtdPontos,ponto,recomendacoes,doc,end,tel,etapas,gas,resultado}; '
       +'contrato:{nome,cpf,valor,objeto,pgto,prazo,garantia}; '
       +'ATENÇÃO LAUDO DE ESTANQUEIDADE: preencha SEMPRE os dados estruturados, NÃO apenas o texto. Se o usuário disser que vazou / deu vazamento / reprovou → "resultado":"reprovado"; se disser aprovado/sem vazamento → "resultado":"aprovado". Coloque a recomendação em "recomendacoes" (ex.: aplicação de resina) e o detalhe do vazamento (ex.: "20 mmca") em "observacoes". Informe também "etapas" (2 ou 3), "gas" (GLP/GN), "qtdPontos" e "ponto" (partida do teste) quando o usuário mencionar. Nunca deixe o resultado em branco quando ele foi informado. '
-      +'agendar:{titulo,cliente,data,hora,horaFim,obs,servico}; '
+      +'agendar:{titulo,cliente,cpf,endereco,cep,telefone,email,servico,valor,data,hora,horaFim,obs}; (PREENCHA TODOS os dados que o usuário informar ou que estiverem na imagem: nome, CPF/CNPJ, endereço, CEP, telefone, e-mail, serviço, valor e horário — não deixe nenhum dado cadastral de fora) '
       +'compras:{itens:[{material,qtd}]}; '
       +'tarefa:{titulo,prioridade,venc,cliente,responsavel}; '
       +'organizar:{texto}; '
@@ -10466,7 +10536,30 @@ function docsWhatsUm(store, id){
     var dataISO=_normData(d.data); if(!dataISO){ return {ok:false,msg:'Para que dia agendo? (ex.: 30/05 ou "sexta")'}; }
     var hora=String(d.hora||'09:00').replace('h',':').replace(/[^0-9:]/g,''); if(/^\d{1,2}$/.test(hora)) hora=('0'+hora).slice(-2)+':00'; if(!/^\d{1,2}:\d{2}$/.test(hora)) hora='09:00';
     var titulo=d.titulo||((d.servico||'Compromisso')+(d.cliente?(' - '+d.cliente):''));
-    var c={ id:'a'+Date.now(), titulo:titulo, cliente:d.cliente||'', data:dataISO, hora:hora, horaFim:d.horaFim||'', obs:d.obs||[d.servico].filter(Boolean).join(' '), criadoEm:new Date().toISOString() };
+    var _end=d.endereco||d.end||''; var _tel=d.telefone||d.tel||''; var _email=d.email||''; var _cep=d.cep||''; var _cpf=d.cpf||d.doc||''; var _val=d.valor||'';
+    var _obsLines=[];
+    if(d.servico) _obsLines.push('Serviço: '+d.servico);
+    if(_val) _obsLines.push('Valor: '+_val);
+    if(_end) _obsLines.push('Endereço: '+_end);
+    if(_cep) _obsLines.push('CEP: '+_cep);
+    if(_tel) _obsLines.push('Telefone: '+_tel);
+    if(_email) _obsLines.push('E-mail: '+_email);
+    if(_cpf) _obsLines.push('CPF/CNPJ: '+_cpf);
+    var _obs=d.obs?(d.obs+(_obsLines.length?(' · '+_obsLines.join(' · ')):'')):_obsLines.join(' · ');
+    var c={ id:'a'+Date.now(), titulo:titulo, cliente:d.cliente||'', cpf:_cpf, endereco:_end, cep:_cep, tel:_tel, email:_email, servico:(d.servico||''), valor:_val, data:dataISO, hora:hora, horaFim:d.horaFim||'', obs:_obs, criadoEm:new Date().toISOString() };
+    // registra/atualiza o cliente automaticamente, para não perder nenhum dado cadastral
+    try{
+      if(d.cliente && (_tel||_end||_email||_cpf)){
+        var _cli=[]; try{ _cli=JSON.parse(localStorage.getItem('gn_cli')||'[]'); }catch(_){ _cli=[]; }
+        var _nl=String(d.cliente).trim().toLowerCase();
+        var _ex=_cli.filter(function(x){ return String(x.nome||'').trim().toLowerCase()===_nl; })[0];
+        if(_ex){ if(_tel&&!_ex.tel)_ex.tel=_tel; if(_tel&&!_ex.whatsapp)_ex.whatsapp=_tel; if(_email&&!_ex.email)_ex.email=_email; if(_end&&!_ex.endereco)_ex.endereco=_end; if(_cep&&!_ex.cep)_ex.cep=_cep; if(_cpf&&!_ex.cpf)_ex.cpf=_cpf; }
+        else { _cli.push({ id:'c'+Date.now(), nome:String(d.cliente), cpf:_cpf, tel:_tel, whatsapp:_tel, email:_email, endereco:_end, cep:_cep, criadoEm:new Date().toISOString() }); }
+        localStorage.setItem('gn_cli', JSON.stringify(_cli));
+        try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_cli'); }catch(_){}
+        try{ if(typeof renderCli==='function') renderCli(); }catch(_){}
+      }
+    }catch(e){}
     if(typeof gnStoreUpsert==='function') gnStoreUpsert('agenda', c);
     try{ if(typeof ageCloudCalendar==='function') ageCloudCalendar(c); }catch(e){}
     try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_agenda'); }catch(e){}
@@ -10909,11 +11002,11 @@ function gnAutoBackupNuvem(){
     var temDados=false; try{ temDados=(JSON.parse(localStorage.getItem('gn_cli')||'[]').length>0)||(JSON.parse(localStorage.getItem('gn_renov')||'[]').length>0)||(JSON.parse(localStorage.getItem('gn_hist')||'[]').length>0); }catch(e){}
     if(!temDados) return;
     var lbC=localStorage.getItem('gn_last_backup_cloud')||''; var horas=lbC?((Date.now()-new Date(lbC).getTime())/3600000):999;
-    if(horas>=12){ gnBackupNuvem(true); }
+    if(horas>=2){ gnBackupNuvem(true); } /* backup automático na nuvem a cada 2 horas */
   }catch(e){}
 }
 window.gnExportarBackup=gnExportarBackup; window.gnImportarBackup=gnImportarBackup; window.gnBackupNuvem=gnBackupNuvem; window.gnBackupInfo=gnBackupInfo; window.gnAutoBackupNuvem=gnAutoBackupNuvem;
-(function(){ function go(){ try{ gnAutoBackupNuvem(); }catch(e){} } if(document.readyState==='complete') setTimeout(go, 7000); else window.addEventListener('load', function(){ setTimeout(go, 7000); }); })();
+(function(){ function go(){ try{ gnAutoBackupNuvem(); }catch(e){} } if(document.readyState==='complete') setTimeout(go, 7000); else window.addEventListener('load', function(){ setTimeout(go, 7000); }); if(!window.__gnAutoBkpTimer) window.__gnAutoBkpTimer=setInterval(go, 1800000); /* verifica a cada 30min; backup efetivo só quando completar 2h */ })();
 </script>
 <script>
 // ═══ LIMPEZA INTELIGENTE DE NOMES + auto-processar upload + auto-ler Drive ═══
@@ -11131,6 +11224,78 @@ function gnImpUndo(impId){
   ['renderBulkHist','renderCli','renderRenov','renderFin','renderDocsCliente','renderTarefasHub'].forEach(function(fn){ try{ if(typeof window[fn]==='function') window[fn](); }catch(e){} });
 }
 window.gnImpUndo=gnImpUndo;
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// ═══ NAVEGAÇÃO "VOLTAR" ESTILO CELULAR ═══════════════════════════
+// Gesto de arrastar da borda esquerda + botão/gesto "voltar" do
+// aparelho funcionam: fecham o balão/modal aberto (voltando ao que
+// você estava fazendo) ou voltam para a tela anterior.
+// ══════════════════════════════════════════════════════════════
+(function(){
+  var MODAIS=[['pd-modal','pdClose'],['pw-modal','pwClose'],['iaprop-modal','iaPropClose'],['env-modal','envClose']];
+  function modalAberto(){ for(var i=0;i<MODAIS.length;i++){ var m=document.getElementById(MODAIS[i][0]); if(m && m.style.display==='block') return MODAIS[i]; } return null; }
+  function fecharModalTopo(){
+    var par=modalAberto(); if(!par) return false;
+    var fn=window[par[1]];
+    if(typeof fn==='function'){ try{ fn(); }catch(e){ var el=document.getElementById(par[0]); if(el) el.style.display='none'; } }
+    else { var el2=document.getElementById(par[0]); if(el2) el2.style.display='none'; }
+    return true;
+  }
+  var tabStack=['inicio'];
+  var gtWrapped=false;
+  function wrapGoTab(){
+    if(gtWrapped || typeof window.goTab!=='function') return;
+    gtWrapped=true;
+    var orig=window.goTab; window.__gnOrigGoTab=orig;
+    window.goTab=function(t){
+      var r=orig.apply(this,arguments);
+      try{ if(t && t!==tabStack[tabStack.length-1]){ tabStack.push(t); if(tabStack.length>50) tabStack.shift(); history.pushState({gnTab:t},''); } }catch(e){}
+      return r;
+    };
+    try{ for(var k in orig){ if(orig.hasOwnProperty(k)) window.goTab[k]=orig[k]; } }catch(e){}
+  }
+  function vigiarModais(){
+    MODAIS.forEach(function(par){
+      var el=document.getElementById(par[0]); if(!el || el.__navObs) return; el.__navObs=true;
+      try{
+        var obs=new MutationObserver(function(){
+          if(el.style.display==='block'){ if(!el.__navPushed){ el.__navPushed=true; try{ history.pushState({gnModal:par[0]},''); }catch(e){} } }
+          else { el.__navPushed=false; }
+        });
+        obs.observe(el,{attributes:true, attributeFilter:['style']});
+      }catch(e){}
+    });
+  }
+  window.addEventListener('popstate', function(){
+    // 1) fecha balão/modal aberto (volta ao que estava fazendo)
+    if(fecharModalTopo()) return;
+    // 2) senão, volta para a aba anterior
+    if(tabStack.length>1){ tabStack.pop(); var prev=tabStack[tabStack.length-1]; if(typeof window.__gnOrigGoTab==='function'){ try{ window.__gnOrigGoTab(prev); }catch(e){} } }
+  });
+  function gestoBorda(){
+    var sx=null, sy=null, t0=0;
+    document.addEventListener('touchstart', function(e){
+      if(!e.touches || e.touches.length!==1){ sx=null; return; }
+      var x=e.touches[0].clientX;
+      if(x<=30){ sx=x; sy=e.touches[0].clientY; t0=Date.now(); } else { sx=null; }
+    }, {passive:true});
+    document.addEventListener('touchend', function(e){
+      if(sx==null || !e.changedTouches || !e.changedTouches.length) return;
+      var ex=e.changedTouches[0].clientX, ey=e.changedTouches[0].clientY;
+      var dx=ex-sx, dy=Math.abs(ey-(sy||ey));
+      if(dx>60 && dy<55 && (Date.now()-t0)<700){ try{ history.back(); }catch(e2){} }
+      sx=null;
+    }, {passive:true});
+  }
+  function init(){
+    try{ history.replaceState({gnTab:'inicio'},''); }catch(e){}
+    wrapGoTab(); vigiarModais(); gestoBorda();
+    // modais são criados sob demanda — segue vigiando os que aparecerem
+    setInterval(vigiarModais, 2500);
+  }
+  if(document.readyState==='complete') setTimeout(init,1400); else window.addEventListener('load', function(){ setTimeout(init,1400); });
+})();
 </script>
 </body>
 </html>
