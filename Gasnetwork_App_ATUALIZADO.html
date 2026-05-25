@@ -945,6 +945,14 @@ textarea.fi{resize:vertical;}
       </div>
     </div>
 
+    <div style="margin-top:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+        <div style="font-weight:700;color:var(--gn-text);">📑 Laudos emitidos</div>
+        <div id="lae-hist-filtros" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+      </div>
+      <div id="lae-hist-list"></div>
+    </div>
+
   </div>
   <div id="pane-relvist" style="display:none;">
     <div class="eyebrow">Ferramentas</div>
@@ -1792,6 +1800,7 @@ textarea.fi{resize:vertical;}
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
       <input id="prod-busca" oninput="renderProd()" placeholder="Buscar produto..." style="flex:1;min-width:200px;padding:10px 12px;border:1px solid var(--gn-border);border-radius:8px;">
       <button onclick="prodNew()" style="background:#4338ca;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">+ Novo produto</button>
+      <button onclick="prodSeedGas()" style="background:#0e7490;color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:600;">Carregar materiais (gás)</button>
     </div>
 
     <div id="prod-form" style="display:none;background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:16px;">
@@ -1875,9 +1884,10 @@ textarea.fi{resize:vertical;}
 
     <div style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.4);border-radius:14px;padding:16px;margin-bottom:16px;">
       <div style="font-weight:800;color:var(--gn-text);margin-bottom:4px;">✦ Gerar contrato com IA a partir de uma proposta</div>
-      <div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:10px;">Escolha o cliente acima (ou digite o nome), cole o texto da proposta/orçamento — ou envie uma foto dela — e a IA redige um contrato completo, formal e detalhado, preenchendo os campos acima. Depois é só revisar e clicar em "Gerar contrato (PDF)".</div>
-      <textarea id="ctr-ia-txt" rows="5" placeholder="Cole aqui a proposta/orçamento (serviços, valores, prazos, condições de pagamento)..." style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--gn-border);border-radius:9px;"></textarea>
+      <div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:10px;">Escolha o cliente acima (ou digite o nome), <strong>envie a proposta em PDF</strong>, cole o texto ou envie uma foto dela — e a IA redige um contrato completo, formal e detalhado em nome da sua empresa, preenchendo os campos acima. O PDF já sai com a sua assinatura. Depois é só revisar e clicar em "Gerar contrato (PDF)".</div>
+      <textarea id="ctr-ia-txt" rows="5" placeholder="Cole aqui a proposta/orçamento (serviços, valores, prazos, condições de pagamento)... ou use o botão 'Enviar PDF da proposta' abaixo." style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--gn-border);border-radius:9px;"></textarea>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px;">
+        <label style="background:#0e7490;color:#fff;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:600;font-size:12.5px;">📄 Enviar PDF da proposta<input type="file" accept="application/pdf,.pdf" onchange="ctrIAPDFPick(this)" style="display:none;"></label>
         <label style="background:#0e7490;color:#fff;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:600;font-size:12.5px;">📷 Enviar foto da proposta<input type="file" accept="image/*" onchange="ctrIAImgPick(this)" style="display:none;"></label>
         <span id="ctr-ia-imgname" style="font-size:12px;color:var(--gn-dim);"></span>
         <button id="ctr-ia-btn" onclick="ctrIAGerar()" style="background:#a855f7;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:700;">✦ Gerar contrato completo com IA</button>
@@ -2252,7 +2262,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // TABS
 // ══════════════════════════════════════════════
 function goTab(t) {
-  ['inicio','ped','age','tec','novo','hist','laudo','relvist','fin','cli','svc','rec','os','prod','rel','chk','ctr','cfg','imp','pro','docrap','hoje','tarefas','cob','atend','forn','compras','chamados','posvenda','arquivos','contatos','docs','nf','renov','msgs','gar','upload'].forEach(id => {
+  ['inicio','ped','age','tec','novo','hist','laudo','relvist','fin','cli','svc','rec','os','prod','rel','chk','ctr','cfg','imp','pro','docrap','hoje','tarefas','cob','atend','forn','compras','chamados','posvenda','arquivos','contatos','docs','nf','renov','msgs','gar','upload','ferramentas'].forEach(id => {
     var p=document.getElementById('pane-'+id); if(p) p.style.display = id===t?'block':'none';
     var tb=document.getElementById('tab-'+id); if(tb) tb.classList.toggle('on', id===t);
   });
@@ -2282,6 +2292,7 @@ function goTab(t) {
   if (t==='compras'){ try{ if(window.renderCompras) renderCompras(); }catch(e){} }
   if (t==='chamados'){ try{ if(window.renderChamados) renderChamados(); }catch(e){} }
   if (t==='posvenda'){ try{ if(window.renderPosvenda) renderPosvenda(); }catch(e){} }
+  if (t==='ferramentas'){ try{ if(window.renderFerramentas) renderFerramentas(); }catch(e){} }
   if (t==='arquivos'){ try{ if(window.renderArquivos) renderArquivos(); }catch(e){} }
   if (t==='contatos'){ try{ if(window.renderContatos) renderContatos(); if(window.gnPullContatos) gnPullContatos(); }catch(e){} }
   if (t==='docs'){ try{ if(window.renderDocsCliente) renderDocsCliente(); }catch(e){} }
@@ -3785,12 +3796,57 @@ function laudoEstGerar(cloud){
   var fn='Laudo de Estanqueidade '+numero+' - '+cliNome+'.pdf';
   try{ doc.save(fn); }catch(e){ toast('Erro ao gerar PDF: '+e.message,'er'); return; }
   try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(doc, fn, {numero:(typeof numero!=='undefined'?numero:''), cliente:(typeof cliNome!=='undefined'?cliNome:''), tipo:'Laudo de Estanqueidade'}); }catch(e){}
-  try{ var entry={numero:numero, cliente:cliNome, servicos:'Laudo de estanqueidade', data:dataBR, valor:0, tipoDoc:'Laudo de estanqueidade'}; if(typeof saveHist==='function') saveHist(entry); if(typeof updCount==='function') updCount();
+  try{ var snapLae={ cli:cliNome, doc:laeVal('lae-doc'), cep:laeVal('lae-cep'), end:laeVal('lae-end'), tel:laeVal('lae-tel'), email:laeVal('lae-email'), data:dataISO, ponto:laeVal('lae-ponto'), qtd:laeVal('lae-qtd'), escopo:laeVal('lae-escopo'), recom:laeVal('lae-recom'), extra:laeVal('lae-extra'), et:et, gas:gas, res:res };
+    var entry={numero:numero, cliente:cliNome, servicos:'Laudo de estanqueidade', data:dataBR, valor:0, tipoDoc:'Laudo de estanqueidade', snapLae:snapLae, emitidoPor:(localStorage.getItem('gn_device')||''), criadoEm:new Date().toISOString()}; if(typeof saveHist==='function') saveHist(entry); if(typeof updCount==='function') updCount();
+    try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_hist'); }catch(_p){}
+    try{ if(typeof renderLaudosEmitidos==='function') renderLaudosEmitidos(); }catch(_r){}
     if(cliNome && typeof cliAutoUpsert==='function') cliAutoUpsert({nome:cliNome,cpf:laeVal('lae-doc'),tel:laeVal('lae-tel')});
     if(cloud){ if(typeof cloudSave==='function'){ var b64=doc.output('datauristring').split(',')[1]; cloudSave(entry,b64,fn); toast('☁️ Laudo de estanqueidade enviado para a nuvem.','ok'); return; } else { toast('Nuvem indisponível — salvo localmente.','er'); } }
   }catch(e){ console.warn('[laudoEst] save', e); }
   toast('✓ Laudo de estanqueidade gerado.','ok');
 }
+// ═══ HISTÓRICO DE LAUDOS EMITIDOS (lista na própria página + reabrir/editar, sincronizado) ═══
+var laeHistFiltro='tudo';
+function laeIsoFromEntry(e){ if(e&&e.criadoEm) return String(e.criadoEm).slice(0,10); var s=String((e&&e.data)||''); var m=s.match(/(\d{2})\/(\d{2})\/(\d{4})/); if(m) return m[3]+'-'+m[2]+'-'+m[1]; return s.slice(0,10); }
+function laeHistEmPeriodo(iso, per){ if(per==='tudo'||!per) return true; var d=null; try{ d=new Date(String(iso||'').slice(0,10)+'T00:00:00'); }catch(e){} if(!d||isNaN(d)) return true; var now=new Date(); if(per==='hoje'){ return String(iso||'').slice(0,10)===now.toISOString().slice(0,10); } if(per==='semana'){ var diff=(now.getTime()-d.getTime())/86400000; return diff<=7 && diff>=-1; } if(per==='mes'){ return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth(); } return true; }
+function laeSetFiltro(p){ laeHistFiltro=p; renderLaudosEmitidos(); }
+function renderLaudosEmitidos(){
+  var list=document.getElementById('lae-hist-list'); if(!list) return;
+  var h=[]; try{ h=JSON.parse(localStorage.getItem('gn_hist')||'[]'); }catch(e){ h=[]; }
+  var laudos=h.filter(function(e){ return e && /laudo/i.test(String(e.tipoDoc||e.servicos||'')); });
+  laudos.sort(function(a,b){ return String(laeIsoFromEntry(b)).localeCompare(String(laeIsoFromEntry(a))); });
+  var fbox=document.getElementById('lae-hist-filtros');
+  if(fbox){ var fs=[['hoje','Hoje'],['semana','Semana'],['mes','Mês'],['tudo','Todos']]; fbox.innerHTML=fs.map(function(f){ var on=laeHistFiltro===f[0]; var n=laudos.filter(function(e){ return laeHistEmPeriodo(laeIsoFromEntry(e), f[0]); }).length; return '<button onclick="laeSetFiltro(\''+f[0]+'\')" style="border:1px solid '+(on?'#7c5cff':'var(--gn-border,#ddd)')+';background:'+(on?'rgba(124,92,255,.18)':'transparent')+';color:var(--gn-text,#333);border-radius:18px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:600;">'+f[1]+' ('+n+')</button>'; }).join(''); }
+  var arr=laudos.filter(function(e){ return laeHistEmPeriodo(laeIsoFromEntry(e), laeHistFiltro); });
+  if(!arr.length){ list.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum laudo neste período. Os laudos que você gerar aparecem aqui — e em todos os aparelhos.</div>'; return; }
+  list.innerHTML=arr.map(function(e){
+    var resTxt=''; try{ if(e.snapLae&&e.snapLae.res){ resTxt=(/(fail|repro)/i.test(e.snapLae.res))?' · <span style="color:#fb7185;font-weight:700;">Reprovado</span>':' · <span style="color:#16a34a;font-weight:700;">Aprovado</span>'; } }catch(_){}
+    var quem=e.emitidoPor?(' · por '+gnEsc(e.emitidoPor)):'';
+    var temSnap=!!e.snapLae;
+    return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--gn-border);border-left:4px solid #7c5cff;border-radius:11px;margin-bottom:7px;">'
+      +'<div style="min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(e.cliente||'Cliente')+resTxt+'</div>'
+      +'<div style="font-size:12px;color:var(--gn-dim);">'+gnEsc(e.numero||'')+' · '+gnEsc(e.data||'')+quem+'</div></div>'
+      +'<button onclick="laudoEstEditar(\''+gnEsc(e.numero||'')+'\')" '+(temSnap?'':'disabled')+' style="background:rgba(124,92,255,.2);color:var(--gn-text);border:none;border-radius:7px;padding:7px 11px;cursor:pointer;font-size:12px;font-weight:600;'+(temSnap?'':'opacity:.5;cursor:not-allowed;')+'">✏ Reabrir / Editar</button>'
+      +'</div>';
+  }).join('');
+}
+function laudoEstEditar(numero){
+  var h=[]; try{ h=JSON.parse(localStorage.getItem('gn_hist')||'[]'); }catch(e){ h=[]; }
+  var e=h.filter(function(x){ return String((x&&x.numero)||'')===String(numero); })[0];
+  if(!e){ toast('Laudo não encontrado.','er'); return; }
+  if(!e.snapLae){ toast('Este laudo é de uma versão antiga e não tem os dados salvos para reabrir. Gere um novo.','er'); return; }
+  var s=e.snapLae;
+  function sv(id,v){ var el=document.getElementById(id); if(el) el.value=(v==null?'':v); }
+  sv('lae-cli',s.cli); sv('lae-doc',s.doc); sv('lae-cep',s.cep); sv('lae-end',s.end); sv('lae-tel',s.tel); sv('lae-email',s.email); sv('lae-data',s.data); sv('lae-ponto',s.ponto); sv('lae-qtd',s.qtd); sv('lae-escopo',s.escopo); sv('lae-recom',s.recom); sv('lae-extra',s.extra);
+  function rd(name,val){ try{ var el=document.querySelector('input[name="'+name+'"][value="'+val+'"]'); if(el) el.checked=true; }catch(_){} }
+  if(s.et) rd('lae-et', s.et); if(s.gas) rd('lae-gas', s.gas); if(s.res) rd('lae-res', s.res);
+  try{ if(typeof goTab==='function') goTab('laudo'); }catch(_){}
+  try{ var top=document.getElementById('pane-laudo'); if(top) top.scrollIntoView({behavior:'smooth',block:'start'}); }catch(_){}
+  toast('Laudo carregado. Ajuste o que precisar e gere o PDF de novo.','ok');
+}
+window.renderLaudosEmitidos=renderLaudosEmitidos; window.laudoEstEditar=laudoEstEditar; window.laeSetFiltro=laeSetFiltro;
+(function(){ function hook(){ if(typeof window.goTab==='function' && !window.goTab.__laeWrap){ var o=window.goTab; window.goTab=function(t){ var r=o.apply(this,arguments); if(t==='laudo'){ try{ renderLaudosEmitidos(); }catch(e){} } return r; }; window.goTab.__laeWrap=true; } try{ renderLaudosEmitidos(); }catch(e){} }
+  if(document.readyState==='complete') setTimeout(hook,1600); else window.addEventListener('load', function(){ setTimeout(hook,1600); }); })();
 // ✨ IA: interpreta um texto livre (formal/informal) e preenche o laudo de estanqueidade
 async function laeIA(){
   var txt=(document.getElementById('lae-ia-txt')||{}).value||'';
@@ -4175,7 +4231,7 @@ function gnCor(){ var c=gnCfg(); return c.cor||'#7c5cff'; }
 // Dados compartilhados por toda a equipe + auto-save de documentos no Drive.
 // ══════════════════════════════════════════════
 var GN_CLOUD2 = 'https://script.google.com/macros/s/AKfycbycnK4Fx0J4QphoLr-LQJPkh04RTy6zbBto-Sqlgr306GqjggZkKhyOsJXypeprS0Loww/exec';
-var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user','gn_upload_hist','gn_drive_idx','gn_nome_ok','gn_notinha_done','gn_gar_retornos'];
+var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod','gn_ferr','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user','gn_upload_hist','gn_drive_idx','gn_nome_ok','gn_notinha_done','gn_gar_retornos'];
 var _gnSynced = {};        // último valor conhecido por chave (string)
 var _gnSyncBusy = false;
 var _gnSyncOn = true;
@@ -4538,7 +4594,7 @@ function pedDoc(numero, preview){
   var titmap={'Orçamento':'Orçamento','Proposta comercial':'Proposta comercial','Nota de Serviço':'Nota de serviço','Recibo':'Recibo','Contrato':'Contrato','Laudo técnico':'Laudo técnico','Fatura':'Fatura','Pedido':'Pedido','Resumo financeiro':'Resumo financeiro do pedido','Projeto':'Projeto','Voucher de transporte':'Voucher de transporte'};
   var ov=(typeof pedOverlay==='function')?(pedOverlay()[numero]||{}):{};
   var gd=ov.garantiaDias;
-  if(gd==null && tipo!=='Recibo'){ gd=prompt('Garantia deste serviço, em dias (ex.: 30, 90, 365):','90'); if(gd!=null){ try{ pedSet(numero,'garantiaDias',gd); }catch(e){} } }
+  if(gd==null && tipo!=='Recibo'){ gd=prompt('Garantia deste serviço, em DIAS — opções: 30 (1 mês), 90 (3 meses), 180 (6 meses), 365 (1 ano). Ou digite outro valor:','90'); if(gd!=null){ try{ pedSet(numero,'garantiaDias',gd); }catch(e){} } }
   var docNum;
   if(typeof gnDocNum==='function'){
     if((tipo==='Nota de Serviço'||tipo==='Recibo') && ov.osCore){
@@ -5267,13 +5323,42 @@ function ageHideGcal(id){
   renderAge();
   if(typeof toast==='function') toast('Ocultado no app. (Continua no seu Google Agenda.)','ok');
 }
+// ── FILTRO DA AGENDA: esconde o lixo da migração (tem nome de cliente bagunçado/sem contato). Google e compromissos pessoais (sem cliente) sempre aparecem. ──
+if(typeof window.__ageShowAll==='undefined'){ try{ window.__ageShowAll=(localStorage.getItem('gn_age_showall')==='1'); }catch(e){ window.__ageShowAll=false; } }
+function ageVisivel(c){
+  if(!c) return false;
+  if(c._gcal || c.fromGcal) return true;                 // Google Agenda sempre aparece
+  var cliente=String(c.cliente||'').trim();
+  if(!cliente) return true;                              // compromisso pessoal (sem cliente) sempre aparece
+  var nomeRuim=(typeof gnNomeRuim==='function') && gnNomeRuim(cliente);
+  var tel=String(c.tel||c.whatsapp||c.telefone||'').replace(/\D/g,'');
+  var email=String(c.email||'');
+  var obs=String(c.obs||'');
+  var temContato = tel.length>=8 || /@\S+\.\S+/.test(email) || /@\S+\.\S+/.test(obs) || /(\(?\d{2}\)?\s?)?\d{4,5}-?\s?\d{4}/.test(obs);
+  if(!temContato){
+    try{ var cli=JSON.parse(localStorage.getItem('gn_cli')||'[]'); var low=cliente.toLowerCase();
+      for(var i=0;i<cli.length;i++){ var x=cli[i]; if(String(x.nome||'').trim().toLowerCase()===low){ var t2=String(x.tel||x.whatsapp||'').replace(/\D/g,''); if(t2.length>=8 || /@\S+\.\S+/.test(String(x.email||''))){ temContato=true; break; } } }
+    }catch(e){}
+  }
+  // esconde só quando o nome é bagunçado E não há contato (lixo da migração). Nome bom sem contato continua aparecendo.
+  if(nomeRuim && !temContato) return false;
+  return true;
+}
+function ageFiltroBtnHTML(){
+  var on=!!window.__ageShowAll; var n=window.__ageHiddenCount||0;
+  if(on){ return '<button onclick="ageToggleAll()" title="Voltar a esconder os compromissos bagunçados" style="background:#fef3c7;color:#92400e;border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12.5px;font-weight:700;">👁 Mostrando todos — filtrar</button>'; }
+  return '<button onclick="ageToggleAll()" title="Mostrar também os compromissos escondidos (nome bagunçado / sem contato)" style="background:var(--gn-surface2,#243049);color:var(--gn-text);border:1px solid var(--gn-border);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12.5px;font-weight:700;">🔎 Mostrar todos'+(n?(' ('+n+')'):'')+'</button>';
+}
+window.ageToggleAll=function(){ window.__ageShowAll=!window.__ageShowAll; try{ localStorage.setItem('gn_age_showall', window.__ageShowAll?'1':'0'); }catch(e){} try{ renderAge(); }catch(e){} };
 function renderAge(){
   if(!agePulled){ agePulled=true; gnStorePull('agenda', function(ch){ if(ch) renderAge(); }); }
   if(!gcalPulled){ gcalPulled=true; try{ gnPullGoogleCal(); }catch(e){} }
   if(!document.getElementById('age-data').value) document.getElementById('age-data').value=new Date().toISOString().slice(0,10);
   var nome=document.getElementById('age-mesnome'); if(nome) nome.textContent=AGE_MES[ageRef.getMonth()]+' de '+ageRef.getFullYear();
   var ano=ageRef.getFullYear(), mes=ageRef.getMonth();
-  var comp=ageData().slice(); if(gcalEvents&&gcalEvents.length){ comp=comp.concat(gcalEvents); } var porDia={};
+  var comp=ageData().slice(); if(gcalEvents&&gcalEvents.length){ comp=comp.concat(gcalEvents); }
+  if(!window.__ageShowAll){ var _allc=comp.length; comp=comp.filter(function(c){ return ageVisivel(c); }); window.__ageHiddenCount=_allc-comp.length; } else { window.__ageHiddenCount=0; }
+  var porDia={};
   comp.forEach(function(c){ var d=(c.data||''); var dt=new Date(d+'T00:00:00'); if(dt.getFullYear()===ano && dt.getMonth()===mes){ var dia=dt.getDate(); (porDia[dia]=porDia[dia]||[]).push(c); } });
   var cal=document.getElementById('age-cal');
   if(cal){
@@ -5341,7 +5426,7 @@ function renderAge(){
     diaHTML+='</div>';
   }
   var semana=comp.filter(function(c){ var d=(c.data||'').slice(0,10); return d>=hojeISO && d<=fimISO; }).sort(function(a,b){ return ((a.data||'')+(a.hora||'')).localeCompare((b.data||'')+(b.hora||'')); });
-  var html=diaHTML+'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 8px;"><div style="font-weight:800;color:var(--gn-text);font-size:17px;">📅 Hoje e esta semana</div><button onclick="ageSyncAgora()" title="Buscar agora os compromissos do Google Agenda" style="background:#e7f5ec;color:#16a34a;border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12.5px;font-weight:700;">🔄 Atualizar Google</button></div>';
+  var html=diaHTML+'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 8px;"><div style="font-weight:800;color:var(--gn-text);font-size:17px;">📅 Hoje e esta semana</div><div style="display:flex;gap:6px;flex-wrap:wrap;">'+ageFiltroBtnHTML()+'<button onclick="ageSyncAgora()" title="Buscar agora os compromissos do Google Agenda" style="background:#e7f5ec;color:#16a34a;border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12.5px;font-weight:700;">🔄 Atualizar Google</button></div></div>';
   if(!semana.length){ html+='<div style="color:var(--gn-dim);padding:12px;border:1px dashed var(--gn-border);border-radius:10px;margin-bottom:18px;">Nenhum compromisso de hoje até domingo. Aproveite! 🎉</div>'; }
   else {
     var cur='';
@@ -5408,7 +5493,7 @@ function ageDiaCompartilhar(iso){
 // ══════════════════════════════════════════════
 var finCharts = {};
 var finPulled = false;
-var finCats = ['Material','Combustível','Pedágio','Estacionamento','Funcionário','Comissão','Ferramentas','EPI','Publicidade','Telefone','Internet','Aluguel','Impostos','Taxa de cartão','Manutenção de veículo','Alimentação','Recebimento','Aplicação','Resgate','Outros'];
+var finCats = ['Material','Combustível','Pedágio','Estacionamento','Funcionário','Comissão','Ferramentas','EPI','Publicidade','Telefone','Internet','Aluguel','Água/Luz','Impostos','Taxa de cartão','Manutenção de veículo','Alimentação','Mercado','Farmácia/Saúde','Serviços profissionais','Fornecedor / Empresa','Pagamento a pessoa (PF)','Recebimento','Aplicação','Resgate','Outros'];
 function finData(){ try{ return JSON.parse(localStorage.getItem('gn_fin')||'[]'); }catch(e){ return []; } }
 function finSnapPush(prev){
   // Guarda uma "fotografia" do financeiro ANTES de alterar, para poder voltar.
@@ -5617,7 +5702,7 @@ async function finAICategorize(text){
     '- "fatura": PAGAMENTO DE FATURA DE CARTÃO DE CRÉDITO. Exemplos: "PGTO FAT CARTAO", "PAGAMENTO FATURA CARTAO", "PAG FATURA", "FATURA CARTÃO". Esse dinheiro SAI do banco (entra no cálculo do saldo), mas NÃO é despesa (as compras do cartão são lançadas à parte, para não duplicar). Marque tipo:"fatura".',
     '- "ignorar": só para estornos/duplicatas que não devem aparecer.',
     '',
-    'categoria: escolha entre Material, Combustível, Pedágio, Estacionamento, Funcionário, Comissão, Ferramentas, EPI, Publicidade, Telefone, Internet, Aluguel, Impostos, Taxa de cartão, Manutenção de veículo, Alimentação, Recebimento, Aplicação, Resgate, Outros.',
+    'categoria: NÃO use "PIX" como categoria. Classifique pelo DESTINO do pagamento (para quem/para onde foi). Escolha entre Material, Combustível, Pedágio, Estacionamento, Funcionário, Comissão, Ferramentas, EPI, Publicidade, Telefone, Internet, Aluguel, Água/Luz, Impostos, Taxa de cartão, Manutenção de veículo, Alimentação, Mercado, Farmácia/Saúde, Serviços profissionais, Fornecedor / Empresa, Pagamento a pessoa (PF), Recebimento, Aplicação, Resgate, Outros. Se for PIX/transferência para uma empresa (CNPJ/Ltda/ME), use "Fornecedor / Empresa"; se for para uma pessoa física (CPF/nome), use "Pagamento a pessoa (PF)"; mas sempre prefira a categoria específica quando o destino indicar posto, farmácia, mercado, restaurante etc.',
     'Ignore linhas de SALDO, saldo do dia, saldo anterior e textos informativos. Não invente valores nem datas.',
     'DATAS: use o ANO que aparece no próprio extrato. Se a linha só tem dia/mês (DD/MM), use o ano do período/cabeçalho do extrato. NUNCA use uma data no futuro — se o ano não estiver claro, prefira o ano passado a um ano futuro. Formato AAAA-MM-DD.'
   ].join('\n');
@@ -5655,24 +5740,36 @@ function gnExtratoFiltraTexto(text){ var ls=String(text||'').split(/\r?\n/); var
 // Categoriza um gasto pela descrição (usado no modo rápido sem IA).
 function gnCategorizaGasto(desc){
   var d=' '+String(desc||'').toLowerCase()+' ';
+  // Categoriza pelo DESTINO do pagamento (não pela forma). Um PIX/cartão é classificado
+  // por PARA QUEM foi: posto, farmácia, mercado, restaurante, fornecedor, pessoa física etc.
   var R=[
     [/pedagio|ped[aá]gio|sem ?parar|c6 ?tag|conectcar|veloe|move ?mais|autoexpresso|\btag\b/,'Pedágio'],
-    [/imposto|simples nacional|\bdarf\b|\bdas\b|\binss\b|\biss\b|tributo|prefeitura|receita federal|\bfgts\b/,'Impostos'],
-    [/\bposto\b|gasolina|etanol|[aá]lcool|diesel|combust[ií]vel|ipiranga|petrobras|\bshell\b|\bbr distrib/,'Combustível'],
-    [/estacionamento|estapar|zona azul|parking|estacion/,'Estacionamento'],
-    [/restaurante|lanch|padaria|ifood|mercado|supermercado|a[çc]ougue|\bfood\b|almo[çc]o|jantar|\bcaf[eé]\b|pizzaria|hortifruti/,'Alimentação'],
-    [/oficina|mec[aâ]nico|\bpneu|[oó]leo|autope[çc]a|revis[aã]o|funilaria|lava ?r[aá]pido|borracharia/,'Manutenção de veículo'],
-    [/ferramenta|makita|\bbosch\b|dewalt|furadeira|parafusadeira/,'Ferramentas'],
-    [/\bepi\b|capacete|\bluva|\bbota|[oó]culos|protetor/,'EPI'],
-    [/material|materiais|ferragem|hidr[aá]ulic|\btubo|conex[aã]o|registro|v[aá]lvula|constru[çc]|leroy|telhanorte|\bc&c\b|gasbras|tigre/,'Material'],
-    [/publicidade|an[uú]ncio|marketing|facebook|instagram|google ads|propaganda|\bads\b|impulsion/,'Publicidade'],
-    [/telefone|celular|\bvivo\b|\bclaro\b|\btim\b|recarga/,'Telefone'],
+    [/imposto|simples nacional|\bdarf\b|\bdas\b|\binss\b|\biss\b|tributo|prefeitura|receita federal|\bfgts\b|\bgps\b|\bgare\b/,'Impostos'],
+    [/\bposto\b|gasolina|etanol|[aá]lcool|diesel|combust[ií]vel|ipiranga|petrobras|\bshell\b|\bbr distrib|\bale\b|graal|frentista/,'Combustível'],
+    [/estacionamento|estapar|zona azul|parking|estacion|valet/,'Estacionamento'],
+    [/farm[aá]cia|drogaria|droga ?raia|drogasil|\bpacheco\b|ultrafarma|pague ?menos|panvel|s[aã]o ?jo[aã]o|nissei|venancio|rem[eé]dio|medicament/,'Farmácia/Saúde'],
+    [/mercado|supermercado|atacad[aã]o|assa[ií]|carrefour|\bp[aã]o de a[çc][uú]car\b|\bdia\b|hortifruti|sacol[aã]o|a[çc]ougue|quitanda|extra\b|\btenda\b/,'Mercado'],
+    [/restaurante|lanch|padaria|ifood|\bfood\b|almo[çc]o|jantar|\bcaf[eé]\b|pizzaria|churrasc|hamburg|\bbar\b|cantina|sorveter/,'Alimentação'],
+    [/oficina|mec[aâ]nico|\bpneu|[oó]leo|autope[çc]a|revis[aã]o|funilaria|lava ?r[aá]pido|borracharia|alinhamento|balanceament|\bipva\b|licenciament|detran|seguro.*ve[ií]culo/,'Manutenção de veículo'],
+    [/ferramenta|makita|\bbosch\b|dewalt|furadeira|parafusadeira|maçarico|ma[çc]arico|compressor|esmerilhadeira/,'Ferramentas'],
+    [/\bepi\b|capacete|\bluva|\bbota|[oó]culos|protetor|cinto.*seguran|m[aá]scara/,'EPI'],
+    [/material|materiais|ferragem|hidr[aá]ulic|\btubo|conex[aã]o|registro|v[aá]lvula|constru[çc]|leroy|telhanorte|\bc&c\b|gasbras|tigre|amanco|cobre|mangueira|regulador|distribuidora.*g[aá]s|comercial.*g[aá]s/,'Material'],
+    [/publicidade|an[uú]ncio|marketing|facebook|instagram|google ads|propaganda|\bads\b|impulsion|tr[aá]fego|\bmeta\b/,'Publicidade'],
+    [/telefone|celular|\bvivo\b|\bclaro\b|\btim\b|recarga|oi ?fibra/,'Telefone'],
     [/internet|fibra|provedor|wifi|\bnet\b/,'Internet'],
-    [/aluguel|loca[çc][aã]o|condom[ií]nio/,'Aluguel'],
+    [/aluguel|loca[çc][aã]o|condom[ií]nio|\biptu\b|imobili[aá]ria/,'Aluguel'],
+    [/[áa]gua e esgoto|sabesp|saneament|\benerg|\bcpfl\b|\benel\b|elektro|eletropaulo|conta de luz|el[eé]trica/,'Água/Luz'],
+    [/contad|contabil|advog|jur[ií]dic|honor[aá]rio|cart[oó]rio|\bart\b|\bcrea\b|anota[çc][aã]o de respons/,'Serviços profissionais'],
     [/tarifa|\bjuros\b|anuidade|\biof\b|cesta|pacote de servi|mensalidade|manuten[çc][aã]o de conta|\btaxa\b/,'Taxa de cartão'],
-    [/sal[aá]rio|funcion[aá]rio|\bvale\b|di[aá]ria|ajudante|folha de pag|adiantamento|comiss/,'Funcionário']
+    [/sal[aá]rio|funcion[aá]rio|\bvale\b|di[aá]ria|ajudante|folha de pag|adiantamento|comiss|pr[oó] ?labore/,'Funcionário']
   ];
   for(var i=0;i<R.length;i++){ if(R[i][0].test(d)) return R[i][1]; }
+  // Sem palavra-chave: tenta classificar pelo TIPO de destinatário do PIX/transferência.
+  var temCNPJ=/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/.test(d) || /\bltda\b|\b- ?me\b|\beireli\b|\bs\/?a\b|com[eé]rcio|comercial|distribuidora|servi[çc]os\b/.test(d);
+  var temCPF=/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/.test(d);
+  var ehPix=/\bpix\b|transfer|\bted\b|\bdoc\b/.test(d);
+  if(temCNPJ) return 'Fornecedor / Empresa';
+  if(temCPF || ehPix) return 'Pagamento a pessoa (PF)';
   return 'Outros';
 }
 // Parser LOCAL (sem IA) — instantâneo. Captura saídas (gastos), entradas (recebimentos) e aplicações/resgates. O usuário revisa antes de importar.
@@ -6452,23 +6549,90 @@ function svcUsar(id){
   },180);
 }
 
-function svcSeedGas(){
-  var base=[
-    {nome:'Visita técnica e pressurização', categoria:'Inspeção', valor:180, unidade:'serviço', descricao:'Visita técnica e pressurização na rede de gás'},
-    {nome:'Teste de estanqueidade', categoria:'Inspeção', valor:120, unidade:'serviço', descricao:'Teste de estanqueidade na rede de gás e emissão de laudo técnico aprovado'},
-    {nome:'Vistoria', categoria:'Inspeção', valor:0, unidade:'serviço', descricao:'Vistoria e teste de estanqueidade'},
-    {nome:'Instalação de rede de gás', categoria:'Instalação', valor:0, unidade:'metro linear', descricao:'Instalação/extensão de rede de gás'},
-    {nome:'Manutenção / reparo', categoria:'Manutenção', valor:0, unidade:'serviço', descricao:'Reparo de vazamento e manutenção da rede'},
-    {nome:'Laudo técnico de estanqueidade', categoria:'Documento', valor:0, unidade:'documento', descricao:'Emissão de laudo técnico aprovado'}
+// Catálogo padrão com os 50 serviços mais executados pela Gás Network.
+// Cada serviço tem categoria, descrição (legenda) e garantia conforme as regras da empresa.
+function svcSeedBase(){
+  return [
+    // ── Instalação ──
+    {nome:'Instalação de fogão / cooktop', categoria:'Instalação', valor:0, unidade:'serviço', descricao:'Instalação de fogão ou cooktop com conexão à rede de gás e teste de vedação', garantia:'90 dias'},
+    {nome:'Instalação de cooktop por embutir', categoria:'Instalação', valor:0, unidade:'serviço', descricao:'Embutimento e instalação de cooktop com adequação do ponto de gás', garantia:'90 dias'},
+    {nome:'Instalação de forno a gás', categoria:'Instalação', valor:0, unidade:'serviço', descricao:'Instalação de forno a gás de embutir com conexão e teste', garantia:'90 dias'},
+    {nome:'Instalação de aquecedor a gás', categoria:'Instalação', valor:0, unidade:'serviço', descricao:'Instalação de aquecedor de passagem a gás com exaustão e teste de funcionamento', garantia:'90 dias'},
+    {nome:'Instalação de medidor de gás', categoria:'Instalação', valor:0, unidade:'serviço', descricao:'Instalação/substituição de medidor de gás individual', garantia:'90 dias'},
+    {nome:'Instalação de central de GLP', categoria:'Instalação', valor:0, unidade:'serviço', descricao:'Montagem de central de cilindros/GLP conforme norma', garantia:'90 dias'},
+    {nome:'Instalação de abrigo de gás', categoria:'Instalação', valor:0, unidade:'serviço', descricao:'Instalação de abrigo/caixa de proteção para medidor e regulagem', garantia:'90 dias'},
+    {nome:'Instalação de ponto de gás', categoria:'Instalação', valor:0, unidade:'ponto', descricao:'Criação de novo ponto de gás para fogão, aquecedor, secadora etc.', garantia:'90 dias'},
+    {nome:'Instalação de regulador de pressão', categoria:'Instalação', valor:0, unidade:'serviço', descricao:'Instalação/substituição de regulador de pressão de 1º ou 2º estágio', garantia:'90 dias'},
+    {nome:'Instalação de secadora a gás', categoria:'Instalação', valor:0, unidade:'serviço', descricao:'Instalação de secadora a gás com ponto e teste de vedação', garantia:'90 dias'},
+    // ── Conversão ──
+    {nome:'Conversão de fogão GLP → GN', categoria:'Conversão', valor:0, unidade:'serviço', descricao:'Conversão de fogão de gás de cozinha (GLP) para gás natural (GN)', garantia:'90 dias'},
+    {nome:'Conversão de fogão GN → GLP', categoria:'Conversão', valor:0, unidade:'serviço', descricao:'Conversão de fogão de gás natural (GN) para gás de cozinha (GLP)', garantia:'90 dias'},
+    {nome:'Conversão de cooktop', categoria:'Conversão', valor:0, unidade:'serviço', descricao:'Troca de injetores e regulagem de cooktop para o tipo de gás correto', garantia:'90 dias'},
+    {nome:'Conversão de aquecedor', categoria:'Conversão', valor:0, unidade:'serviço', descricao:'Conversão de aquecedor a gás entre GLP e GN', garantia:'90 dias'},
+    {nome:'Conversão de forno / forno+fogão', categoria:'Conversão', valor:0, unidade:'serviço', descricao:'Conversão completa de forno e fogão para o gás disponível no local', garantia:'90 dias'},
+    {nome:'Troca de injetores / chupetas', categoria:'Conversão', valor:0, unidade:'serviço', descricao:'Substituição de injetores (chupetas) e regulagem da chama', garantia:'90 dias'},
+    // ── Tubulação ──
+    {nome:'Construção de tubulação de gás', categoria:'Tubulação', valor:0, unidade:'metro linear', descricao:'Construção de rede/prumada de gás em tubo de cobre ou multicamada', garantia:'1 ano'},
+    {nome:'Extensão de rede de gás', categoria:'Tubulação', valor:0, unidade:'metro linear', descricao:'Extensão da rede existente até novo ponto de consumo', garantia:'1 ano'},
+    {nome:'Tubulação aparente em cobre', categoria:'Tubulação', valor:0, unidade:'metro linear', descricao:'Rede aparente em tubo de cobre com solda forte e suportes', garantia:'1 ano'},
+    {nome:'Tubulação embutida (multicamada)', categoria:'Tubulação', valor:0, unidade:'metro linear', descricao:'Rede embutida em tubo multicamada PEX/AL com conexões prensadas', garantia:'1 ano'},
+    {nome:'Adequação de ponto de gás', categoria:'Adequação', valor:0, unidade:'serviço', descricao:'Adequação/realocação de ponto de gás existente à norma', garantia:'90 dias'},
+    {nome:'Adequação de rede à norma (NBR)', categoria:'Adequação', valor:0, unidade:'serviço', descricao:'Adequação da instalação às normas ABNT NBR 13523/15526', garantia:'90 dias'},
+    {nome:'Realocação de medidor / prumada', categoria:'Tubulação', valor:0, unidade:'serviço', descricao:'Mudança de posição de medidor ou prumada de gás', garantia:'1 ano'},
+    // ── Inspeção / Laudo ──
+    {nome:'Teste de estanqueidade', categoria:'Inspeção/Laudo', valor:120, unidade:'serviço', descricao:'Teste de estanqueidade da rede de gás com manômetro e emissão de laudo (validade 12 meses)', garantia:'Validade 12 meses'},
+    {nome:'Laudo de estanqueidade', categoria:'Inspeção/Laudo', valor:0, unidade:'documento', descricao:'Emissão de laudo técnico de estanqueidade aprovado e assinado (validade 12 meses)', garantia:'Validade 12 meses'},
+    {nome:'Visita técnica e pressurização', categoria:'Inspeção/Laudo', valor:180, unidade:'serviço', descricao:'Visita técnica com pressurização da rede de gás', garantia:''},
+    {nome:'Vistoria técnica', categoria:'Inspeção/Laudo', valor:0, unidade:'serviço', descricao:'Vistoria da instalação de gás com relatório de condições', garantia:''},
+    {nome:'Laudo para condomínio', categoria:'Inspeção/Laudo', valor:0, unidade:'documento', descricao:'Laudo de estanqueidade de áreas comuns/individuais de condomínio (validade 12 meses)', garantia:'Validade 12 meses'},
+    {nome:'Relatório fotográfico técnico', categoria:'Inspeção/Laudo', valor:0, unidade:'documento', descricao:'Relatório com registro fotográfico do serviço executado', garantia:''},
+    {nome:'Detecção / pesquisa de vazamento', categoria:'Inspeção/Laudo', valor:0, unidade:'serviço', descricao:'Localização de vazamento com detector eletrônico e solução espumante', garantia:''},
+    {nome:'ART (Anotação de Resp. Técnica)', categoria:'Documento', valor:0, unidade:'documento', descricao:'Emissão de ART/CREA referente ao serviço de gás', garantia:''},
+    // ── Manutenção ──
+    {nome:'Manutenção preventiva de aquecedor', categoria:'Manutenção', valor:0, unidade:'serviço', descricao:'Limpeza, regulagem e verificação do aquecedor a gás (recomendado a cada 12 meses)', garantia:'90 dias'},
+    {nome:'Manutenção corretiva de aquecedor', categoria:'Manutenção', valor:0, unidade:'serviço', descricao:'Reparo de aquecedor a gás (ignição, sensores, troca de peças)', garantia:'90 dias'},
+    {nome:'Manutenção de fogão / cooktop', categoria:'Manutenção', valor:0, unidade:'serviço', descricao:'Limpeza, regulagem de chama e reparo de fogão/cooktop', garantia:'90 dias'},
+    {nome:'Reparo de vazamento de gás', categoria:'Manutenção', valor:0, unidade:'serviço', descricao:'Identificação e correção de vazamento na rede de gás', garantia:'90 dias'},
+    {nome:'Troca de mangueira de gás', categoria:'Manutenção', valor:0, unidade:'serviço', descricao:'Substituição da mangueira flexível de gás (recomenda-se trocar a cada 5 anos)', garantia:'5 anos (validade da mangueira)'},
+    {nome:'Troca de registro / válvula', categoria:'Manutenção', valor:0, unidade:'serviço', descricao:'Substituição de registro ou válvula de bloqueio de gás', garantia:'90 dias'},
+    {nome:'Troca de regulador de pressão', categoria:'Manutenção', valor:0, unidade:'serviço', descricao:'Substituição do regulador de pressão por defeito/validade', garantia:'90 dias'},
+    {nome:'Limpeza de queimadores', categoria:'Manutenção', valor:0, unidade:'serviço', descricao:'Limpeza e desobstrução de queimadores e injetores', garantia:'90 dias'},
+    // ── Aplicação de resina ──
+    {nome:'Aplicação de resina (selagem)', categoria:'Resina', valor:0, unidade:'serviço', descricao:'Aplicação de resina selante na rede de gás para vedação de microvazamentos', garantia:'1 ano'},
+    {nome:'Aplicação de resina em prumada', categoria:'Resina', valor:0, unidade:'serviço', descricao:'Selagem por resina em prumada/coluna de gás de prédio', garantia:'1 ano'},
+    // ── Outros serviços comuns ──
+    {nome:'Instalação de exaustão / ventilação', categoria:'Instalação', valor:0, unidade:'serviço', descricao:'Instalação de dutos de exaustão para aquecedor a gás', garantia:'90 dias'},
+    {nome:'Instalação de detector de gás', categoria:'Instalação', valor:0, unidade:'serviço', descricao:'Instalação de detector/alarme de vazamento de gás', garantia:'90 dias'},
+    {nome:'Instalação de válvula de bloqueio', categoria:'Instalação', valor:0, unidade:'serviço', descricao:'Instalação de válvula de bloqueio automático/manual de gás', garantia:'90 dias'},
+    {nome:'Desativação / lacre de ponto de gás', categoria:'Manutenção', valor:0, unidade:'serviço', descricao:'Desativação segura e lacre de ponto de gás fora de uso', garantia:''},
+    {nome:'Religação de gás', categoria:'Manutenção', valor:0, unidade:'serviço', descricao:'Religação e teste de ponto de gás previamente desativado', garantia:'90 dias'},
+    {nome:'Projeto de instalação de gás', categoria:'Documento', valor:0, unidade:'documento', descricao:'Elaboração de projeto técnico de instalação predial de gás', garantia:''},
+    {nome:'Substituição de tubulação antiga', categoria:'Tubulação', valor:0, unidade:'metro linear', descricao:'Troca de tubulação de gás antiga/fora de norma por nova', garantia:'1 ano'},
+    {nome:'Atendimento emergencial (vazamento)', categoria:'Manutenção', valor:0, unidade:'serviço', descricao:'Atendimento de emergência para cheiro/vazamento de gás', garantia:''},
+    {nome:'Consultoria / orientação técnica', categoria:'Inspeção/Laudo', valor:0, unidade:'serviço', descricao:'Orientação técnica sobre instalação, normas e segurança do gás', garantia:''}
   ];
+}
+function svcSeedGas(silencioso){
+  var base=svcSeedBase();
   var arr=svcData(); var nomes={}; arr.forEach(function(x){ nomes[(x.nome||'').toLowerCase()]=true; }); var add=0;
-  base.forEach(function(b){ if(!nomes[b.nome.toLowerCase()]){ var c={id:'s'+Date.now()+'_'+add, nome:b.nome, categoria:b.categoria, valor:b.valor, unidade:b.unidade, descricao:b.descricao, garantia:'', obs:''}; arr.push(c); svcCloudPush(c); add++; } });
-  svcSaveAll(arr); renderSvc();
-  toast(add?('✓ '+add+' serviço(s) de exemplo adicionados'):'Exemplos já estavam cadastrados', add?'ok':'in');
+  base.forEach(function(b){ if(!nomes[b.nome.toLowerCase()]){ var c={id:'s'+Date.now()+'_'+add, nome:b.nome, categoria:b.categoria, valor:b.valor, unidade:b.unidade, descricao:b.descricao, garantia:b.garantia||'', obs:'', materiais:''}; arr.push(c); try{ svcCloudPush(c); }catch(e){} add++; } });
+  svcSaveAll(arr);
+  if(!silencioso){ renderSvc(); toast(add?('✓ '+add+' serviço(s) adicionados ao catálogo'):'Catálogo já estava completo', add?'ok':'in'); }
+  return add;
+}
+// Semeia o catálogo automaticamente na primeira vez (uma vez por aparelho).
+function svcAutoSeed(){
+  try{
+    if(localStorage.getItem('gn_svc_seeded')==='1') return;
+    if(svcData().length>=40){ localStorage.setItem('gn_svc_seeded','1'); return; }
+    svcSeedGas(true);
+    localStorage.setItem('gn_svc_seeded','1');
+  }catch(e){}
 }
 
 function renderSvc(){
   if(!svcPulled){ svcPulled=true; svcCloudPull(); }
+  try{ svcAutoSeed(); }catch(e){}
   var list=document.getElementById('svc-list'); if(!list) return;
   var q=((document.getElementById('svc-busca')||{}).value||'').toLowerCase().trim();
   var arr=svcData().slice().sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
@@ -6787,16 +6951,130 @@ function prodDel(id){ if(!confirm('Excluir este produto?')) return; gnStoreDel('
 function prodMov(id,delta){ var c=prodFind(id); if(!c) return; c.estoque=(Number(c.estoque)||0)+delta; if(c.estoque<0) c.estoque=0; gnStoreUpsert('prod',c); renderProd(); }
 function prodUsar(id){ var c=prodFind(id); if(!c) return; if(typeof goTab==='function') goTab('novo'); setTimeout(function(){ if(typeof addSvcRow==='function'){ addSvcRow({descricao:c.nome+(c.unidade?(' ('+c.unidade+')'):''), quantidade:1, valor_unitario:Number(c.venda)||0, subtotal:Number(c.venda)||0}); if(typeof recalcTotal==='function') recalcTotal(); toast('✓ Produto adicionado ao orçamento','ok'); } },180); }
 
+// Ordem de exibição dos grupos de materiais (agrupamento técnico, não alfabético).
+function prodOrdemGrupos(){
+  return ['Mangueiras de gás','Tubo de cobre','Conexões de cobre','Tubo multicamada (PEX/AL)','Conexões multicamada','Reguladores de pressão','Registros e válvulas','Materiais de aquecedor','Vedação e solda','Fixação e suportes','Detecção e segurança','Diversos','Outros'];
+}
+// Lista padrão de materiais usados pela Gás Network, agrupados por categoria técnica.
+function prodSeedBase(){
+  return [
+    // ── Mangueiras de gás (por medida) ──
+    {nome:'Mangueira de gás 30 cm', categoria:'Mangueiras de gás', unidade:'un'},
+    {nome:'Mangueira de gás 40 cm', categoria:'Mangueiras de gás', unidade:'un'},
+    {nome:'Mangueira de gás 60 cm', categoria:'Mangueiras de gás', unidade:'un'},
+    {nome:'Mangueira de gás 80 cm', categoria:'Mangueiras de gás', unidade:'un'},
+    {nome:'Mangueira de gás 1 m', categoria:'Mangueiras de gás', unidade:'un'},
+    {nome:'Mangueira de gás 1,20 m', categoria:'Mangueiras de gás', unidade:'un'},
+    {nome:'Mangueira de gás 1,50 m', categoria:'Mangueiras de gás', unidade:'un'},
+    {nome:'Mangueira de gás 2 m', categoria:'Mangueiras de gás', unidade:'un'},
+    {nome:'Mangueira de gás inox flexível', categoria:'Mangueiras de gás', unidade:'un'},
+    // ── Tubo de cobre (por bitola) ──
+    {nome:'Tubo de cobre 1/2"', categoria:'Tubo de cobre', unidade:'m'},
+    {nome:'Tubo de cobre 3/4"', categoria:'Tubo de cobre', unidade:'m'},
+    {nome:'Tubo de cobre 7/8"', categoria:'Tubo de cobre', unidade:'m'},
+    {nome:'Tubo de cobre 1"', categoria:'Tubo de cobre', unidade:'m'},
+    {nome:'Tubo de cobre 1.1/8"', categoria:'Tubo de cobre', unidade:'m'},
+    // ── Conexões de cobre ──
+    {nome:'Cotovelo 90° cobre 1/2"', categoria:'Conexões de cobre', unidade:'un'},
+    {nome:'Cotovelo 90° cobre 3/4"', categoria:'Conexões de cobre', unidade:'un'},
+    {nome:'Cotovelo 45° cobre 1/2"', categoria:'Conexões de cobre', unidade:'un'},
+    {nome:'Luva de cobre 1/2"', categoria:'Conexões de cobre', unidade:'un'},
+    {nome:'Luva de cobre 3/4"', categoria:'Conexões de cobre', unidade:'un'},
+    {nome:'Tê de cobre 1/2"', categoria:'Conexões de cobre', unidade:'un'},
+    {nome:'Tê de cobre 3/4"', categoria:'Conexões de cobre', unidade:'un'},
+    {nome:'Conector macho cobre x rosca 1/2"', categoria:'Conexões de cobre', unidade:'un'},
+    {nome:'Conector fêmea cobre x rosca 1/2"', categoria:'Conexões de cobre', unidade:'un'},
+    // ── Tubo multicamada ──
+    {nome:'Tubo multicamada 16 mm', categoria:'Tubo multicamada (PEX/AL)', unidade:'m'},
+    {nome:'Tubo multicamada 20 mm', categoria:'Tubo multicamada (PEX/AL)', unidade:'m'},
+    {nome:'Tubo multicamada 26 mm', categoria:'Tubo multicamada (PEX/AL)', unidade:'m'},
+    {nome:'Tubo multicamada 32 mm', categoria:'Tubo multicamada (PEX/AL)', unidade:'m'},
+    // ── Conexões multicamada ──
+    {nome:'Cotovelo prensar multicamada 16 mm', categoria:'Conexões multicamada', unidade:'un'},
+    {nome:'Cotovelo prensar multicamada 20 mm', categoria:'Conexões multicamada', unidade:'un'},
+    {nome:'Luva prensar multicamada 16 mm', categoria:'Conexões multicamada', unidade:'un'},
+    {nome:'Luva prensar multicamada 20 mm', categoria:'Conexões multicamada', unidade:'un'},
+    {nome:'Tê prensar multicamada 20 mm', categoria:'Conexões multicamada', unidade:'un'},
+    {nome:'Conector macho multicamada 20x1/2"', categoria:'Conexões multicamada', unidade:'un'},
+    // ── Reguladores de pressão ──
+    {nome:'Regulador de pressão 1º estágio', categoria:'Reguladores de pressão', unidade:'un'},
+    {nome:'Regulador de pressão 2º estágio', categoria:'Reguladores de pressão', unidade:'un'},
+    {nome:'Regulador doméstico 2 kg/h', categoria:'Reguladores de pressão', unidade:'un'},
+    {nome:'Regulador industrial alta vazão', categoria:'Reguladores de pressão', unidade:'un'},
+    // ── Registros e válvulas ──
+    {nome:'Registro esfera 1/2" gás', categoria:'Registros e válvulas', unidade:'un'},
+    {nome:'Registro esfera 3/4" gás', categoria:'Registros e válvulas', unidade:'un'},
+    {nome:'Válvula de bloqueio de gás', categoria:'Registros e válvulas', unidade:'un'},
+    {nome:'Válvula de segurança', categoria:'Registros e válvulas', unidade:'un'},
+    // ── Materiais de aquecedor ──
+    {nome:'Duct/duto de exaustão aquecedor', categoria:'Materiais de aquecedor', unidade:'m'},
+    {nome:'Chaminé / terminal de exaustão', categoria:'Materiais de aquecedor', unidade:'un'},
+    {nome:'Sensor de chama de aquecedor', categoria:'Materiais de aquecedor', unidade:'un'},
+    {nome:'Vela de ignição de aquecedor', categoria:'Materiais de aquecedor', unidade:'un'},
+    {nome:'Diafragma de aquecedor', categoria:'Materiais de aquecedor', unidade:'un'},
+    // ── Vedação e solda ──
+    {nome:'Veda rosca (fita PTFE)', categoria:'Vedação e solda', unidade:'rolo'},
+    {nome:'Pasta selante para gás', categoria:'Vedação e solda', unidade:'un'},
+    {nome:'Resina selante de gás', categoria:'Vedação e solda', unidade:'un'},
+    {nome:'Vareta de solda foscoper', categoria:'Vedação e solda', unidade:'un'},
+    {nome:'Solda estanho/fluxo', categoria:'Vedação e solda', unidade:'un'},
+    {nome:'Detector de vazamento (espuma)', categoria:'Vedação e solda', unidade:'un'},
+    // ── Fixação e suportes ──
+    {nome:'Abraçadeira tipo D 1/2"', categoria:'Fixação e suportes', unidade:'un'},
+    {nome:'Abraçadeira tipo D 3/4"', categoria:'Fixação e suportes', unidade:'un'},
+    {nome:'Bucha e parafuso S8', categoria:'Fixação e suportes', unidade:'un'},
+    {nome:'Suporte/talabarte de tubulação', categoria:'Fixação e suportes', unidade:'un'},
+    // ── Detecção e segurança ──
+    {nome:'Detector de gás (alarme)', categoria:'Detecção e segurança', unidade:'un'},
+    {nome:'Placa de sinalização de gás', categoria:'Detecção e segurança', unidade:'un'},
+    // ── Diversos ──
+    {nome:'Tinta proteção tubulação', categoria:'Diversos', unidade:'un'},
+    {nome:'Lixa / palha de aço', categoria:'Diversos', unidade:'un'},
+    {nome:'Manômetro de teste', categoria:'Diversos', unidade:'un'}
+  ];
+}
+function prodSeedGas(silencioso){
+  var arr=gnStoreGet('prod'); var nomes={}; arr.forEach(function(x){ nomes[(x.nome||'').toLowerCase()]=true; }); var add=0;
+  prodSeedBase().forEach(function(b){
+    if(!nomes[b.nome.toLowerCase()]){
+      var c={ id:'p'+Date.now()+'_'+add, nome:b.nome, categoria:b.categoria, unidade:b.unidade||'un', estoque:0, minimo:0, compra:0, venda:0, fornecedor:'' };
+      arr.push(c); try{ gnStorePush('prod', c); }catch(e){} add++;
+    }
+  });
+  try{ localStorage.setItem('gn_prod', JSON.stringify(arr)); }catch(e){}
+  try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_prod'); }catch(e){}
+  if(!silencioso){ renderProd(); toast(add?('✓ '+add+' material(is) adicionados'):'Materiais já estavam cadastrados', add?'ok':'in'); }
+  return add;
+}
+function prodAutoSeed(){
+  try{
+    if(localStorage.getItem('gn_prod_seeded')==='1') return;
+    if(gnStoreGet('prod').length>=40){ localStorage.setItem('gn_prod_seeded','1'); return; }
+    prodSeedGas(true);
+    localStorage.setItem('gn_prod_seeded','1');
+  }catch(e){}
+}
 function renderProd(){
   if(!prodPulled){ prodPulled=true; gnStorePull('prod', function(ch){ if(ch) renderProd(); }); }
+  try{ prodAutoSeed(); }catch(e){}
   var list=document.getElementById('prod-list'); if(!list) return;
   var q=((document.getElementById('prod-busca')||{}).value||'').toLowerCase().trim();
-  var arr=gnStoreGet('prod').slice().sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
+  var arr=gnStoreGet('prod').slice();
   if(q){ arr=arr.filter(function(c){ return ((c.nome||'')+' '+(c.categoria||'')+' '+(c.fornecedor||'')).toLowerCase().indexOf(q)>=0; }); }
   if(!arr.length){ list.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">'+(gnStoreGet('prod').length?'Nenhum produto encontrado.':'Nenhum produto cadastrado.')+'</div>'; return; }
   var lowP=gnStoreGet('prod').filter(function(c){ return (Number(c.minimo)||0)>0 && (Number(c.estoque)||0)<=(Number(c.minimo)||0); });
   var __banner=lowP.length?('<div style="background:rgba(220,38,38,.10);border:1px solid #dc2626;border-radius:10px;padding:11px 13px;margin-bottom:12px;color:var(--gn-text,#222);"><strong style="color:#dc2626;">⚠ '+lowP.length+' material(is) com estoque baixo:</strong> '+lowP.map(function(c){ return gnEsc(c.nome)+' ('+(Number(c.estoque)||0)+')'; }).join(', ')+'</div>'):'';
-  list.innerHTML=__banner+arr.map(function(c){
+  // AGRUPA por categoria técnica (em vez de ordem alfabética geral) — mangueiras juntas,
+  // cobre por bitola, multicamada junto, aquecedor junto etc. Dentro do grupo, ordem alfabética.
+  var ordemGrupo=(typeof prodOrdemGrupos==='function')?prodOrdemGrupos():[];
+  var grupos={}; arr.forEach(function(c){ var g=(c.categoria||'Outros').trim()||'Outros'; (grupos[g]=grupos[g]||[]).push(c); });
+  var chaves=Object.keys(grupos).sort(function(a,b){
+    var ia=ordemGrupo.indexOf(a), ib=ordemGrupo.indexOf(b);
+    if(ia<0) ia=999; if(ib<0) ib=999;
+    if(ia!==ib) return ia-ib;
+    return a.localeCompare(b);
+  });
+  function cardItem(c){
     var baixo=(Number(c.estoque)||0)<=(Number(c.minimo)||0);
     var estTxt='<span style="color:'+(baixo?'#dc2626':'#16a34a')+';font-weight:700;">'+(Number(c.estoque)||0)+(baixo?' ⚠':'')+'</span>';
     return '<div style="border:1px solid var(--gn-border);border-radius:12px;padding:12px 14px;margin-bottom:8px;">'
@@ -6811,7 +7089,14 @@ function renderProd(){
       + '<button class="prod-edit" data-id="'+c.id+'" style="background:rgba(124,92,255,.20);color:var(--gn-text)8aa;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;">Editar</button>'
       + '<button class="prod-del" data-id="'+c.id+'" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;">Excluir</button>'
       + '</div></div></div>';
-  }).join('');
+  }
+  var html=__banner;
+  chaves.forEach(function(g){
+    var itens=grupos[g].sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
+    html+='<div style="font-weight:800;color:var(--gn-text);margin:14px 0 8px;padding-bottom:5px;border-bottom:2px solid var(--gn-border);font-size:14px;">'+gnEsc(g)+' <span style="color:var(--gn-dim);font-weight:600;font-size:12px;">('+itens.length+')</span></div>';
+    html+=itens.map(cardItem).join('');
+  });
+  list.innerHTML=html;
   Array.prototype.forEach.call(list.querySelectorAll('.prod-menos'), function(b){ b.onclick=function(){ prodMov(b.getAttribute('data-id'),-1); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.prod-mais'), function(b){ b.onclick=function(){ prodMov(b.getAttribute('data-id'),1); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.prod-comprar'), function(b){ b.onclick=function(){ prodComprar(b.getAttribute('data-id')); }; });
@@ -7042,6 +7327,22 @@ function ctrIAImgPick(input){
   if(typeof pdResizeImg==='function'){ pdResizeImg(f,function(durl){ window.__ctrIAImg=durl||null; if(lb) lb.textContent=window.__ctrIAImg?('📎 '+f.name):'(não consegui ler a imagem)'; }); }
   else { var r=new FileReader(); r.onload=function(e){ window.__ctrIAImg=e.target.result; if(lb) lb.textContent='📎 '+f.name; }; r.onerror=function(){ if(lb) lb.textContent='(erro ao ler imagem)'; }; r.readAsDataURL(f); }
 }
+function ctrIAPDFPick(input){
+  var f=input&&input.files&&input.files[0]; var lb=document.getElementById('ctr-ia-imgname');
+  if(!f){ return; }
+  if(typeof extractPDFText!=='function'){ if(lb) lb.textContent='(leitor de PDF indisponível — cole o texto)'; return; }
+  if(lb) lb.textContent='📄 Lendo "'+f.name+'"...';
+  Promise.resolve(extractPDFText(f)).then(function(text){
+    text=String(text||'').trim();
+    if(!text || text.length<30){ if(lb) lb.textContent='(não consegui ler o texto do PDF — pode ser digitalizado/imagem. Use "Enviar foto da proposta" ou cole o texto.)'; return; }
+    var ta=document.getElementById('ctr-ia-txt'); if(ta){ ta.value=text; }
+    if(lb) lb.textContent='✓ PDF lido ('+f.name+') — '+text.length+' caracteres. Clique em "Gerar contrato completo com IA".';
+    if(typeof toast==='function') toast('✓ Proposta em PDF carregada. Agora gere o contrato com IA.','ok');
+  }).catch(function(err){
+    if(lb) lb.textContent='(erro ao ler o PDF: '+((err&&err.message)||err)+'. Tente colar o texto.)';
+  });
+  input.value='';
+}
 function ctrIAGerar(){
   if(typeof gnAI!=='function'){ toast('IA indisponível agora.','er'); return; }
   var txt=((document.getElementById('ctr-ia-txt')||{}).value||'').trim();
@@ -7082,7 +7383,7 @@ function ctrIAGerar(){
     if(typeof toast==='function') toast('Falha ao gerar contrato com IA.','er');
   });
 }
-window.ctrIAGerar=ctrIAGerar; window.ctrIAImgPick=ctrIAImgPick;
+window.ctrIAGerar=ctrIAGerar; window.ctrIAImgPick=ctrIAImgPick; window.ctrIAPDFPick=ctrIAPDFPick;
 
 function renderCtr(){
   if(!ctrPulled){ ctrPulled=true; gnStorePull('ctr', function(ch){ if(ch) renderCtr(); }); }
@@ -7312,11 +7613,11 @@ function renderInicio(){
     ['Ferramentas', [['novo','Prop','Nova Proposta'], ['relvist','Rel','Relatório de Vistoria']]],
     ['Comercial', [['atend','Atend','Atendimentos & Funil'], ['renov','Renov','Renovação de Laudos'], ['msgs','Msgs','Modelos de Mensagem'], ['chamados','Cham','Chamados técnicos']]],
     ['Gestão', [['fin','Fin','Financeiro'], ['cob','Cob','Cobranças'], ['gar','Gar','Garantias'], ['arquivos','Arq','Arquivos & Mídia']]],
-    ['Suprimentos', [['forn','Forn','Fornecedores'], ['compras','Compras','Compras']]],
+    ['Suprimentos', [['forn','Forn','Fornecedores'], ['compras','Compras','Compras'], ['ferramentas','Ferr','Ferramentas / Almoxarifado']]],
     ['Cadastros', [['cli','Cli','Clientes'], ['contatos','Cont','Contatos'], ['docs','Docs','Documentos do Cliente'], ['svc','Svc','Serviços'], ['prod','Prod','Materiais'], ['ctr','Ctr','Contratos']]],
     ['Sistema', [['upload','Upload','Upload em massa'], ['cfg','Cfg','Configurações']]]
   ];
-  var ICON={inicio:'🏠',hoje:'☀️',ped:'📋',tarefas:'✅',age:'📅',novo:'✨',rec:'🧾',os:'📝',ctr:'📄',laudo:'🔬',relvist:'📑',cli:'👥',contatos:'📇',docs:'🗂️',nf:'🏛️',renov:'🔄',svc:'🛠️',prod:'📦',fin:'💰',cob:'📢',arquivos:'📁',atend:'📞',posvenda:'⭐',msgs:'💬',gar:'🛡️',chamados:'🛎️',forn:'🏭',compras:'🛒',tec:'🔧',cfg:'⚙️',imp:'📥',docrap:'⚡',upload:'📂'};
+  var ICON={inicio:'🏠',hoje:'☀️',ped:'📋',tarefas:'✅',age:'📅',novo:'✨',rec:'🧾',os:'📝',ctr:'📄',laudo:'🔬',relvist:'📑',cli:'👥',contatos:'📇',docs:'🗂️',nf:'🏛️',renov:'🔄',svc:'🛠️',prod:'📦',fin:'💰',cob:'📢',arquivos:'📁',atend:'📞',posvenda:'⭐',msgs:'💬',gar:'🛡️',chamados:'🛎️',forn:'🏭',compras:'🛒',tec:'🔧',cfg:'⚙️',imp:'📥',docrap:'⚡',upload:'📂',ferramentas:'🧰'};
   function build(){
     if(document.getElementById('gn-side')) return;
     var side=document.createElement('nav'); side.id='gn-side';
@@ -8217,18 +8518,26 @@ function renderInicio(){
   function fmtBR(d){ if(!d) return ''; var s=String(d).slice(0,10); return /^\d{4}-\d{2}-\d{2}$/.test(s)?s.split('-').reverse().join('/'):s; }
   function parseBRL(s){ var t=String(s==null?'':s).replace(/[^\d.,-]/g,''); if(t.indexOf(',')>=0&&t.indexOf('.')>=0) t=t.replace(/\./g,'').replace(',','.'); else if(t.indexOf(',')>=0) t=t.replace(',','.'); var v=parseFloat(t); return isNaN(v)?0:v; }
   function fone(nome){ var cli=gj('gn_cli'); var low=(nome||'').toLowerCase(); for(var i=0;i<cli.length;i++){ if((cli[i].nome||'').toLowerCase()===low) return String(cli[i].whatsapp||cli[i].tel||'').replace(/\D/g,''); } return ''; }
-  var DRILL=null, DSORT='data', DPER='tudo', DSEL={};
+  var DRILL=null, DSORT='data', DPER='tudo', DPER_DE='', DPER_ATE='', DSEL={};
+  function isoOf(dt){ return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2); }
   function inPer(dateStr){ if(DPER==='tudo') return true; if(!dateStr) return false; var t=today(); var now=new Date(); var d=String(dateStr).slice(0,10);
     if(DPER==='hoje') return d===t;
-    if(DPER==='semana'){ var s=new Date(now); s.setDate(s.getDate()-6); var si=s.getFullYear()+'-'+('0'+(s.getMonth()+1)).slice(-2)+'-'+('0'+s.getDate()).slice(-2); return d>=si&&d<=t; }
+    if(DPER==='3dias'){ var s3=new Date(now); s3.setDate(s3.getDate()-2); return d>=isoOf(s3)&&d<=t; }
+    if(DPER==='semana'){ var s=new Date(now); s.setDate(s.getDate()-6); return d>=isoOf(s)&&d<=t; }
     if(DPER==='mes') return d.slice(0,7)===t.slice(0,7);
+    if(DPER==='3meses'){ var sm=new Date(now); sm.setMonth(sm.getMonth()-3); return d>=isoOf(sm)&&d<=t; }
     if(DPER==='ano') return d.slice(0,4)===t.slice(0,4);
+    if(DPER==='a2026') return d.slice(0,4)==='2026';
+    if(DPER==='a2025') return d.slice(0,4)==='2025';
     if(DPER==='2anos') return (now.getFullYear()-(+d.slice(0,4)))<=1;
     if(DPER==='3anos') return (now.getFullYear()-(+d.slice(0,4)))<=2;
+    if(DPER==='custom'){ var de=DPER_DE||'0000-00-00'; var ate=DPER_ATE||'9999-99-99'; return d>=de&&d<=ate; }
     return true;
   }
-  function perOpts(){ return [['tudo','Todo período'],['hoje','Hoje'],['semana','Últimos 7 dias'],['mes','Este mês'],['ano','Este ano'],['2anos','Últimos 2 anos'],['3anos','Últimos 3 anos']].map(function(o){ return '<option value="'+o[0]+'"'+(DPER===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join(''); }
+  function perOpts(){ return [['tudo','Todo período'],['hoje','Hoje'],['3dias','Últimos 3 dias'],['semana','Últimos 7 dias'],['mes','Este mês'],['3meses','Últimos 3 meses'],['ano','Este ano'],['a2026','Ano de 2026'],['a2025','Ano de 2025'],['2anos','Últimos 2 anos'],['3anos','Últimos 3 anos'],['custom','Período personalizado…']].map(function(o){ return '<option value="'+o[0]+'"'+(DPER===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join(''); }
+  function customHTML(){ return DPER==='custom' ? ('<input type="date" value="'+(DPER_DE||'')+'" onchange="gnDrillCustom(this.value,null)" title="De" style="padding:7px;border:1px solid var(--gn-border);border-radius:8px;"><span style="color:var(--gn-dim);font-size:12px;">até</span><input type="date" value="'+(DPER_ATE||'')+'" onchange="gnDrillCustom(null,this.value)" title="Até" style="padding:7px;border:1px solid var(--gn-border);border-radius:8px;">') : ''; }
   window.gnDrillPer=function(v){ DPER=v; renderToolbar(); renderList(); };
+  window.gnDrillCustom=function(de,ate){ if(de!=null) DPER_DE=de; if(ate!=null) DPER_ATE=ate; renderList(); };
   var DEFS={
     recebido:{t:'💚 Recebido', note:'Dinheiro que já entrou (recebimentos confirmados).'},
     areceber:{t:'🟢 A receber', note:'Valores a receber dentro do prazo. Toque em "✓ Recebi" quando o cliente pagar.'},
@@ -8281,13 +8590,14 @@ function renderInicio(){
   function renderToolbar(){
     var tb=document.getElementById('gn-drill-toolbar'); if(!tb) return;
     if(DRILL==='clientes'){ tb.innerHTML='<input id="gn-drill-search" oninput="gnDrillList()" placeholder="🔍 Buscar..." style="width:100%;padding:8px;border:1px solid var(--gn-border);border-radius:8px;box-sizing:border-box;">'; return; }
-    if(DRILL==='orcamentos'){ tb.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input id="gn-drill-search" oninput="gnDrillList()" placeholder="🔍 Buscar..." style="flex:1;min-width:150px;padding:8px;border:1px solid var(--gn-border);border-radius:8px;box-sizing:border-box;"><select onchange="gnDrillPer(this.value)" style="padding:8px;border:1px solid var(--gn-border);border-radius:8px;">'+perOpts()+'</select></div>'; return; }
+    if(DRILL==='orcamentos'){ tb.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input id="gn-drill-search" oninput="gnDrillList()" placeholder="🔍 Buscar..." style="flex:1;min-width:150px;padding:8px;border:1px solid var(--gn-border);border-radius:8px;box-sizing:border-box;"><select onchange="gnDrillPer(this.value)" style="padding:8px;border:1px solid var(--gn-border);border-radius:8px;">'+perOpts()+'</select>'+customHTML()+'</div>'; return; }
     var podeReceber=(DRILL==='areceber'||DRILL==='atraso');
     var bulk=podeReceber?'<button onclick="gnDrillReceberTodos()" style="background:#16a34a;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">✓ Receber todos</button>':'';
     var recSel=podeReceber?'<button onclick="gnDrillRecSel()" style="background:#16a34a;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;">✓ Receber selecionados</button>':'';
     tb.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
       +'<input id="gn-drill-search" oninput="gnDrillList()" placeholder="🔍 Buscar cliente/descrição..." style="flex:1;min-width:160px;padding:8px;border:1px solid var(--gn-border);border-radius:8px;box-sizing:border-box;">'
       +'<select onchange="gnDrillPer(this.value)" title="Período" style="padding:8px;border:1px solid var(--gn-border);border-radius:8px;">'+perOpts()+'</select>'
+      +customHTML()
       +'<button onclick="gnDrillSort(\'data\')" style="background:'+(DSORT==='data'?'#4338ca':'#1f2937')+';color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;">↕ Data</button>'
       +'<button onclick="gnDrillSort(\'valor\')" style="background:'+(DSORT==='valor'?'#4338ca':'#1f2937')+';color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;">↕ Valor</button>'
       +bulk
@@ -10051,6 +10361,7 @@ function docsDriveIdxInfo(){
   return 'O app já lista os clientes com documento aqui no sistema. Clique em "Analisar Google Drive" para incluir também os arquivos antigos guardados no seu Drive.';
 }
 // ENTRADA da tela: lista de clientes
+window.docsToggleAll=function(){ window.__docsShowAll=!window.__docsShowAll; try{ renderDocsCliente(); }catch(e){} };
 function renderDocsCliente(){
   if(!docsPulled){ docsPulled=true; try{ ['rec','os','ctr'].forEach(function(k){ gnStorePull(k, function(ch){ if(ch) renderDocsCliente(); }); }); }catch(e){} }
   var wrap=document.getElementById('docs-lista-wrap'); var ficha=document.getElementById('docs-ficha');
@@ -10061,11 +10372,14 @@ function renderDocsCliente(){
   var q=docsNorm((document.getElementById('docs-busca-cli')||{}).value||'');
   var arr=_docsAgg.slice();
   if(q) arr=arr.filter(function(c){ return docsNorm(c.nome+' '+c.cpf+' '+c.tel+' '+c.email).indexOf(q)>=0; });
+  // Filtro anti-lixo: esconde registros com nome bagunçado (chave de banco, telefone-como-nome, descrição de serviço). Não apaga nada — só some da lista, então a sincronização não traz de volta.
+  if(!window.__docsShowAll){ var _alln=arr.length; arr=arr.filter(function(c){ return !(typeof gnNomeRuim==='function' && gnNomeRuim(c.nome)); }); window.__docsHidden=_alln-arr.length; } else { window.__docsHidden=0; }
   arr.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||'','pt-BR'); });
-  if(!arr.length){ box.innerHTML='<div style="color:var(--gn-dim);padding:16px;border:1px dashed var(--gn-border);border-radius:12px;">'+(q?'Nenhum cliente encontrado com esse filtro.':'Ainda não há clientes com documento. Emita um documento, importe laudos/planilhas ou clique em "Analisar Google Drive".')+'</div>'; return; }
+  var _toggle=(window.__docsHidden||window.__docsShowAll)?('<button onclick="docsToggleAll()" style="margin-left:8px;background:'+(window.__docsShowAll?'#fef3c7;color:#92400e':'var(--gn-surface2,#243049);color:var(--gn-text)')+';border:1px solid var(--gn-border);border-radius:8px;padding:4px 11px;cursor:pointer;font-size:12px;font-weight:700;">'+(window.__docsShowAll?'👁 Mostrando todos — voltar a filtrar':('🔎 Mostrar todos'+(window.__docsHidden?(' ('+window.__docsHidden+')'):'')))+'</button>'):'';
+  if(!arr.length){ box.innerHTML='<div style="color:var(--gn-dim);padding:16px;border:1px dashed var(--gn-border);border-radius:12px;">'+(q?'Nenhum cliente encontrado com esse filtro.':(window.__docsHidden?('Nenhum cliente com nome válido. '+window.__docsHidden+' registro(s) escondido(s) por nome bagunçado. '):'Ainda não há clientes com documento. Emita um documento, importe laudos/planilhas ou clique em "Analisar Google Drive".'))+_toggle+'</div>'; return; }
   var nDrive=arr.filter(function(c){ return c.src.drive && !c.src.cli && !c.emit.length; }).length;
-  var resumo='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:10px;"><b style="color:var(--gn-text);">'+arr.length+'</b> cliente(s) com documento'+(nDrive?(' · <b style="color:#0891b2;">'+nDrive+'</b> antigo(s) só no Drive'):'')+'. Clique para abrir a ficha.</div>';
-  box.innerHTML=resumo+'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">'+arr.map(function(c){
+  var resumo='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:10px;"><b style="color:var(--gn-text);">'+arr.length+'</b> cliente(s) com documento'+(nDrive?(' · <b style="color:#0891b2;">'+nDrive+'</b> antigo(s) só no Drive'):'')+(window.__docsHidden?(' · <b style="color:#dc2626;">'+window.__docsHidden+'</b> escondido(s) por nome bagunçado'):'')+'. Clique para abrir a ficha.'+_toggle+'</div>';
+  box.innerHTML=resumo+'<div style="display:grid;grid-template-columns:1fr;gap:8px;">'+arr.map(function(c){
     var nEmit=c.emit.length, nDr=c.drive.length, nLa=c.laudos.length;
     var tot=0; c.emit.forEach(function(d){ tot+=Number(d.valor)||0; });
     var soDrive=(c.src.drive && !c.src.cli && !nEmit);
@@ -11033,6 +11347,11 @@ function gnNomeRuim(nome){
   var s=String(nome||'').trim();
   if(s.length<2) return true;
   if(/^[\s,;:.\-–—•·"']/.test(s)) return true;
+  var dig=s.replace(/\D/g,'');
+  // nome que é só telefone/número (ex.: "+55 11 91052-5452", "+39 324 689 7762")
+  if(/^[\d\s()+.\-]+$/.test(s) && dig.length>=8) return true;
+  // chave de banco / ID gerado (token único, longo, letras+números, sem espaço) ex.: "NhR6PqKBlgmya6rtC5w", "Nk1BLah_MaJxqQIvShA"
+  if(s.indexOf(' ')<0 && /^[A-Za-z0-9_\-]{16,}$/.test(s) && /[A-Za-z]/.test(s) && /\d/.test(s)) return true;
   var pal=(s.match(/\S+/g)||[]).length;
   if(pal>=7) return true;
   if(s.length>55) return true;
@@ -11355,6 +11674,167 @@ window.gnImpUndo=gnImpUndo;
   function go(){ try{ if(!temNome()) mostrar(); }catch(e){} }
   if(document.readyState==='complete') setTimeout(go,800); else window.addEventListener('load', function(){ setTimeout(go,800); });
   window.gnPedirNome=mostrar; // permite reabrir manualmente, se precisar trocar o nome
+})();
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// ═══ FERRAMENTAS / ALMOXARIFADO ════════════════════════════════
+// Controle das ferramentas e equipamentos da Gás Network: quantidade,
+// estado de conservação (funcionando / precisa reparo / não funciona).
+// Sincroniza na nuvem (chave gn_ferr) em todos os aparelhos.
+// ══════════════════════════════════════════════════════════════
+(function(){
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function ferrGet(){ try{ return JSON.parse(localStorage.getItem('gn_ferr')||'[]'); }catch(e){ return []; } }
+  function ferrSaveAll(a){ try{ localStorage.setItem('gn_ferr', JSON.stringify(a)); }catch(e){} try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_ferr'); }catch(e){} }
+  var ORDEM=['Chaves','Ferramentas elétricas','Solda e maçarico','Pneumática e compressores','Cilindros e gases','Detecção e medição','Escadas e acesso','Corte e manuais','Teste e bombas','EPI','Transporte e acessórios','Limpeza e diversos','Outros'];
+
+  function seedBase(){
+    var L=[];
+    function add(cat,arr,qtd){ arr.forEach(function(n){ L.push({nome:n, categoria:cat, qtd:(qtd==null?1:qtd)}); }); }
+    add('Chaves',['Chave inglesa 8"','Chave inglesa 10"','Chave inglesa 12"','Chave inglesa 15"','Chave de grifo 14"','Chave de grifo 18"','Chave de grifo 24"','Jogo de chave de fenda','Jogo de chave Philips','Chave de fenda 1/8"','Chave de fenda 3/16"','Chave Philips média','Chave Philips grande','Jogo de chave allen (hexagonal)','Jogo de chave combinada (boca/estrela)','Chave de boca 1/2"','Chave de boca 9/16"','Chave estrela 5/8"','Jogo de chave canhão (soquete)','Catraca 1/2"','Jogo de soquetes','Chave de tubo (corrente)','Chave teste (caneta neon)','Chave biela']);
+    add('Ferramentas elétricas',['Furadeira de impacto','Furadeira/parafusadeira a bateria','Parafusadeira de impacto','Esmerilhadeira 4.1/2"','Esmerilhadeira 7"','Serra mármore','Lixadeira','Martelete/rompedor','Soprador térmico','Bateria reserva 18V','Carregador de bateria','Jogo de brocas para concreto','Jogo de brocas para metal','Jogo de bits','Disco de corte (caixa)','Disco de desbaste (caixa)','Extensão elétrica 10m','Extensão elétrica 20m','Filtro de linha']);
+    add('Solda e maçarico',['Maçarico de solda (chama)','Bolsa do maçarico','Maçarico portátil pequeno','Mangueira de maçarico','Regulador de acetileno','Regulador de oxigênio','Bico de maçarico reserva','Acendedor de maçarico','Estanho/solda (rolo)','Pasta de solda (fluxo)','Vareta foscoper (caixa)','Manta de proteção para solda','Escova de aço']);
+    add('Pneumática e compressores',['Compressor de ar portátil','Compressor de ar grande','Mangueira de ar comprimido','Bico de calibragem','Pistola de ar','Conexões pneumáticas (kit)']);
+    add('Cilindros e gases',['Cilindro de oxigênio','Cilindro de acetileno','Cilindro de nitrogênio','Cilindro de GLP (teste)','Carrinho para cilindro','Manômetro de nitrogênio','Válvula reguladora de nitrogênio']);
+    add('Detecção e medição',['Detector de gás eletrônico','Detector de gás tipo caneta','Manômetro de coluna (U)','Manômetro digital','Manômetro analógico','Kit de pressurização','Trena 5m','Trena 8m','Trena a laser','Nível de bolha','Nível a laser','Multímetro','Termômetro infravermelho','Paquímetro','Esquadro']);
+    add('Escadas e acesso',['Escada grande (extensível)','Escada média','Escada pequena (3 degraus)','Escada plataforma','Cavalete','Andaime (módulo)']);
+    add('Corte e manuais',['Arco de serra','Lâmina de serra (caixa)','Cortador de tubo de cobre','Cortador de tubo multicamada','Alicate universal','Alicate de pressão','Alicate de corte','Alicate de bico','Alicate decapador','Alicate prensa multicamada','Alargador/escareador de tubo','Curvador de tubo de cobre','Martelo','Marreta pequena','Marreta grande','Formão','Talhadeira','Ponteiro','Lima','Tesoura para tubo PEX','Espátula','Estilete','Jogo de limas agulha']);
+    add('Teste e bombas',['Bomba de teste manual','Bomba de vácuo','Bomba d\'água','Mangueira de teste','Tampões para teste (kit)']);
+    add('EPI',['Capacete de segurança','Óculos de proteção','Luva de raspa','Luva de vaqueta','Luva nitrílica (caixa)','Protetor auricular','Máscara respiratória','Bota de segurança','Cinto de segurança (altura)','Talabarte','Colete refletivo','Avental de raspa (solda)']);
+    add('Transporte e acessórios',['Mala de ferramentas grande','Mala de ferramentas média','Bolsa de ferramentas','Caixa organizadora','Cinto porta-ferramentas','Carrinho de carga','Lanterna de cabeça','Lanterna manual','Refletor de obra','Extensão de luz']);
+    add('Limpeza e diversos',['Aspirador de pó/água','Vassoura','Pano/estopa (pacote)','Lubrificante spray (WD)','Fita isolante (caixa)','Fita veda rosca (caixa)','Silicone/selante (kit)','Cola de tubo','Lixa (pacote)','Pincel/trincha','Balde','Régua de pedreiro','Prumo','Lápis de obra/marcador','Trena de bolso','Caixa de parafusos e buchas','Abraçadeiras sortidas (caixa)','Arame recozido (rolo)','Fita métrica reserva']);
+    return L;
+  }
+  function autoSeed(){
+    try{
+      if(localStorage.getItem('gn_ferr_seeded')==='1') return;
+      if(ferrGet().length>=80){ localStorage.setItem('gn_ferr_seeded','1'); return; }
+      var arr=ferrGet(); var nomes={}; arr.forEach(function(x){ nomes[(x.nome||'').toLowerCase()]=true; }); var add=0;
+      seedBase().forEach(function(b){ if(!nomes[b.nome.toLowerCase()]){ arr.push({id:'fr'+Date.now()+'_'+(add++), nome:b.nome, categoria:b.categoria, qtd:Number(b.qtd)||1, estado:'Funcionando'}); } });
+      ferrSaveAll(arr);
+      localStorage.setItem('gn_ferr_seeded','1');
+    }catch(e){}
+  }
+  window.ferrSeedGas=function(){ localStorage.removeItem('gn_ferr_seeded'); autoSeed(); render(); if(typeof toast==='function') toast('✓ Lista de ferramentas carregada','ok'); };
+
+  function corEstado(e){ return e==='Não funciona'?'#dc2626':(e==='Precisa reparo'?'#f59e0b':'#16a34a'); }
+
+  function buildPane(){
+    if(document.getElementById('pane-ferramentas')) return;
+    var ref=document.getElementById('pane-prod')||document.getElementById('pane-compras')||document.getElementById('pane-cfg');
+    if(!ref||!ref.parentNode) return;
+    var p=document.createElement('div'); p.id='pane-ferramentas'; p.style.display='none';
+    p.innerHTML=''
+      +'<div class="eyebrow">Almoxarifado</div>'
+      +'<div class="pgtitle" style="margin-bottom:4px;">🧰 Ferramentas / Almoxarifado</div>'
+      +'<div class="pgsub" style="margin-bottom:14px;">Controle todas as ferramentas e equipamentos da Gás Network: quantidade e estado (funcionando, precisa reparo ou não funciona). Sincroniza na nuvem em todos os aparelhos.</div>'
+      +'<div id="ferr-resumo" style="margin-bottom:12px;"></div>'
+      +'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">'
+        +'<input id="ferr-busca" placeholder="Buscar ferramenta..." style="flex:1;min-width:200px;padding:10px 12px;border:1px solid var(--gn-border);border-radius:8px;">'
+        +'<button id="ferr-add-btn" style="background:#4338ca;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">+ Nova ferramenta</button>'
+        +'<button id="ferr-seed-btn" style="background:#0e7490;color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:600;">Carregar lista padrão</button>'
+      +'</div>'
+      +'<div id="ferr-form" style="display:none;background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:16px;">'
+        +'<input type="hidden" id="ferr-f-id">'
+        +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">'
+          +'<div><label style="font-size:12px;color:var(--gn-dim);">Nome</label><input id="ferr-f-nome" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>'
+          +'<div><label style="font-size:12px;color:var(--gn-dim);">Categoria</label><input id="ferr-f-cat" list="ferr-cats" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>'
+          +'<div><label style="font-size:12px;color:var(--gn-dim);">Quantidade</label><input id="ferr-f-qtd" type="number" min="0" value="1" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>'
+          +'<div><label style="font-size:12px;color:var(--gn-dim);">Estado</label><select id="ferr-f-estado" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"><option>Funcionando</option><option>Precisa reparo</option><option>Não funciona</option></select></div>'
+        +'</div>'
+        +'<datalist id="ferr-cats">'+ORDEM.map(function(c){ return '<option value="'+esc(c)+'">'; }).join('')+'</datalist>'
+        +'<div style="display:flex;gap:10px;margin-top:12px;">'
+          +'<button id="ferr-save-btn" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">Salvar</button>'
+          +'<button id="ferr-cancel-btn" style="background:var(--gn-surface2);color:var(--gn-text);border:none;padding:10px 16px;border-radius:8px;cursor:pointer;">Cancelar</button>'
+        +'</div>'
+      +'</div>'
+      +'<div id="ferr-list"></div>';
+    ref.parentNode.insertBefore(p, ref.nextSibling);
+    // eventos
+    document.getElementById('ferr-busca').addEventListener('input', render);
+    document.getElementById('ferr-add-btn').onclick=function(){ openForm(null); };
+    document.getElementById('ferr-seed-btn').onclick=function(){ window.ferrSeedGas(); };
+    document.getElementById('ferr-save-btn').onclick=saveForm;
+    document.getElementById('ferr-cancel-btn').onclick=function(){ document.getElementById('ferr-form').style.display='none'; };
+  }
+  function openForm(id){
+    var f=document.getElementById('ferr-form'); if(!f) return;
+    var it=id?ferrGet().filter(function(x){return x.id===id;})[0]:null;
+    document.getElementById('ferr-f-id').value=it?it.id:'';
+    document.getElementById('ferr-f-nome').value=it?it.nome:'';
+    document.getElementById('ferr-f-cat').value=it?it.categoria:'';
+    document.getElementById('ferr-f-qtd').value=it?(Number(it.qtd)||0):1;
+    document.getElementById('ferr-f-estado').value=it?(it.estado||'Funcionando'):'Funcionando';
+    f.style.display='block'; try{ f.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){}
+  }
+  function saveForm(){
+    var nome=(document.getElementById('ferr-f-nome').value||'').trim(); if(!nome){ if(typeof toast==='function') toast('Informe o nome','er'); return; }
+    var id=document.getElementById('ferr-f-id').value || ('fr'+Date.now());
+    var it={ id:id, nome:nome, categoria:(document.getElementById('ferr-f-cat').value||'Outros').trim()||'Outros', qtd:Number(document.getElementById('ferr-f-qtd').value)||0, estado:document.getElementById('ferr-f-estado').value||'Funcionando' };
+    var arr=ferrGet(); var i=arr.findIndex(function(x){ return x.id===id; });
+    if(i>=0) arr[i]=it; else arr.unshift(it);
+    ferrSaveAll(arr); document.getElementById('ferr-form').style.display='none'; render(); if(typeof toast==='function') toast('✓ Ferramenta salva','ok');
+  }
+  window.ferrMov=function(id,delta){ var arr=ferrGet(); var x=arr.filter(function(y){return y.id===id;})[0]; if(!x) return; x.qtd=Math.max(0,(Number(x.qtd)||0)+delta); ferrSaveAll(arr); render(); };
+  window.ferrEstado=function(id,v){ var arr=ferrGet(); var x=arr.filter(function(y){return y.id===id;})[0]; if(!x) return; x.estado=v; ferrSaveAll(arr); render(); };
+  window.ferrEdit=function(id){ openForm(id); };
+  window.ferrDel=function(id){ if(!confirm('Excluir esta ferramenta?')) return; ferrSaveAll(ferrGet().filter(function(x){return x.id!==id;})); render(); };
+
+  function render(){
+    var list=document.getElementById('ferr-list'); if(!list) return;
+    var q=((document.getElementById('ferr-busca')||{}).value||'').toLowerCase().trim();
+    var all=ferrGet();
+    var totalItens=all.length, totalUn=0, nRep=0, nNok=0;
+    all.forEach(function(x){ totalUn+=Number(x.qtd)||0; if(x.estado==='Precisa reparo')nRep++; if(x.estado==='Não funciona')nNok++; });
+    var res=document.getElementById('ferr-resumo');
+    if(res) res.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+      +'<span style="background:rgba(67,56,202,.12);border:1px solid rgba(67,56,202,.4);color:var(--gn-text);border-radius:9px;padding:7px 12px;font-size:12.5px;font-weight:600;">🧰 '+totalItens+' tipos · '+totalUn+' unidade(s)</span>'
+      +(nRep?'<span style="background:rgba(245,158,11,.12);border:1px solid #f59e0b;color:#f59e0b;border-radius:9px;padding:7px 12px;font-size:12.5px;font-weight:600;">🛠️ '+nRep+' precisa(m) reparo</span>':'')
+      +(nNok?'<span style="background:rgba(220,38,38,.12);border:1px solid #dc2626;color:#dc2626;border-radius:9px;padding:7px 12px;font-size:12.5px;font-weight:600;">⛔ '+nNok+' não funciona(m)</span>':'')
+      +'</div>';
+    var arr=all.slice();
+    if(q){ arr=arr.filter(function(c){ return ((c.nome||'')+' '+(c.categoria||'')).toLowerCase().indexOf(q)>=0; }); }
+    if(!arr.length){ list.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">'+(all.length?'Nenhuma ferramenta encontrada.':'Nenhuma ferramenta cadastrada. Clique em "Carregar lista padrão".')+'</div>'; return; }
+    var grupos={}; arr.forEach(function(c){ var g=(c.categoria||'Outros').trim()||'Outros'; (grupos[g]=grupos[g]||[]).push(c); });
+    var chaves=Object.keys(grupos).sort(function(a,b){ var ia=ORDEM.indexOf(a),ib=ORDEM.indexOf(b); if(ia<0)ia=999; if(ib<0)ib=999; if(ia!==ib)return ia-ib; return a.localeCompare(b); });
+    var html='';
+    chaves.forEach(function(g){
+      var itens=grupos[g].sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
+      html+='<div style="font-weight:800;color:var(--gn-text);margin:14px 0 8px;padding-bottom:5px;border-bottom:2px solid var(--gn-border);font-size:14px;">'+esc(g)+' <span style="color:var(--gn-dim);font-weight:600;font-size:12px;">('+itens.length+')</span></div>';
+      html+=itens.map(function(c){
+        return '<div style="border:1px solid var(--gn-border);border-radius:12px;padding:11px 13px;margin-bottom:8px;">'
+          +'<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">'
+          +'<div style="min-width:0;flex:1;"><div style="font-weight:700;color:var(--gn-text);">'+esc(c.nome)+'</div>'
+          +'<div style="font-size:12px;color:var(--gn-dim);">Qtd: <b style="color:var(--gn-text);">'+(Number(c.qtd)||0)+'</b> · <span style="color:'+corEstado(c.estado)+';font-weight:700;">'+esc(c.estado||'Funcionando')+'</span></div></div>'
+          +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">'
+          +'<button onclick="ferrMov(\''+c.id+'\',-1)" style="background:#fee;color:#dc2626;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-weight:700;">−</button>'
+          +'<button onclick="ferrMov(\''+c.id+'\',1)" style="background:#e7f5ec;color:#16a34a;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-weight:700;">＋</button>'
+          +'<select onchange="ferrEstado(\''+c.id+'\',this.value)" style="padding:6px 8px;border:1px solid var(--gn-border);border-radius:7px;font-size:12px;">'
+            +['Funcionando','Precisa reparo','Não funciona'].map(function(o){ return '<option'+(o===(c.estado||'Funcionando')?' selected':'')+'>'+o+'</option>'; }).join('')
+          +'</select>'
+          +'<button onclick="ferrEdit(\''+c.id+'\')" style="background:rgba(124,92,255,.20);color:var(--gn-text);border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;">Editar</button>'
+          +'<button onclick="ferrDel(\''+c.id+'\')" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;">Excluir</button>'
+          +'</div></div></div>';
+      }).join('');
+    });
+    list.innerHTML=html;
+  }
+  window.renderFerramentas=render;
+
+  function wrapGoTab(){
+    if(typeof window.goTab!=='function' || window.goTab.__ferrWrap) return;
+    var o=window.goTab;
+    window.goTab=function(t){
+      var r=o.apply(this,arguments);
+      try{ var p=document.getElementById('pane-ferramentas'); if(p){ p.style.display=(t==='ferramentas')?'block':'none'; if(t==='ferramentas'){ autoSeed(); render(); } } }catch(e){}
+      return r;
+    };
+    try{ for(var k in o){ if(o.hasOwnProperty(k)) window.goTab[k]=o[k]; } }catch(e){}
+    window.goTab.__ferrWrap=true;
+  }
+  function init(){ buildPane(); autoSeed(); wrapGoTab(); }
+  if(document.readyState==='complete') setTimeout(init,1500); else window.addEventListener('load', function(){ setTimeout(init,1500); });
 })();
 </script>
 </body>
