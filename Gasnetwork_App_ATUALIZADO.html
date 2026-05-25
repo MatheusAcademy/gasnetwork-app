@@ -1752,6 +1752,12 @@ textarea.fi{resize:vertical;}
         <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Solicitação / problema</label><textarea id="os-desc" rows="2" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></textarea></div>
         <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Serviço executado</label><textarea id="os-exec" rows="2" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></textarea></div>
         <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Materiais utilizados</label><input id="os-mat" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">Forma de pagamento</label>
+          <select id="os-forma" onchange="osFormaChange()" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;">
+            <option value="">— como o cliente pagou? —</option><option>PIX</option><option>Dinheiro</option><option>Boleto</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência</option><option>Cheque</option></select></div>
+        <div id="os-parcelas-wrap" style="display:none;"><label style="font-size:12px;color:var(--gn-dim);">Parcelas (cartão de crédito)</label>
+          <select id="os-parcelas" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;">
+            <option value="1">À vista (1x)</option><option value="2">2x</option><option value="3">3x</option><option value="4">4x</option><option value="5">5x</option><option value="6">6x</option><option value="7">7x</option><option value="8">8x</option><option value="9">9x</option><option value="10">10x</option><option value="11">11x</option><option value="12">12x</option></select></div>
       </div>
       <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--gn-border);">
         <div style="font-size:12px;color:var(--gn-dim);margin-bottom:7px;">⚡ Modelos rápidos (preenchem o serviço com 1 toque):</div>
@@ -3398,9 +3404,18 @@ function saveHist(e){const h=JSON.parse(localStorage.getItem('gn_hist')||'[]');h
 function renderHist(){
   const list=document.getElementById('hist-list');const h=JSON.parse(localStorage.getItem('gn_hist')||'[]');
   if(!h.length){list.innerHTML=`<div class="hem"><div class="ic">📋</div><div class="ht">Nenhuma proposta gerada ainda</div><div>Gere propostas e elas aparecem aqui.</div></div>`;return;}
-  list.innerHTML=h.map((e,i)=>{const temSnap=!!e.snapshot;const modoBadge=e.modo==='completo'?'<span class="hbadge c">Completo</span>':'<span class="hbadge s">Simples</span>';const disabledClass=!temSnap?'style="opacity:.4;cursor:not-allowed;pointer-events:none;"':'';return`<div class="hc"><div class="hn">${e.numero}${modoBadge}</div><div class="hi"><div class="hcl">${e.cliente}</div><div class="hsv">${e.servicos||''}</div><div class="hmt">Gerado em: ${e.data}</div></div><div class="hr"><div class="hv">${e.valor?'R$ '+e.valor.toLocaleString('pt-BR',{minimumFractionDigits:2}):'—'}</div><div class="hacts"><button class="bhe" ${disabledClass} onclick="editarHist(${i})">✏ Editar</button><button class="bhd" ${disabledClass} onclick="baixarHistPDF(${i})">📄 Baixar PDF</button>${e._pdfUrl?`<a class="bhe" href="${e._pdfUrl}" target="_blank" rel="noopener">☁ PDF na nuvem</a>`:``}<button class="bsd" onclick="delHist(${i})">🗑 Excluir</button></div></div></div>`;}).join('');
+  list.innerHTML=h.map((e,i)=>{const temSnap=!!e.snapshot;const modoBadge=e.modo==='completo'?'<span class="hbadge c">Completo</span>':'<span class="hbadge s">Simples</span>';const disabledClass='';return`<div class="hc"><div class="hn">${e.numero}${modoBadge}</div><div class="hi"><div class="hcl">${e.cliente}</div><div class="hsv">${e.servicos||''}</div><div class="hmt">Gerado em: ${e.data}</div></div><div class="hr"><div class="hv">${e.valor?'R$ '+e.valor.toLocaleString('pt-BR',{minimumFractionDigits:2}):'—'}</div><div class="hacts"><button class="bhe" ${disabledClass} onclick="editarHist(${i})">✏ Editar</button><button class="bhd" ${disabledClass} onclick="baixarHistPDF(${i})">📄 Baixar PDF</button>${e._pdfUrl?`<a class="bhe" href="${e._pdfUrl}" target="_blank" rel="noopener">☁ PDF na nuvem</a>`:``}<button class="bsd" onclick="delHist(${i})">🗑 Excluir</button></div></div></div>`;}).join('');
 }
-function loadSnapshot(entry){if(!entry||!entry.snapshot){toast('Registro sem dados.','er');return false;}const s=entry.snapshot;currentMode=entry.modo||'simples';setMode(currentMode);propostaNum=entry.numero;document.getElementById('badge').textContent=entry.numero;set('f-nome',s.cl?.nome||'');set('f-cpf',s.cl?.cpf||'');set('f-rg',s.cl?.rg||'');set('f-end-cliente',s.cl?.end||'');set('f-end-obra',s.cl?.obra||'');set('f-responsavel',s.cl?.resp||'');set('f-tel',s.cl?.tel||'');set('f-email',s.cl?.email||'');set('f-obj',s.obj||'');set('f-escopo',s.escopo||'');set('f-pgto',s.pgto||'');set('f-prazo',s.prazo||'');set('f-validade',s.validade||'30 dias');set('f-obs-tec',s.obsTec||'');set('f-entregaveis',s.entregaveis||'');set('f-premissas',s.premissas||'');set('f-prazos-det',s.prazosDet||'');set('f-obs-adic',s.obsAdic||'');set('f-incluso',s.incluso||'');set('f-nao-incluso',s.naoIncluso||'');renderSvcs(s.svcs&&s.svcs.length?s.svcs.map(sv=>({descricao:sv.desc,quantidade:sv.qtd,valor_unitario:sv.vu,subtotal:sv.sub})):[{descricao:'',quantidade:1,valor_unitario:0,subtotal:0}]);const totFmt=s.total?fmt(s.total):'';document.getElementById('f-tot').value=totFmt;updTot(totFmt);return true;}
+function loadSnapshot(entry){if(!entry){toast('Registro sem dados.','er');return false;}
+  if(!entry.snapshot){
+    // Reconstrói uma ficha mínima: pedidos criados por importação, pela IA ou sincronizados de outro aparelho podem não ter o snapshot completo — assim a edição sempre funciona.
+    var _cl={ nome: entry.cliente||'' };
+    try{ var _cli=JSON.parse(localStorage.getItem('gn_cli')||'[]'); var _m=_cli.filter(function(x){ return String(x.nome||'').trim().toLowerCase()===String(entry.cliente||'').trim().toLowerCase(); })[0]; if(_m){ _cl.cpf=_m.cpf||''; _cl.tel=_m.tel||_m.whatsapp||''; _cl.email=_m.email||''; _cl.end=_m.endereco||''; } }catch(_e){}
+    var _sv=[]; if(entry.servicos){ _sv=[{desc:String(entry.servicos), qtd:1, vu:Number(entry.valor)||0, sub:Number(entry.valor)||0}]; }
+    entry.snapshot={ cl:_cl, obj:'', escopo:'', pgto:'', prazo:'', validade:'30 dias', obsTec:'', svcs:_sv, total:Number(entry.valor)||0 };
+    try{ if(typeof toast==='function') toast('Pedido aberto para edição. Confira/complete os dados e salve.','ok'); }catch(_t){}
+  }
+  const s=entry.snapshot;currentMode=entry.modo||'simples';setMode(currentMode);propostaNum=entry.numero;document.getElementById('badge').textContent=entry.numero;set('f-nome',s.cl?.nome||'');set('f-cpf',s.cl?.cpf||'');set('f-rg',s.cl?.rg||'');set('f-end-cliente',s.cl?.end||'');set('f-end-obra',s.cl?.obra||'');set('f-responsavel',s.cl?.resp||'');set('f-tel',s.cl?.tel||'');set('f-email',s.cl?.email||'');set('f-obj',s.obj||'');set('f-escopo',s.escopo||'');set('f-pgto',s.pgto||'');set('f-prazo',s.prazo||'');set('f-validade',s.validade||'30 dias');set('f-obs-tec',s.obsTec||'');set('f-entregaveis',s.entregaveis||'');set('f-premissas',s.premissas||'');set('f-prazos-det',s.prazosDet||'');set('f-obs-adic',s.obsAdic||'');set('f-incluso',s.incluso||'');set('f-nao-incluso',s.naoIncluso||'');renderSvcs(s.svcs&&s.svcs.length?s.svcs.map(sv=>({descricao:sv.desc,quantidade:sv.qtd,valor_unitario:sv.vu,subtotal:sv.sub})):[{descricao:'',quantidade:1,valor_unitario:0,subtotal:0}]);const totFmt=s.total?fmt(s.total):'';document.getElementById('f-tot').value=totFmt;updTot(totFmt);return true;}
 function editarHist(i){const h=JSON.parse(localStorage.getItem('gn_hist')||'[]');if(!loadSnapshot(h[i]))return;goTab('novo');document.getElementById('preview').style.display='block';setTimeout(()=>document.getElementById('preview').scrollIntoView({behavior:'smooth',block:'start'}),150);toast('✓ Proposta carregada para edição.','ok');}
 function baixarHistPDF(i){const h=JSON.parse(localStorage.getItem('gn_hist')||'[]');if(!loadSnapshot(h[i]))return;document.getElementById('preview').style.display='block';setTimeout(()=>gerarPDF(),80);}
 function updCount(){var el=document.getElementById('hcount');if(el)el.textContent=JSON.parse(localStorage.getItem('gn_hist')||'[]').length;}
@@ -6580,7 +6595,8 @@ function osFillSelect(){
   if(cur) sel.value=cur;
 }
 function osPickCli(){ var id=document.getElementById('os-cli').value; var c=osClientes().filter(function(x){ return x.id===id; })[0]; if(c){ document.getElementById('os-nome').value=c.nome||''; document.getElementById('os-end').value=c.endereco||''; } }
-function osLimpar(){ ['os-nome','os-end','os-valor','os-desc','os-exec','os-mat'].forEach(function(id){ document.getElementById(id).value=''; }); document.getElementById('os-cli').value=''; document.getElementById('os-status').value='Aberta'; }
+function osLimpar(){ ['os-nome','os-end','os-valor','os-desc','os-exec','os-mat'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); var cl=document.getElementById('os-cli'); if(cl) cl.value=''; document.getElementById('os-status').value='Aberta'; var fo=document.getElementById('os-forma'); if(fo) fo.value=''; var pw=document.getElementById('os-parcelas-wrap'); if(pw) pw.style.display='none'; }
+function osFormaChange(){ var f=(document.getElementById('os-forma')||{}).value||''; var w=document.getElementById('os-parcelas-wrap'); if(w) w.style.display=(f==='Cartão de crédito')?'block':'none'; }
 // ─── Gerar Nota de Serviço a partir de um ORÇAMENTO (mantém o orçamento original) ───
 function osOrcamentos(){ try{ var h=JSON.parse(localStorage.getItem('gn_hist')||'[]'); return h.filter(function(e){ var t=String(e&&e.tipoDoc||'').toLowerCase(); return t===''||t.indexOf('orçam')>=0||t.indexOf('orcam')>=0||t.indexOf('proposta')>=0; }); }catch(e){ return []; } }
 function osFillFromOrc(){
@@ -6659,10 +6675,12 @@ function osGerar(){
   var nome=(document.getElementById('os-nome').value||'').trim();
   if(!nome){ toast('Informe o cliente','er'); return; }
   var dataIso=document.getElementById('os-data').value||new Date().toISOString().slice(0,10);
+  var _forma=(document.getElementById('os-forma')||{}).value||'';
+  var _parc=(_forma==='Cartão de crédito')?((document.getElementById('os-parcelas')||{}).value||'1'):'';
   var os={ id:'o'+Date.now(), numero:((typeof gnDocNum==='function')?gnDocNum('Nota de Serviço'):gnNumero('NS')), nome:nome, end:document.getElementById('os-end').value||'',
     status:document.getElementById('os-status').value, valor:gnParseVal(document.getElementById('os-valor').value),
     desc:document.getElementById('os-desc').value||'', exec:document.getElementById('os-exec').value||'',
-    mat:document.getElementById('os-mat').value||'', data:dataIso, criadoEm:new Date().toISOString() };
+    mat:document.getElementById('os-mat').value||'', forma:_forma, parcelas:_parc, data:dataIso, criadoEm:new Date().toISOString() };
   gnStoreUpsert('os', os); osSyncFinance(os); osDoc(os, true);
   osLimpar(); renderOs();
   toast(os.status==='Finalizada'?'✓ Nota de Serviço finalizada e lançada nos recebidos':'✓ Nota de Serviço salva','ok');
@@ -6675,7 +6693,7 @@ function osDoc(os, save){
   var doc=gnDocPDF({
     titulo:'NOTA DE SERVIÇO', numero:os.numero, data:(os.data||'').split('-').reverse().join('/'),
     cliente:{ nome:os.nome, end:os.end },
-    linhas:[ {label:'Status', valor:os.status} ],
+    linhas:(function(){ var L=[{label:'Status', valor:os.status}]; if(os.forma){ L.push({label:'Forma de pagamento', valor:os.forma+(os.forma==='Cartão de crédito'&&os.parcelas?(' — '+os.parcelas+'x'):'')}); } return L; })(),
     total: os.valor||null, blocos:blocos,
     rodape:'Ordem de serviço emitida eletronicamente.'
   });
@@ -6684,7 +6702,8 @@ function osDoc(os, save){
 }
 function osPreview(){
   var nome=(document.getElementById('os-nome').value||'').trim(); if(!nome){ toast('Informe o cliente','er'); return; }
-  var os={ numero:'(pré-visualização)', nome:nome, end:document.getElementById('os-end').value||'', status:document.getElementById('os-status').value, valor:gnParseVal(document.getElementById('os-valor').value), desc:document.getElementById('os-desc').value||'', exec:document.getElementById('os-exec').value||'', mat:document.getElementById('os-mat').value||'', data:(document.getElementById('os-data').value||new Date().toISOString().slice(0,10)) };
+  var _formaP=(document.getElementById('os-forma')||{}).value||'';
+  var os={ numero:'(pré-visualização)', nome:nome, end:document.getElementById('os-end').value||'', status:document.getElementById('os-status').value, valor:gnParseVal(document.getElementById('os-valor').value), desc:document.getElementById('os-desc').value||'', exec:document.getElementById('os-exec').value||'', mat:document.getElementById('os-mat').value||'', forma:_formaP, parcelas:(_formaP==='Cartão de crédito')?((document.getElementById('os-parcelas')||{}).value||'1'):'', data:(document.getElementById('os-data').value||new Date().toISOString().slice(0,10)) };
   var doc=osDoc(os, false); if(!doc) return;
   try{ window.open(doc.output('bloburl'),'_blank'); toast('👁 Pré-visualização aberta. Confira e clique em Gerar OS.','ok'); }catch(e){ toast('Não consegui pré-visualizar: '+e.message,'er'); }
 }
@@ -11295,6 +11314,47 @@ window.gnImpUndo=gnImpUndo;
     setInterval(vigiarModais, 2500);
   }
   if(document.readyState==='complete') setTimeout(init,1400); else window.addEventListener('load', function(){ setTimeout(init,1400); });
+})();
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// ═══ IDENTIFICAÇÃO DO USUÁRIO/APARELHO (primeiro acesso) ════════
+// Pede o nome UMA única vez por aparelho. Esse nome marca quem
+// emitiu cada documento e aparece no histórico de atividades, para
+// você saber quem fez o quê (você, sua irmã etc.) e de qual aparelho.
+// ══════════════════════════════════════════════════════════════
+(function(){
+  function temNome(){ try{ return !!String(localStorage.getItem('gn_device')||'').trim(); }catch(e){ return true; } }
+  function salvar(nome){
+    nome=String(nome||'').trim(); if(!nome) return false;
+    try{ localStorage.setItem('gn_device', nome); }catch(e){}
+    try{ if(typeof gnSetDevice==='function') gnSetDevice(nome); }catch(e){}
+    try{ var i=document.getElementById('sync-dev'); if(i) i.value=nome; }catch(e){}
+    try{ if(typeof gnLogAtv==='function') gnLogAtv('Acesso','Entrou no app', nome); }catch(e){}
+    return true;
+  }
+  function mostrar(){
+    if(document.getElementById('gn-ident-modal')) return;
+    var d=document.createElement('div'); d.id='gn-ident-modal';
+    d.style.cssText='position:fixed;inset:0;z-index:3000;background:rgba(6,9,18,.92);display:flex;align-items:center;justify-content:center;padding:18px;';
+    d.innerHTML='<div style="max-width:420px;width:100%;background:#161d31;border:1px solid #2a3350;border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.55);padding:22px;">'
+      +'<div style="font-size:34px;text-align:center;margin-bottom:6px;">👋</div>'
+      +'<div style="font-weight:800;color:#f1f5ff;font-size:18px;text-align:center;margin-bottom:6px;">Bem-vindo(a) à Gás Network</div>'
+      +'<div style="font-size:13px;color:#9fb0d0;text-align:center;margin-bottom:16px;">Para a equipe saber quem fez o quê, digite o seu nome. Ele vai aparecer em tudo o que você criar ou emitir neste aparelho. Você só preenche uma vez.</div>'
+      +'<input id="gn-ident-in" placeholder="Ex.: Matheus (computador) ou Maria (celular)" style="width:100%;box-sizing:border-box;padding:12px;border:1px solid #2a3350;border-radius:10px;font-size:14px;background:#0f1626;color:#f1f5ff;margin-bottom:12px;">'
+      +'<button id="gn-ident-btn" style="width:100%;background:linear-gradient(135deg,#4338ca,#7c5cff);color:#fff;border:none;border-radius:10px;padding:13px;cursor:pointer;font-weight:700;font-size:15px;">Começar a usar</button>'
+      +'<div id="gn-ident-err" style="color:#fb7185;font-size:12px;text-align:center;margin-top:8px;display:none;">Por favor, digite o seu nome para continuar.</div>'
+      +'</div>';
+    document.body.appendChild(d);
+    var inp=document.getElementById('gn-ident-in'); var btn=document.getElementById('gn-ident-btn'); var err=document.getElementById('gn-ident-err');
+    function ok(){ if(salvar(inp.value)){ if(d.parentNode) d.parentNode.removeChild(d); try{ if(typeof toast==='function') toast('✓ Olá, '+(localStorage.getItem('gn_device')||'')+'! Bom trabalho.','ok'); }catch(e){} } else { if(err) err.style.display='block'; try{ inp.focus(); }catch(e){} } }
+    if(btn) btn.onclick=ok;
+    if(inp) inp.addEventListener('keydown', function(e){ if(e.key==='Enter') ok(); });
+    setTimeout(function(){ try{ inp.focus(); }catch(e){} }, 200);
+  }
+  function go(){ try{ if(!temNome()) mostrar(); }catch(e){} }
+  if(document.readyState==='complete') setTimeout(go,800); else window.addEventListener('load', function(){ setTimeout(go,800); });
+  window.gnPedirNome=mostrar; // permite reabrir manualmente, se precisar trocar o nome
 })();
 </script>
 </body>
