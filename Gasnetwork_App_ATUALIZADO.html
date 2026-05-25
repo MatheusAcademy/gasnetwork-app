@@ -1882,6 +1882,15 @@ textarea.fi{resize:vertical;}
       </div>
     </div>
 
+    <div style="background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.4);border-radius:14px;padding:16px;margin-bottom:16px;">
+      <div style="font-weight:800;color:var(--gn-text);margin-bottom:4px;">📄 Modelo padrão — Construção de tubulação de gás <span style="font-size:11px;background:#16a34a;color:#fff;border-radius:10px;padding:1px 8px;font-weight:700;vertical-align:middle;">sem IA</span></div>
+      <div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:10px;">Contrato completo e formal de 3 páginas, com 13 cláusulas detalhadas e os dados da Gás Network já embutidos. Preencha acima apenas <strong>cliente, valor, forma de pagamento, prazo e garantia</strong> (o que ficar em branco usa um padrão profissional) e clique abaixo — gera na hora, já assinado, sem depender da IA.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button onclick="ctrModeloTubulacao(true)" style="background:#0e7490;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">👁 Pré-visualizar modelo</button>
+        <button onclick="ctrModeloTubulacao(false)" style="background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:700;">📄 Gerar contrato padrão (tubulação de gás)</button>
+      </div>
+    </div>
+
     <div style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.4);border-radius:14px;padding:16px;margin-bottom:16px;">
       <div style="font-weight:800;color:var(--gn-text);margin-bottom:4px;">✦ Gerar contrato com IA a partir de uma proposta</div>
       <div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:10px;">Escolha o cliente acima (ou digite o nome), <strong>envie a proposta em PDF</strong>, cole o texto ou envie uma foto dela — e a IA redige um contrato completo, formal e detalhado em nome da sua empresa, preenchendo os campos acima. O PDF já sai com a sua assinatura. Depois é só revisar e clicar em "Gerar contrato (PDF)".</div>
@@ -2438,11 +2447,11 @@ function renderHoje(){
   // ✅ FEITO HOJE: documentos emitidos hoje (nota de serviço, recibo, contrato), pedidos criados hoje, tarefas/notinhas concluídas hoje
   function _hojeKey(d){ var ce=String(d.criadoEm||d.data||''); var m=ce.match(/(\d{2})\/(\d{2})\/(\d{4})/); if(m) ce=m[3]+'-'+m[2]+'-'+m[1]; return ce.slice(0,10); }
   var feitos=[];
-  [['os','📝 Nota de Serviço'],['rec','🧾 Recibo'],['ctr','📄 Contrato']].forEach(function(kk){ try{ var a=(typeof gnStoreGet==='function')?gnStoreGet(kk[0]):JSON.parse(localStorage.getItem('gn_'+kk[0])||'[]'); a.forEach(function(d){ if(_hojeKey(d)===hojeISO) feitos.push({t:kk[1], nome:d.nome||'', num:d.numero||'', valor:Number(d.valor)||0}); }); }catch(e){} });
-  try{ h.forEach(function(e){ if(_hojeKey(e)===hojeISO) feitos.push({t:'📋 Orçamento/Pedido', nome:e.cliente||'', num:e.numero||'', valor:Number(e.valor)||0}); }); }catch(e){}
+  [['os','📝 Nota de Serviço'],['rec','🧾 Recibo'],['ctr','📄 Contrato']].forEach(function(kk){ try{ var a=(typeof gnStoreGet==='function')?gnStoreGet(kk[0]):JSON.parse(localStorage.getItem('gn_'+kk[0])||'[]'); a.forEach(function(d){ if(_hojeKey(d)===hojeISO) feitos.push({t:kk[1], tipo:kk[0], id:d.id||'', nome:d.nome||'', num:d.numero||'', valor:Number(d.valor)||0}); }); }catch(e){} });
+  try{ h.forEach(function(e){ if(_hojeKey(e)===hojeISO){ var ehLaudo=/laudo/i.test(String(e.tipoDoc||e.servicos||'')); feitos.push({t:(ehLaudo?'🔬 Laudo':'📋 Orçamento/Pedido'), tipo:(ehLaudo?'laudo':'orc'), id:'', num:e.numero||'', nome:e.cliente||'', valor:Number(e.valor)||0}); } }); }catch(e){}
   var tarFeitas=[]; try{ (typeof tarGet==='function'?tarGet():JSON.parse(localStorage.getItem('gn_tarefas')||'[]')).forEach(function(t){ if(t.status==='Concluída') tarFeitas.push(t); }); }catch(e){}
   var notFeitas=[]; try{ var nd=JSON.parse(localStorage.getItem('gn_notinha_done')||'[]'); notFeitas=servHoje.filter(function(a){ return nd.indexOf(a.id)>=0; }); }catch(e){}
-  function feitoRow(d){ return '<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid var(--gn-border);border-left:4px solid #16a34a;border-radius:10px;margin-bottom:6px;"><div style="min-width:0;"><span style="font-weight:700;color:var(--gn-text);">'+d.t+'</span> <span style="color:var(--gn-dim);font-size:12px;">'+gnEsc(d.num)+'</span><div style="font-size:12px;color:var(--gn-dim);">'+gnEsc(d.nome)+'</div></div>'+(d.valor?('<div style="white-space:nowrap;color:#16a34a;font-weight:600;">'+gnBRL(d.valor)+'</div>'):'')+'</div>'; }
+  function feitoRow(d){ var arg="'"+(d.tipo||'')+"','"+gnEsc(d.id||'')+"','"+gnEsc(d.num||'')+"'"; return '<div onclick="gnDocAbrir('+arg+')" style="cursor:pointer;display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 11px;border:1px solid var(--gn-border);border-left:4px solid #16a34a;border-radius:10px;margin-bottom:6px;"><div style="min-width:0;"><span style="font-weight:700;color:var(--gn-text);">'+d.t+'</span> <span style="color:var(--gn-dim);font-size:12px;">'+gnEsc(d.num)+'</span><div style="font-size:12px;color:var(--gn-dim);">'+gnEsc(d.nome)+'</div></div><div style="display:flex;gap:8px;align-items:center;white-space:nowrap;">'+(d.valor?('<span style="color:#16a34a;font-weight:600;">'+gnBRL(d.valor)+'</span>'):'')+'<button onclick="event.stopPropagation();gnDocAbrir('+arg+')" style="background:rgba(124,92,255,.2);color:var(--gn-text);border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;">✏ Editar</button></div></div>'; }
   var feitoHtml=sec('✅ Documentos emitidos hoje','#16a34a',feitos,feitoRow)
     +sec('✅ Tarefas concluídas','#16a34a',tarFeitas,function(t){ return '<div style="padding:8px 11px;border:1px solid var(--gn-border);border-radius:10px;margin-bottom:6px;color:var(--gn-text);font-size:13px;">✓ '+gnEsc(t.titulo||'')+(t.responsavel?(' <span style="color:var(--gn-dim);font-size:11px;">· '+gnEsc(t.responsavel)+'</span>'):'')+'</div>'; })
     +sec('✅ Notinhas feitas hoje','#16a34a',notFeitas,function(a){ return '<div style="padding:8px 11px;border:1px solid var(--gn-border);border-radius:10px;margin-bottom:6px;color:var(--gn-text);font-size:13px;">✓ '+gnEsc(a.cliente||a.titulo||'')+' <span style="color:var(--gn-dim);font-size:11px;">· '+gnEsc(a.hora||'')+'</span></div>'; });
@@ -4231,7 +4240,7 @@ function gnCor(){ var c=gnCfg(); return c.cor||'#7c5cff'; }
 // Dados compartilhados por toda a equipe + auto-save de documentos no Drive.
 // ══════════════════════════════════════════════
 var GN_CLOUD2 = 'https://script.google.com/macros/s/AKfycbycnK4Fx0J4QphoLr-LQJPkh04RTy6zbBto-Sqlgr306GqjggZkKhyOsJXypeprS0Loww/exec';
-var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod','gn_ferr','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user','gn_upload_hist','gn_drive_idx','gn_nome_ok','gn_notinha_done','gn_gar_retornos'];
+var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_age_done','gn_prod','gn_ferr','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user','gn_upload_hist','gn_drive_idx','gn_nome_ok','gn_notinha_done','gn_gar_retornos'];
 var _gnSynced = {};        // último valor conhecido por chave (string)
 var _gnSyncBusy = false;
 var _gnSyncOn = true;
@@ -4624,6 +4633,7 @@ function pedDoc(numero, preview){
 
 function renderPed(){
   var list=document.getElementById('ped-list'); if(!list) return;
+  try{ pedRenderOutros(); }catch(e){}
   if(typeof pedView!=='undefined' && pedView==='status'){ try{ renderPedKanban(); }catch(e){} }
   var h=pedHist().slice().sort(function(a,b){ return (pedISO(b.data)||'').localeCompare(pedISO(a.data)||''); });
   var q=((document.getElementById('ped-busca')||{}).value||'').toLowerCase().trim();
@@ -4684,6 +4694,36 @@ function renderPed(){
   Array.prototype.forEach.call(list.querySelectorAll('.ped-wa'), function(b){ b.onclick=function(){ pedWhats(b.getAttribute('data-n')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.ped-pdf'), function(b){ b.onclick=function(){ pedDoc(b.getAttribute('data-n')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.ped-midia'), function(b){ b.onclick=function(){ var n=b.getAttribute('data-n'); var e=(typeof pedEntry==='function')?(pedEntry(n)||{}):{}; gnAnexarMidia(e.cliente||'', n); }; });
+}
+// Mostra na aba Pedidos TUDO que foi emitido (além dos orçamentos/laudos do histórico):
+// notas de serviço, recibos e contratos — todos editáveis com 1 clique.
+function pedRenderOutros(){
+  var list=document.getElementById('ped-list'); if(!list||!list.parentNode) return;
+  var box=document.getElementById('ped-outros');
+  if(!box){ box=document.createElement('div'); box.id='ped-outros'; list.parentNode.insertBefore(box, list.nextSibling); }
+  var q=((document.getElementById('ped-busca')||{}).value||'').toLowerCase().trim();
+  var items=[];
+  function pushAll(kind,label,cor){ try{ (gnStoreGet(kind)||[]).forEach(function(d){ items.push({tipo:kind,label:label,cor:cor,id:d.id||'',num:d.numero||'',nome:d.nome||d.cliente||'',data:d.data||'',valor:Number(d.valor)||0,status:d.status||''}); }); }catch(e){} }
+  pushAll('os','📝 Nota de Serviço','#16a34a');
+  pushAll('rec','🧾 Recibo','#0891b2');
+  pushAll('ctr','📄 Contrato','#7c5cff');
+  if(q){ items=items.filter(function(d){ return ((d.nome||'')+' '+(d.num||'')+' '+(d.label||'')).toLowerCase().indexOf(q)>=0; }); }
+  items.sort(function(a,b){ return String(b.data||'').localeCompare(String(a.data||'')); });
+  if(!items.length){ box.innerHTML=''; return; }
+  var rows=items.map(function(d){
+    var arg="'"+d.tipo+"','"+gnEsc(d.id||'')+"','"+gnEsc(d.num||'')+"'";
+    var dataBR=(String(d.data||'').match(/^\d{4}-\d{2}-\d{2}/)?String(d.data).slice(0,10).split('-').reverse().join('/'):(d.data||''));
+    return '<div style="border:1px solid var(--gn-border);border-left:4px solid '+d.cor+';border-radius:12px;padding:11px 13px;margin-bottom:7px;">'
+      +'<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">'
+      +'<div onclick="gnDocAbrir('+arg+')" style="min-width:0;flex:1;cursor:pointer;" title="Abrir / editar">'
+        +'<div style="font-weight:700;color:var(--gn-text);">'+gnEsc(d.nome||'Cliente')+(d.valor?(' · <span style="color:#16a34a;">'+gnBRL(d.valor)+'</span>'):'')+'</div>'
+        +'<div style="font-size:12px;color:var(--gn-dim);">'+d.label+' · '+gnEsc(d.num||'')+(dataBR?(' · '+dataBR):'')+(d.status?(' · '+gnEsc(d.status)):'')+'</div>'
+      +'</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">'
+      +'<button onclick="gnDocAbrir('+arg+')" style="background:rgba(124,92,255,.20);color:var(--gn-text);border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;">✏ Editar</button>'
+      +'</div></div></div>';
+  }).join('');
+  box.innerHTML='<div style="font-weight:800;color:var(--gn-text);margin:20px 0 8px;padding-bottom:5px;border-bottom:2px solid var(--gn-border);font-size:14px;">📄 Outros documentos emitidos <span style="color:var(--gn-dim);font-weight:600;font-size:12px;">('+items.length+') — notas de serviço, recibos e contratos</span></div>'+rows;
 }
 function pedFiltrarStatus(s){ pedStatusFiltro=s; renderPed(); }
 function pedInPeriodo(d, per){ if(!per||per==='tudo') return true; var iso=pedISO(d); if(!iso) return true; var dt=new Date(iso+'T00:00:00'); if(isNaN(dt)) return true; var now=new Date(); if(per==='hoje'){ return iso===new Date().toISOString().slice(0,10); } if(per==='semana'){ var diff=(now.getTime()-dt.getTime())/86400000; return diff<=7 && diff>=-1; } if(per==='mes'){ return dt.getFullYear()===now.getFullYear()&&dt.getMonth()===now.getMonth(); } if(per==='ano'){ return dt.getFullYear()===now.getFullYear(); } return true; }
@@ -5282,6 +5322,11 @@ function ageGoogleURL(c){
     +'&dates='+ini+'/'+fim+'&details='+encodeURIComponent((c.cliente?('Cliente: '+c.cliente+'\n'):'')+(c.obs||''))+'&location='+encodeURIComponent(c.obs||'');
 }
 function ageGoogle(id){ var c=ageData().filter(function(x){ return x.id===id; })[0]; if(!c) return; window.open(ageGoogleURL(c),'_blank'); }
+// ─── Marcar compromisso como CUMPRIDO/executado (check do dia) ───
+function ageDoneGet(){ try{ var a=JSON.parse(localStorage.getItem('gn_age_done')||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+function ageDoneIs(id){ if(!id) return false; return ageDoneGet().indexOf(String(id))>=0; }
+function ageToggleDone(id){ if(!id) return; id=String(id); var a=ageDoneGet(); var i=a.indexOf(id); if(i>=0) a.splice(i,1); else a.push(id); try{ localStorage.setItem('gn_age_done', JSON.stringify(a)); }catch(e){} try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_age_done'); }catch(e){} try{ renderAge(); }catch(e){} try{ if(typeof toast==='function') toast(i>=0?'Compromisso reaberto':'✓ Compromisso marcado como cumprido','ok'); }catch(e){} }
+window.ageToggleDone=ageToggleDone; window.ageDoneIs=ageDoneIs;
 function ageMes(delta){ ageRef.setMonth(ageRef.getMonth()+delta); renderAge(); }
 
 var gcalEvents=[]; var gcalPulled=false; var ageDiaSel=null;
@@ -5377,8 +5422,11 @@ function renderAge(){
   var list=document.getElementById('age-list'); if(!list) return;
   // marcação de item (reutilizada na semana e no mês)
   function ageItemHTML(c, destaque){
-    var corB=c._gcal?'#0e7490':(destaque?'#16a34a':'#7c5cff');
+    var done=(typeof ageDoneIs==='function')&&ageDoneIs(c.id);
+    var corB=done?'#16a34a':(c._gcal?'#0e7490':(destaque?'#16a34a':'#7c5cff'));
     var selo=c._gcal?' <span style="background:#0e7490;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;vertical-align:middle;">Google Agenda</span>':'';
+    if(done) selo+=' <span style="background:#16a34a;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;vertical-align:middle;">✓ Cumprido</span>';
+    var chk='<button class="age-done" data-id="'+c.id+'" title="'+(done?'Marcar como NÃO cumprido':'Marcar como cumprido/executado')+'" style="background:'+(done?'#16a34a':'rgba(22,163,74,.12)')+';color:'+(done?'#fff':'#16a34a')+';border:1px solid #16a34a;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap;">'+(done?'✓ Cumprido':'✓ Cumpri')+'</button>';
     var acoes, del;
     if(c._gcal){
       acoes='<button class="age-gimport" data-id="'+c.id+'" title="Trazer pro app e editar aqui" style="background:rgba(124,92,255,.20);color:var(--gn-text);border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;">✎ Editar</button>'
@@ -5397,7 +5445,7 @@ function renderAge(){
       + '<div style="min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(c.titulo||'(sem título)')+selo+'</div>'
       + '<div style="font-size:12px;color:var(--gn-dim);">'+((c.data||'').split('-').reverse().join('/'))+(c.horaFim?(' · até '+c.horaFim):'')+(c.cliente?(' · '+gnEsc(c.cliente)):'')+(c.obs?(' · '+gnEsc(c.obs)):'')+'</div></div></div>'
       + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">'
-      +   '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+acoes+'</div>'
+      +   '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+chk+acoes+'</div>'
       +   '<div style="border-left:1px solid var(--gn-border);padding-left:8px;">'+del+'</div>'
       + '</div></div>';
   }
@@ -5449,6 +5497,7 @@ function renderAge(){
     });
   }
   list.innerHTML=html;
+  Array.prototype.forEach.call(list.querySelectorAll('.age-done'), function(b){ b.onclick=function(){ ageToggleDone(b.getAttribute('data-id')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.age-edit'), function(b){ b.onclick=function(){ ageEditar(b.getAttribute('data-id')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.age-gg'), function(b){ b.onclick=function(){ ageGoogle(b.getAttribute('data-id')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.age-del'), function(b){ b.onclick=function(){ ageDel(b.getAttribute('data-id')); }; });
@@ -6676,6 +6725,17 @@ function recPickCli(){
 }
 function recLimpar(){ ['rec-nome','rec-cpf','rec-valor','rec-ref'].forEach(function(id){ document.getElementById(id).value=''; }); document.getElementById('rec-cli').value=''; }
 
+var recEditId=null; // quando preenchido, recGerar ATUALIZA o recibo existente
+function recGet(id){ try{ return gnStoreGet('rec').filter(function(x){ return x.id===id; })[0]; }catch(e){ return null; } }
+function recEdit(id){
+  var r=recGet(id); if(!r){ if(typeof toast==='function') toast('Recibo não encontrado','er'); return; }
+  recEditId=id;
+  function sv(i,v){ var el=document.getElementById(i); if(el) el.value=(v==null?'':v); }
+  try{ var sel=document.getElementById('rec-cli'); if(sel){ var c=recClientes().filter(function(x){return (x.nome||'')===r.nome;})[0]; sel.value=c?c.id:''; } }catch(e){}
+  sv('rec-nome',r.nome); sv('rec-cpf',r.cpf); sv('rec-valor',(r.valor!=null?String(r.valor).replace('.',','):'')); sv('rec-forma',r.forma); sv('rec-ref',r.ref); sv('rec-data',r.data);
+  try{ var el=document.getElementById('rec-nome'); if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){}
+  if(typeof toast==='function') toast('✏ Editando o Recibo '+(r.numero||'')+' — altere e clique em Gerar para salvar.','ok');
+}
 function recGerar(){
   var nome=(document.getElementById('rec-nome').value||'').trim();
   if(!nome){ toast('Informe o cliente','er'); return; }
@@ -6686,8 +6746,10 @@ function recGerar(){
   var ref=document.getElementById('rec-ref').value||'';
   var dataIso=document.getElementById('rec-data').value||new Date().toISOString().slice(0,10);
   var dataBR=dataIso.split('-').reverse().join('/');
-  var numero=(typeof gnDocNum==='function')?gnDocNum('Recibo'):gnNumero('REC');
-  var rec={ id:'r'+Date.now(), numero:numero, nome:nome, cpf:cpf, valor:valor, forma:forma, ref:ref, data:dataIso, criadoEm:new Date().toISOString() };
+  var _ed=recEditId?recGet(recEditId):null;
+  var numero=_ed?_ed.numero:((typeof gnDocNum==='function')?gnDocNum('Recibo'):gnNumero('REC'));
+  var rec={ id:(_ed?_ed.id:('r'+Date.now())), numero:numero, nome:nome, cpf:cpf, valor:valor, forma:forma, ref:ref, data:dataIso, criadoEm:(_ed&&_ed.criadoEm)?_ed.criadoEm:new Date().toISOString() };
+  recEditId=null;
   gnStoreUpsert('rec', rec);
   recDoc(rec, true);
   // lança no financeiro como recebido
@@ -6835,19 +6897,34 @@ function osSyncFinance(os){
   if(typeof finCloudPush==='function') finCloudPush(rec);
 }
 
+var osEditId=null; // quando preenchido, osGerar ATUALIZA a OS existente em vez de criar nova
+function osEdit(id){
+  var o=osGet(id); if(!o){ if(typeof toast==='function') toast('Nota não encontrada','er'); return; }
+  osEditId=id;
+  function sv(i,v){ var el=document.getElementById(i); if(el) el.value=(v==null?'':v); }
+  // tenta casar o cliente cadastrado pelo nome (para o select), senão usa o campo de nome livre
+  try{ var sel=document.getElementById('os-cli'); if(sel){ var c=osClientes().filter(function(x){return (x.nome||'')===o.nome;})[0]; sel.value=c?c.id:''; } }catch(e){}
+  sv('os-nome',o.nome); sv('os-end',o.end); sv('os-status',o.status); sv('os-valor',(o.valor!=null?String(o.valor).replace('.',','):''));
+  sv('os-data',o.data); sv('os-desc',o.desc); sv('os-exec',o.exec); sv('os-mat',o.mat); sv('os-forma',o.forma);
+  try{ if(typeof osFormaChange==='function') osFormaChange(); }catch(e){} sv('os-parcelas',o.parcelas||'1');
+  try{ var f=document.querySelector('#pane-os [style*="var(--gn-card)"]')||document.getElementById('os-nome'); if(f&&f.scrollIntoView) f.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){}
+  if(typeof toast==='function') toast('✏ Editando a Nota de Serviço '+(o.numero||'')+' — altere e clique em Gerar para salvar.','ok');
+}
 function osGerar(){
   var nome=(document.getElementById('os-nome').value||'').trim();
   if(!nome){ toast('Informe o cliente','er'); return; }
   var dataIso=document.getElementById('os-data').value||new Date().toISOString().slice(0,10);
   var _forma=(document.getElementById('os-forma')||{}).value||'';
   var _parc=(_forma==='Cartão de crédito')?((document.getElementById('os-parcelas')||{}).value||'1'):'';
-  var os={ id:'o'+Date.now(), numero:((typeof gnDocNum==='function')?gnDocNum('Nota de Serviço'):gnNumero('NS')), nome:nome, end:document.getElementById('os-end').value||'',
+  var _ed=osEditId?osGet(osEditId):null;
+  var os={ id:(_ed?_ed.id:('o'+Date.now())), numero:(_ed?_ed.numero:((typeof gnDocNum==='function')?gnDocNum('Nota de Serviço'):gnNumero('NS'))), nome:nome, end:document.getElementById('os-end').value||'',
     status:document.getElementById('os-status').value, valor:gnParseVal(document.getElementById('os-valor').value),
     desc:document.getElementById('os-desc').value||'', exec:document.getElementById('os-exec').value||'',
-    mat:document.getElementById('os-mat').value||'', forma:_forma, parcelas:_parc, data:dataIso, criadoEm:new Date().toISOString() };
+    mat:document.getElementById('os-mat').value||'', forma:_forma, parcelas:_parc, data:dataIso, criadoEm:(_ed&&_ed.criadoEm)?_ed.criadoEm:new Date().toISOString() };
+  osEditId=null;
   gnStoreUpsert('os', os); osSyncFinance(os); osDoc(os, true);
   osLimpar(); renderOs();
-  toast(os.status==='Finalizada'?'✓ Nota de Serviço finalizada e lançada nos recebidos':'✓ Nota de Serviço salva','ok');
+  toast(_ed?'✓ Nota de Serviço atualizada':(os.status==='Finalizada'?'✓ Nota de Serviço finalizada e lançada nos recebidos':'✓ Nota de Serviço salva'),'ok');
 }
 function osDoc(os, save){
   var blocos=[];
@@ -6911,11 +6988,13 @@ function renderOs(){
       + '<div style="font-size:12px;color:var(--gn-dim);">'+gnEsc(o.numero)+' · '+((o.data||'').split("-").reverse().join("/"))+' · <span style="color:'+(cor[o.status]||'#888')+';font-weight:600;">'+gnEsc(o.status)+'</span></div></div>'
       + '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
       + fin
+      + '<button class="os-editar" data-id="'+o.id+'" style="background:rgba(124,92,255,.2);color:var(--gn-text);border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;">✏ Editar</button>'
       + '<button class="os-pdf" data-id="'+o.id+'" style="background:#4338ca;color:#fff;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;">PDF</button>'
       + '<button class="os-wpp" data-id="'+o.id+'" style="background:#e7f5ec;color:#16a34a;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;">WhatsApp</button>'
       + '<button class="os-del" data-id="'+o.id+'" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;">Excluir</button>'
       + '</div></div>';
   }).join('');
+  Array.prototype.forEach.call(list.querySelectorAll('.os-editar'), function(b){ b.onclick=function(){ osEdit(b.getAttribute('data-id')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.os-fin'), function(b){ b.onclick=function(){ osFinalizar(b.getAttribute('data-id')); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.os-pdf'), function(b){ b.onclick=function(){ var o=osGet(b.getAttribute('data-id')); if(o) osDoc(o,true); }; });
   Array.prototype.forEach.call(list.querySelectorAll('.os-wpp'), function(b){ b.onclick=function(){ osWhats(b.getAttribute('data-id')); }; });
@@ -7318,6 +7397,43 @@ function ctrPreview(){
   try{ window.open(doc.output('bloburl'),'_blank'); toast('👁 Pré-visualização aberta. Confira e clique em Gerar contrato.','ok'); }catch(e){ toast('Não consegui pré-visualizar: '+e.message,'er'); }
 }
 function ctrDel(id){ if(!confirm('Excluir este contrato?')) return; gnStoreDel('ctr',id); renderCtr(); }
+
+// ═══ MODELO PADRÃO DE CONTRATO — CONSTRUÇÃO DE TUBULAÇÃO DE GÁS (sem IA) ═══
+// Cláusulas completas, formais e profissionais já prontas. O usuário só informa
+// cliente, valor, forma de pagamento, prazo e garantia — o resto já vem pronto.
+function ctrModeloTubulacaoBlocos(d){
+  var brl=(typeof gnBRL==='function')?gnBRL:function(v){return 'R$ '+(Number(v)||0).toFixed(2).replace('.',',');};
+  var valor = (Number(d.valor)>0)?brl(d.valor):'(valor conforme proposta comercial)';
+  var pgto = d.pgto||'50% (cinquenta por cento) a título de sinal, via PIX, na assinatura deste instrumento, e o saldo remanescente em até 30 (trinta) dias após a conclusão dos serviços';
+  var prazo = d.prazo||'5 (cinco) a 7 (sete) dias úteis, contados a partir da confirmação do pagamento do sinal';
+  var gar = d.garantia||'90 (noventa) dias para serviços de instalação e 1 (um) ano para aplicação de resina, contados da conclusão dos serviços';
+  var objeto = (d.objeto&&String(d.objeto).trim())?String(d.objeto).trim():'execução de sistema de tubulação de gás combustível (Gás Natural — GN e/ou GLP) para abastecimento de pontos de consumo, conforme especificações e condições estabelecidas na proposta comercial';
+  return [
+    {titulo:'Cláusula 1ª — Do Objeto', texto:'O presente contrato tem como objeto a '+objeto+'.\n\nOs serviços compreendem o fornecimento de mão de obra especializada, materiais necessários, montagem da rede de tubulação de gás, testes de estanqueidade e a emissão da documentação técnica pertinente, conforme detalhado na proposta comercial que integra este instrumento como parte indissociável.'},
+    {titulo:'Cláusula 2ª — Das Normas Técnicas Aplicáveis', texto:'Os serviços serão executados em estrita observância às normas técnicas vigentes, incluindo, mas não se limitando a: ABNT NBR 15358 (redes internas de gases combustíveis), ABNT NBR 13523 (centrais de GLP), ABNT NBR 15526 (redes internas — projeto e execução), ABNT NBR 13103 (instalação de aparelhos a gás) e às instruções técnicas IT-28 e IT-29 do Corpo de Bombeiros, bem como às normas e exigências da concessionária local de gás.'},
+    {titulo:'Cláusula 3ª — Das Obrigações da CONTRATADA', texto:'a) Executar os serviços com zelo, técnica e segurança, empregando profissionais qualificados;\nb) Fornecer os materiais e equipamentos previstos na proposta, com qualidade e conformidade técnica;\nc) Realizar o teste de estanqueidade da rede e emitir o respectivo laudo técnico;\nd) Emitir a Anotação de Responsabilidade Técnica (ART) junto ao CREA, quando aplicável;\ne) Cumprir os prazos acordados, salvo motivo de força maior ou caso fortuito;\nf) Responsabilizar-se integralmente pelos encargos trabalhistas, previdenciários e fiscais de sua equipe.'},
+    {titulo:'Cláusula 4ª — Das Obrigações do CONTRATANTE', texto:'a) Fornecer todas as informações necessárias à correta execução dos serviços;\nb) Garantir o livre e seguro acesso da equipe da CONTRATADA ao local da obra;\nc) Disponibilizar ponto de energia elétrica e água, quando necessários à execução;\nd) Efetuar os pagamentos nas datas e nas condições acordadas neste contrato;\ne) Comunicar previamente eventuais particularidades do imóvel que possam impactar a execução dos serviços.'},
+    {titulo:'Cláusula 5ª — Do Valor e da Forma de Pagamento', texto:'O valor total dos serviços contratados é de '+valor+'.\n\nForma de pagamento: '+pgto+'.\n\nEm caso de atraso no pagamento, incidirá multa de 2% (dois por cento) sobre o valor em aberto, acrescida de juros de mora de 1% (um por cento) ao mês, calculados pro rata die, sem prejuízo da correção monetária.'},
+    {titulo:'Cláusula 6ª — Do Prazo de Execução', texto:'A execução dos serviços ocorrerá no prazo de '+prazo+'.\n\nO prazo poderá ser prorrogado mediante acordo entre as partes, em razão de alterações de escopo, condições específicas do local da obra ou eventos de força maior, devidamente justificados.'},
+    {titulo:'Cláusula 7ª — Da Garantia dos Serviços', texto:'A CONTRATADA garante os serviços executados pelo prazo de '+gar+'.\n\nA garantia abrange exclusivamente os serviços e materiais fornecidos pela CONTRATADA, não cobrindo: mau uso, intervenções realizadas por terceiros, alterações posteriores na instalação, danos decorrentes de caso fortuito ou força maior e o desgaste natural de componentes.'},
+    {titulo:'Cláusula 8ª — Do Teste de Estanqueidade, Laudo e ART', texto:'Concluída a instalação, a CONTRATADA realizará o teste de estanqueidade da rede de gás, emitindo o respectivo Laudo Técnico de Estanqueidade. Quando exigível, será emitida a Anotação de Responsabilidade Técnica (ART) junto ao CREA, documento indispensável à regularização e à ligação definitiva junto à concessionária de gás.'},
+    {titulo:'Cláusula 9ª — Da Segurança e da Responsabilidade Técnica', texto:'A CONTRATADA adotará todas as medidas de segurança aplicáveis à execução de serviços com gases combustíveis, respondendo tecnicamente pelos serviços executados. O CONTRATANTE compromete-se a não realizar, nem permitir que terceiros realizem, intervenções na rede instalada durante o período de garantia, sob pena de perda integral da mesma.'},
+    {titulo:'Cláusula 10ª — Das Alterações e Serviços Adicionais', texto:'Quaisquer serviços não previstos na proposta original, bem como alterações de escopo solicitadas pelo CONTRATANTE, serão objeto de orçamento complementar (termo aditivo), a ser previamente aprovado por escrito, com o respectivo ajuste de valor e de prazo.'},
+    {titulo:'Cláusula 11ª — Da Rescisão', texto:'O presente contrato poderá ser rescindido por qualquer das partes, mediante comunicação por escrito, nas seguintes hipóteses: descumprimento de obrigação contratual não sanada em até 5 (cinco) dias após notificação; inadimplência; ou por comum acordo. Na hipótese de rescisão, serão devidos os valores correspondentes aos serviços já executados e aos materiais já adquiridos pela CONTRATADA.'},
+    {titulo:'Cláusula 12ª — Das Disposições Gerais', texto:'Este contrato obriga as partes e seus sucessores. A eventual tolerância quanto ao descumprimento de qualquer cláusula não implicará novação ou renúncia. As comunicações entre as partes serão feitas por escrito, inclusive por meios eletrônicos (e-mail e WhatsApp) por elas informados.'},
+    {titulo:'Cláusula 13ª — Do Foro', texto:'Fica eleito o foro da Comarca de São Paulo/SP para dirimir quaisquer dúvidas ou litígios oriundos deste contrato, com renúncia a qualquer outro, por mais privilegiado que seja.\n\nE, por estarem assim justas e contratadas, as partes firmam o presente instrumento, que passa a vigorar entre elas para todos os fins de direito.'}
+  ];
+}
+function ctrModeloTubulacao(preview){
+  var nome=(document.getElementById('ctr-nome').value||'').trim();
+  if(!nome){ if(typeof toast==='function') toast('Escolha o cliente (ou digite o nome) antes de gerar o contrato.','er'); return; }
+  var objEl=document.getElementById('ctr-obj');
+  if(objEl && !(objEl.value||'').trim()){ objEl.value='Execucao de sistema de tubulacao de gas combustivel, incluindo fornecimento de materiais, mao de obra especializada, montagem da rede, teste de estanqueidade e emissao de laudo tecnico.'; }
+  var d={ valor:gnParseVal(document.getElementById('ctr-valor').value), pgto:document.getElementById('ctr-pgto').value||'', prazo:document.getElementById('ctr-prazo').value||'', garantia:document.getElementById('ctr-gar').value||'', objeto:(objEl?objEl.value:'') };
+  window.__ctrBlocosIA=ctrModeloTubulacaoBlocos(d);
+  if(preview){ ctrPreview(); } else { ctrGerar(); }
+}
+window.ctrModeloTubulacao=ctrModeloTubulacao;
 
 // ═══ GERAR CONTRATO COM IA (a partir de uma proposta/orçamento — texto ou foto) ═══
 window.__ctrIAImg=null; window.__ctrBlocosIA=null;
@@ -11357,6 +11473,14 @@ function gnNomeRuim(nome){
   if(s.length>55) return true;
   if(/\.\s/.test(s) || /[.;:]$/.test(s)) return true;
   if(/\b(que|porque|inclusive|conceito|acompanha|disciplina|handoff|portanto|ru[ií]do)\b/i.test(s) && pal>=4) return true;
+  // Nome que na verdade é uma DESCRIÇÃO DE SERVIÇO/MATERIAL (não é pessoa nem empresa):
+  // pega quando a PRIMEIRA palavra é um termo técnico de serviço/material.
+  // Ex.: "Troca de mangueira AP 24A", "Instalação de cooktop", "Conexão 1/2"".
+  // NÃO pega clientes reais como "Rafael Resina" (1ª palavra = nome próprio).
+  var p1=(s.match(/\S+/)||[''])[0].toLowerCase();
+  try{ p1=p1.normalize('NFD').replace(/[̀-ͯ]/g,''); }catch(e){}
+  var STEMS=['troca','instala','convers','manuten','aplica','adequa','desmonta','reparo','vistoria','substitu','remoca','teste','laudo','orcament','mangueir','tubo','tubula','conex','registro','valvul','regulad','cotovel','niple','flange','medidor','aquecedor','cooktop','fogao','servico','execuca','vedaca','abracadeira'];
+  for(var _si=0;_si<STEMS.length;_si++){ if(p1.indexOf(STEMS[_si])===0) return true; }
   return false;
 }
 function _gnNomeOkSet(){ try{ return JSON.parse(localStorage.getItem('gn_nome_ok')||'[]'); }catch(e){ return []; } }
@@ -11675,6 +11799,22 @@ window.gnImpUndo=gnImpUndo;
   if(document.readyState==='complete') setTimeout(go,800); else window.addEventListener('load', function(){ setTimeout(go,800); });
   window.gnPedirNome=mostrar; // permite reabrir manualmente, se precisar trocar o nome
 })();
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// ═══ ROTEADOR: abrir/editar qualquer documento ════════════════
+// Usado pelas abas Hoje e Pedidos para abrir o documento certo no
+// seu editor (orçamento, nota de serviço, recibo, contrato, laudo).
+// ══════════════════════════════════════════════════════════════
+window.gnDocAbrir=function(tipo,id,num){
+  try{
+    if(tipo==='os'){ goTab('os'); setTimeout(function(){ try{ if(typeof osEdit==='function'&&id) osEdit(id); }catch(e){} },350); }
+    else if(tipo==='rec'){ goTab('rec'); setTimeout(function(){ try{ if(typeof recEdit==='function'&&id) recEdit(id); }catch(e){} },350); }
+    else if(tipo==='ctr'){ goTab('ctr'); }
+    else if(tipo==='laudo'){ goTab('laudo'); setTimeout(function(){ try{ if(typeof laudoEstEditar==='function'&&num) laudoEstEditar(num); }catch(e){} },450); }
+    else { if(typeof pedDetalhe==='function'&&num){ pedDetalhe(num); } else { goTab('ped'); } }
+  }catch(e){}
+};
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
