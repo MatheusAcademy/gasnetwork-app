@@ -7142,7 +7142,8 @@ function renderInicio(){
     if(!ult.length){ rec5.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhuma proposta ainda. Toque em "Nova Proposta".</div>'; }
     else{
       rec5.innerHTML=ult.map(function(e){
-        return '<div onclick="goTab(\'ped\')" style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:11px 13px;border:1px solid var(--gn-border);border-radius:10px;margin-bottom:6px;cursor:pointer;">'
+        var n=String(e.numero||'').replace(/'/g,"\\'");
+        return '<div onclick="if(typeof pedDetalhe===\'function\'){pedDetalhe(\''+n+'\')}else{goTab(\'ped\')}" style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:11px 13px;border:1px solid var(--gn-border);border-radius:10px;margin-bottom:6px;cursor:pointer;" title="Abrir este pedido">'
           + '<div style="min-width:0;"><div style="font-weight:600;color:var(--gn-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+((e.cliente||'Cliente'))+'</div>'
           + '<div style="font-size:12px;color:var(--gn-dim);">'+(e.numero||'')+' · '+(e.data||'')+'</div></div>'
           + '<div style="font-weight:700;color:#16a34a;white-space:nowrap;">'+iniBRL(e.valor)+'</div></div>';
@@ -9639,8 +9640,9 @@ function gnAvisos(){
           +'<div style="font-weight:800;color:#b45309;margin-bottom:6px;">🛡️ '+gv.length+' garantia(s) ainda na sua responsabilidade (vencendo)</div>';
         html+=gv.slice(0,6).map(function(g){
           var d='vence em '+g.diasRest+' dia(s)';
+          var gn=String(g.entry.numero||'').replace(/'/g,"\\'");
           return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--gn-border);">'
-            +'<span style="color:var(--gn-text);"><strong>'+gnEsc(g.entry.cliente||'')+'</strong> · '+d+'</span>'
+            +'<span onclick="if(typeof pedDetalhe===\'function\'){pedDetalhe(\''+gn+'\')}" style="color:var(--gn-text);cursor:pointer;" title="Abrir este pedido"><strong>'+gnEsc(g.entry.cliente||'')+'</strong> · '+d+'</span>'
             +'<button onclick="garEnviar(\''+gnEsc(g.entry.numero||'')+'\')" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">📲 Falar com cliente</button></div>';
         }).join('');
         html+='<div style="margin-top:8px;"><button onclick="goTab(\'gar\')" style="background:var(--gn-surface2);color:var(--gn-text);border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;">Ver todas as garantias →</button></div></div>';
