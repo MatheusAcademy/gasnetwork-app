@@ -11923,7 +11923,7 @@ window.gnImpUndo=gnImpUndo;
   async function gnFetchTxt(rel){ try{ var base=location.href.split('?')[0].replace(/[^\/]*$/,''); var r=await fetch(base+rel,{cache:'no-store'}); if(r&&r.ok){ var t=await r.text(); if(t && t.charAt(0)!=='<') return t; } }catch(e){} return ''; }
   async function gnAutoRebuild(){
     try{
-      if(localStorage.getItem('gn_base_rebuilt')==='v1') return;
+      if(localStorage.getItem('gn_base_rebuilt')==='v2') return;
       var cliText=await gnFetchTxt('export_clients.csv');
       var jobsText=await gnFetchTxt('export_jobs.csv');
       if(!cliText && !jobsText) return; // arquivos ainda não estão no repositório
@@ -11938,13 +11938,21 @@ window.gnImpUndo=gnImpUndo;
       }
       if(jobsText){
         var jobs=toObjs(jobsText);
-        var ren=[]; try{ ren=JSON.parse(localStorage.getItem('gn_renov')||'[]'); }catch(e){}
+        var antigo=[]; try{ antigo=JSON.parse(localStorage.getItem('gn_renov')||'[]'); }catch(e){}
+        function renovValido(r){ return r && String(r.nome||'').trim() && /\d{4}-\d{2}-\d{2}/.test(String(r.data||'')) && !(typeof gnNomeRuim==='function' && gnNomeRuim(r.nome)); }
+        // LIMPEZA REAL: mantém só os reais (nome + data válida); o lixo "sem data/sem nome" é DESCARTADO
+        // e marcado como lápide (tombstone) para NÃO voltar pela sincronização.
+        var ren=antigo.filter(renovValido);
+        var tomb={}; try{ tomb=JSON.parse(localStorage.getItem('gn_tomb')||'{}'); }catch(e){}
+        antigo.forEach(function(r){ if(r&&r.id&&!renovValido(r)) tomb[r.id]=true; });
+        try{ localStorage.setItem('gn_tomb', JSON.stringify(tomb)); if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_tomb'); }catch(e){}
+        var nLimpos=antigo.length-ren.length;
         var jid={}, sig={}; ren.forEach(function(r){ if(r&&r.id) jid[r.id]=true; sig[(String(r.nome||'').toLowerCase().trim())+'|'+(r.data||'')+'|'+(Math.round(Number(r.valor)||0))]=true; });
-        jobs.forEach(function(o){ var jobId='rv_'+(o.id||(o.clientId+'_'+o.jobDate)); var nome=byId[o.clientId]||String(o.clientName||'').replace(/\s*\(cliente\)\s*$/i,'').trim(); if(!nome) return; var desc=String(o['descriptions.description']||o.jobTitle||'').trim(); var data=isoBR(o.jobDate); var valor=brl(o.totalPrice||o['totalPriceJobDescriptions']); var s=(nome.toLowerCase().trim())+'|'+data+'|'+Math.round(valor); if(jid[jobId]||sig[s]) return; ren.push({id:jobId,clientId:o.clientId||'',nome:nome,servico:servicoLabel(desc+' '+(o.jobTitle||'')),descricao:desc,data:data,valor:valor,formaPgto:fopTxt(o),_imp:'csv_jobs'}); jid[jobId]=true; sig[s]=true; nJob++; });
+        jobs.forEach(function(o){ var jobId='rv_'+(o.id||(o.clientId+'_'+o.jobDate)); var nome=byId[o.clientId]||String(o.clientName||'').replace(/\s*\(cliente\)\s*$/i,'').trim(); if(!nome) return; var desc=String(o['descriptions.description']||o.jobTitle||'').trim(); var data=isoBR(o.jobDate); if(!data) return; var valor=brl(o.totalPrice||o['totalPriceJobDescriptions']); var s=(nome.toLowerCase().trim())+'|'+data+'|'+Math.round(valor); if(jid[jobId]||sig[s]) return; ren.push({id:jobId,clientId:o.clientId||'',nome:nome,servico:servicoLabel(desc+' '+(o.jobTitle||'')),descricao:desc,data:data,valor:valor,formaPgto:fopTxt(o),_imp:'csv_jobs'}); jid[jobId]=true; sig[s]=true; nJob++; });
         localStorage.setItem('gn_renov', JSON.stringify(ren));
         try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_renov'); }catch(e){}
       }
-      localStorage.setItem('gn_base_rebuilt','v1');
+      localStorage.setItem('gn_base_rebuilt','v2');
       try{ ['renderCli','renderRenov','renderDocsCliente','renderTarefasHub','renderInicio'].forEach(function(fn){ if(typeof window[fn]==='function') window[fn](); }); }catch(e){}
       if(typeof toast==='function' && (nCli||nJob)) toast('✓ Base atualizada automaticamente: '+nCli+' clientes, '+nJob+' serviços.','ok');
       // Salva tudo no Drive automaticamente (silencioso, em segundo plano)
