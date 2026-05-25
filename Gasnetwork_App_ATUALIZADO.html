@@ -1514,6 +1514,31 @@ textarea.fi{resize:vertical;}
     <div id="renov-list"></div>
   </div>
 
+  <div id="pane-msgs" style="display:none;">
+    <div class="eyebrow">Comercial</div>
+    <div class="pgtitle" style="margin-bottom:4px;">💬 Modelos de Mensagem</div>
+    <div class="pgsub" style="margin-bottom:14px;">Sua biblioteca de mensagens prontas (renovação, cobrança, agradecimento, pós-venda, relacionamento e mais). Use <b>{nome}</b> para o nome do cliente. Edite à vontade — o app guarda e sincroniza tudo.</div>
+    <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
+      <div style="font-weight:700;color:var(--gn-text);margin-bottom:8px;">➕ Novo modelo</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><label style="font-size:12px;color:var(--gn-dim);">Título</label><input id="msg-titulo" placeholder="Ex.: Lembrete de pagamento" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">Categoria</label><select id="msg-cat" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"><option>Renovação</option><option>Cobrança</option><option>Agradecimento</option><option>Pós-venda</option><option>Relacionamento</option><option>Orçamento</option><option>Agendamento</option><option>Outro</option></select></div>
+      </div>
+      <div style="margin-top:10px;"><label style="font-size:12px;color:var(--gn-dim);">Texto da mensagem</label><textarea id="msg-texto" rows="3" placeholder="Olá, {nome}! ..." style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--gn-border);border-radius:9px;font-size:13px;resize:vertical;"></textarea></div>
+      <button onclick="modeloAdd()" style="margin-top:10px;background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:700;">Salvar modelo</button>
+      <button onclick="modeloSeed(true)" style="margin-top:10px;margin-left:6px;background:var(--gn-surface2);color:var(--gn-text);border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-size:13px;">↺ Restaurar modelos padrão</button>
+    </div>
+    <div id="msgs-list"></div>
+  </div>
+
+  <div id="pane-gar" style="display:none;">
+    <div class="eyebrow">Gestão</div>
+    <div class="pgtitle" style="margin-bottom:4px;">🛡️ Garantias dos serviços</div>
+    <div class="pgsub" style="margin-bottom:14px;">Acompanhe a garantia de cada serviço concluído. O app calcula o vencimento a partir da conclusão e avisa o que está <b>vencendo</b> ou já <b>venceu</b> — pra você se antecipar com o cliente.</div>
+    <div id="gar-head"></div>
+    <div id="gar-list"></div>
+  </div>
+
   <div id="pane-nf" style="display:none;">
     <div class="eyebrow">Documento fiscal</div>
     <div class="pgtitle" style="margin-bottom:4px;">Nota Fiscal de Serviço (NFS-e)</div>
@@ -1597,6 +1622,7 @@ textarea.fi{resize:vertical;}
         <div><label style="font-size:12px;color:var(--gn-dim);">Telefone</label><input id="cli-f-tel" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
         <div><label style="font-size:12px;color:var(--gn-dim);">WhatsApp</label><input id="cli-f-whats" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
         <div><label style="font-size:12px;color:var(--gn-dim);">E-mail</label><input id="cli-f-email" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
+        <div><label style="font-size:12px;color:var(--gn-dim);">Aniversário <span style="color:#22d3ee;">(relacionamento)</span></label><input id="cli-f-nasc" type="date" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
         <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Endereço</label><input id="cli-f-end" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
         <div><label style="font-size:12px;color:var(--gn-dim);">Cidade/UF</label><input id="cli-f-cidade" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
         <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Observações</label><input id="cli-f-obs" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
@@ -2179,7 +2205,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // TABS
 // ══════════════════════════════════════════════
 function goTab(t) {
-  ['inicio','ped','age','tec','novo','hist','laudo','relvist','fin','cli','svc','rec','os','prod','rel','chk','ctr','cfg','imp','pro','docrap','hoje','tarefas','cob','atend','forn','compras','chamados','posvenda','arquivos','contatos','docs','nf','renov'].forEach(id => {
+  ['inicio','ped','age','tec','novo','hist','laudo','relvist','fin','cli','svc','rec','os','prod','rel','chk','ctr','cfg','imp','pro','docrap','hoje','tarefas','cob','atend','forn','compras','chamados','posvenda','arquivos','contatos','docs','nf','renov','msgs','gar'].forEach(id => {
     var p=document.getElementById('pane-'+id); if(p) p.style.display = id===t?'block':'none';
     var tb=document.getElementById('tab-'+id); if(tb) tb.classList.toggle('on', id===t);
   });
@@ -2214,6 +2240,8 @@ function goTab(t) {
   if (t==='docs'){ try{ if(window.renderDocsCliente) renderDocsCliente(); }catch(e){} }
   if (t==='nf'){ try{ if(window.renderNf) renderNf(); }catch(e){} }
   if (t==='renov'){ try{ if(window.renderRenov) renderRenov(); }catch(e){} }
+  if (t==='msgs'){ try{ if(window.renderModelos) renderModelos(); }catch(e){} }
+  if (t==='gar'){ try{ if(window.renderGarantias) renderGarantias(); }catch(e){} }
   try{ if(window.notifBadge) notifBadge(); }catch(e){}
 }
 
@@ -2431,9 +2459,40 @@ function chamCor(s){return {'Aberto':'#f59e0b','Em análise':'#0891b2','Aguardan
 function renderChamados(){var box=document.getElementById('cham-list');if(!box)return;var a=chamGet();if(!a.length){box.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum chamado aberto.</div>';return;}var ord={'Urgente':0,'Alta':1,'Média':2,'Baixa':3};a.sort(function(x,y){if((x.status==='Resolvido'||x.status==='Cancelado')!==(y.status==='Resolvido'||y.status==='Cancelado'))return (x.status==='Resolvido'||x.status==='Cancelado')?1:-1;return (ord[x.prioridade]||9)-(ord[y.prioridade]||9);});box.innerHTML=a.map(function(x){var opt=CHAM_ST.map(function(s){return '<option'+(s===x.status?' selected':'')+'>'+s+'</option>';}).join('');return '<div style="padding:11px 13px;border:1px solid var(--gn-border);border-left:4px solid '+chamCor(x.status)+';border-radius:11px;margin-bottom:7px;"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;"><div style="min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(x.cliente||'—')+' <span style="font-size:11px;color:var(--gn-dim);">· '+gnEsc(x.tipo)+' · '+gnEsc(x.prioridade)+'</span></div><div style="font-size:12px;color:var(--gn-dim);">'+gnEsc(x.descricao||'')+'</div></div><div style="display:flex;gap:5px;align-items:center;"><select onchange="chamSet(\''+x.id+'\',this.value)" style="padding:6px;border:1px solid var(--gn-border);border-radius:7px;font-size:12px;color:'+chamCor(x.status)+';font-weight:600;">'+opt+'</select><button onclick="chamDel(\''+x.id+'\')" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;">✕</button></div></div></div>';}).join('');}
 
 // ═══ PÓS-VENDA (item 38) ═══
-function pvMsg(e,tipo){var co=(typeof gnCO==='function')?gnCO():{};if(tipo==='agrad')return 'Olá, '+(e.cliente||'')+'! Agradecemos pela confiança. Seu serviço foi concluído e ficamos à disposição sempre que precisar.'+(co.fantasia?(' — '+co.fantasia):'');return 'Olá, '+(e.cliente||'')+'! Você poderia avaliar nosso atendimento? Sua opinião é muito importante pra gente melhorar cada vez mais. Obrigado!'+(co.fantasia?(' — '+co.fantasia):'');}
+function pvMsg(e,tipo){
+  var co=(typeof gnCO==='function')?gnCO():{};
+  function pref(id,cat,fb){ var t=(typeof modeloById==='function'&&(modeloById(id)||{}).texto)||(typeof modeloByCat==='function'&&modeloByCat(cat))||fb; return String(t||'').replace(/\{nome\}/g, (typeof gnPrimNome==='function'?gnPrimNome(e.cliente):(e.cliente||'cliente'))); }
+  if(tipo==='agrad') return pref('m_agrad','Agradecimento','Olá, {nome}! Agradecemos pela confiança. Seu serviço foi concluído e ficamos à disposição sempre que precisar.'+(co.fantasia?(' — '+co.fantasia):''));
+  if(tipo==='pv') return pref('m_pv','Pós-venda','Olá, {nome}! Aqui é da Gás Network. Está tudo certo com o serviço que realizamos? Qualquer necessidade, é só me chamar!');
+  return pref('m_aval','Pós-venda','Olá, {nome}! Você poderia avaliar nosso atendimento? Sua opinião é muito importante pra gente melhorar cada vez mais. Obrigado!'+(co.fantasia?(' — '+co.fantasia):''));
+}
 function pvSend(numero,tipo){var e=pedEntry(numero);if(!e)return;if(typeof pedEnvio==='function')pedEnvio(numero,pvMsg(e,tipo));}
-function renderPosvenda(){var box=document.getElementById('pv-list');if(!box)return;var h=[];try{h=pedHist();}catch(e){}var conc=h.filter(function(e){var st;try{st=pedGet(e.numero);}catch(_){return false;}return st.status==='Concluído'||st.status==='Garantia';});if(!conc.length){box.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum serviço concluído ainda. Quando você concluir pedidos, eles aparecem aqui para agradecer e pedir avaliação.</div>';return;}box.innerHTML=conc.map(function(e){return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--gn-border);border-radius:11px;margin-bottom:7px;"><div style="min-width:0;cursor:pointer;" onclick="pedDetalhe(\''+gnEsc(e.numero)+'\')"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(e.cliente||'Cliente')+'</div><div style="font-size:12px;color:var(--gn-dim);">'+gnEsc(e.numero||'')+' · '+(e.data||'')+'</div></div><div style="display:flex;gap:5px;flex-wrap:wrap;"><button onclick="pvSend(\''+gnEsc(e.numero)+'\',\'agrad\')" style="background:#16a34a;color:#fff;border:none;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:12px;font-weight:600;">🙏 Agradecer</button><button onclick="pvSend(\''+gnEsc(e.numero)+'\',\'aval\')" style="background:#7c5cff;color:#fff;border:none;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:12px;font-weight:600;">⭐ Avaliação</button></div></div>';}).join('');}
+function renderPosvenda(){
+  var box=document.getElementById('pv-list');if(!box)return;
+  var h=[];try{h=pedHist();}catch(e){}
+  var conc=h.filter(function(e){var st;try{st=pedGet(e.numero);}catch(_){return false;}return st.status==='Concluído'||st.status==='Garantia';});
+  if(!conc.length){box.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum serviço concluído ainda. Quando você concluir pedidos, eles aparecem aqui para agradecer e pedir avaliação.</div>';return;}
+  var pvDias=Number(localStorage.getItem('gn_pv_dias')||'3')||3;
+  var done=(typeof gnSetGet==='function')?gnSetGet('gn_pvdone'):[];
+  var h0=new Date();h0.setHours(0,0,0,0);
+  // ordena: pendentes (mais antigos primeiro) no topo
+  conc.forEach(function(e){ var ci=(typeof gnPedConcluidoEm==='function')?gnPedConcluidoEm(e.numero,e):pedISO(e.data); e._ci=ci; var d=ci?new Date(ci+'T00:00:00'):null; e._dias=(d&&!isNaN(d))?Math.round((h0-d)/86400000):null; e._feito=done.indexOf(e.numero)>=0; e._pend=(!e._feito && e._dias!=null && e._dias>=pvDias); });
+  conc.sort(function(a,b){ if(a._pend!==b._pend) return a._pend?-1:1; if(a._feito!==b._feito) return a._feito?1:-1; return (b._dias||0)-(a._dias||0); });
+  var nPend=conc.filter(function(e){return e._pend;}).length;
+  var topo=nPend?('<div style="background:rgba(124,92,255,.10);border:1px solid #7c5cff;border-radius:11px;padding:10px 13px;margin-bottom:10px;font-size:13px;color:var(--gn-text);"><b style="color:#7c5cff;">⭐ '+nPend+' serviço(s) prontos para pós-venda</b> (concluídos há '+pvDias+'+ dias). Mande um carinho pro cliente e marque como feito.</div>'):'';
+  box.innerHTML=topo+conc.map(function(e){
+    var diasTxt=(e._dias!=null)?('há '+e._dias+' dia(s)'):(e.data||'');
+    var selo=e._feito?' <span style="font-size:10px;color:#16a34a;font-weight:700;">✓ contatado</span>':(e._pend?' <span style="font-size:10px;background:#7c5cff;color:#fff;border-radius:8px;padding:1px 7px;">PENDENTE</span>':'');
+    return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--gn-border);border-left:4px solid '+(e._pend?'#7c5cff':(e._feito?'#16a34a':'var(--gn-border)'))+';border-radius:11px;margin-bottom:7px;opacity:'+(e._feito?'0.7':'1')+';">'
+      +'<div style="min-width:0;cursor:pointer;" onclick="pedDetalhe(\''+gnEsc(e.numero)+'\')"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(e.cliente||'Cliente')+selo+'</div><div style="font-size:12px;color:var(--gn-dim);">'+gnEsc(e.numero||'')+' · concluído '+diasTxt+'</div></div>'
+      +'<div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;">'
+      +'<button onclick="pvSend(\''+gnEsc(e.numero)+'\',\'pv\')" style="background:#0e7490;color:#fff;border:none;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:12px;font-weight:600;">💬 Pós-venda</button>'
+      +'<button onclick="pvSend(\''+gnEsc(e.numero)+'\',\'agrad\')" style="background:#16a34a;color:#fff;border:none;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:12px;font-weight:600;">🙏 Agradecer</button>'
+      +'<button onclick="pvSend(\''+gnEsc(e.numero)+'\',\'aval\')" style="background:#7c5cff;color:#fff;border:none;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:12px;font-weight:600;">⭐ Avaliação</button>'
+      +(e._feito?'':'<button onclick="pvFeito(\''+gnEsc(e.numero)+'\')" style="background:var(--gn-surface2);color:var(--gn-text);border:none;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:12px;">✓ Feito</button>')
+      +'</div></div>';
+  }).join('');
+}
 
 // ══════════════════════════════════════════════
 // ═══ TÉCNICO EM CAMPO ═══════════════════════
@@ -3958,7 +4017,7 @@ function gnCor(){ var c=gnCfg(); return c.cor||'#7c5cff'; }
 // Dados compartilhados por toda a equipe + auto-save de documentos no Drive.
 // ══════════════════════════════════════════════
 var GN_CLOUD2 = 'https://script.google.com/macros/s/AKfycbycnK4Fx0J4QphoLr-LQJPkh04RTy6zbBto-Sqlgr306GqjggZkKhyOsJXypeprS0Loww/exec';
-var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov'];
+var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_prod','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg'];
 var _gnSynced = {};        // último valor conhecido por chave (string)
 var _gnSyncBusy = false;
 var _gnSyncOn = true;
@@ -5584,20 +5643,21 @@ function cliBuscaCnpj(){
   }).catch(function(){ toast('Não foi possível consultar o CNPJ','er'); });
 }
 
-function cliNew(){ document.getElementById('cli-f-id').value=''; ['cli-f-nome','cli-f-doc','cli-f-cep','cli-f-tel','cli-f-whats','cli-f-email','cli-f-end','cli-f-cidade','cli-f-obs'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); document.getElementById('cli-f-tipo').value='PF'; document.getElementById('cli-form').style.display='block'; }
+function cliNew(){ document.getElementById('cli-f-id').value=''; ['cli-f-nome','cli-f-doc','cli-f-cep','cli-f-tel','cli-f-whats','cli-f-email','cli-f-nasc','cli-f-end','cli-f-cidade','cli-f-obs'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); document.getElementById('cli-f-tipo').value='PF'; document.getElementById('cli-form').style.display='block'; }
 function cliCancel(){ document.getElementById('cli-form').style.display='none'; }
 function cliEdit(id){ var c=cliFind(id); if(!c) return;
   document.getElementById('cli-f-id').value=c.id; document.getElementById('cli-f-tipo').value=c.tipo||'PF';
   document.getElementById('cli-f-nome').value=c.nome||''; document.getElementById('cli-f-doc').value=c.cpf||'';
   document.getElementById('cli-f-cep').value=c.cep||''; document.getElementById('cli-f-tel').value=c.tel||'';
   document.getElementById('cli-f-whats').value=c.whatsapp||''; document.getElementById('cli-f-email').value=c.email||'';
+  var _nasc=document.getElementById('cli-f-nasc'); if(_nasc) _nasc.value=c.nascimento||'';
   document.getElementById('cli-f-end').value=c.endereco||''; document.getElementById('cli-f-cidade').value=c.cidade||'';
   document.getElementById('cli-f-obs').value=c.obs||''; document.getElementById('cli-form').style.display='block';
   document.getElementById('cli-form').scrollIntoView({behavior:'smooth',block:'start'}); }
 function cliSaveForm(){
   var nome=(document.getElementById('cli-f-nome').value||'').trim(); if(!nome){ toast('Informe o nome do cliente','er'); return; }
   var id=document.getElementById('cli-f-id').value || ('c'+Date.now());
-  var c={ id:id, tipo:document.getElementById('cli-f-tipo').value, nome:nome, cpf:document.getElementById('cli-f-doc').value||'', cep:document.getElementById('cli-f-cep').value||'', tel:document.getElementById('cli-f-tel').value||'', whatsapp:document.getElementById('cli-f-whats').value||'', email:document.getElementById('cli-f-email').value||'', endereco:document.getElementById('cli-f-end').value||'', cidade:document.getElementById('cli-f-cidade').value||'', obs:document.getElementById('cli-f-obs').value||'', status:'ativo' };
+  var c={ id:id, tipo:document.getElementById('cli-f-tipo').value, nome:nome, cpf:document.getElementById('cli-f-doc').value||'', cep:document.getElementById('cli-f-cep').value||'', tel:document.getElementById('cli-f-tel').value||'', whatsapp:document.getElementById('cli-f-whats').value||'', email:document.getElementById('cli-f-email').value||'', nascimento:((document.getElementById('cli-f-nasc')||{}).value||''), endereco:document.getElementById('cli-f-end').value||'', cidade:document.getElementById('cli-f-cidade').value||'', obs:document.getElementById('cli-f-obs').value||'', status:'ativo' };
   var arr=cliData(); var i=arr.findIndex(function(x){ return x.id===id; }); if(i>=0) arr[i]=c; else arr.unshift(c);
   cliSaveAll(arr); cliCloudPush(c); document.getElementById('cli-form').style.display='none'; renderCli(); if(typeof cliRefreshDatalist==='function') cliRefreshDatalist(); toast('✓ Cliente salvo','ok');
 }
@@ -6655,13 +6715,13 @@ function renderInicio(){
     ['Principal', [['inicio','Inicio','Início'], ['docrap','Doc','Documento Rápido'], ['hoje','Hoje','Hoje'], ['ped','Ped','Pedidos'], ['tarefas','Tar','Tarefas'], ['age','Age','Agenda'], ['tec','Tec','Técnico em Campo']]],
     ['⭐ Emitir (mais usados)', [['laudo','Laudo','Laudo de Estanqueidade'], ['os','NS','Nota de Serviço'], ['rec','Rec','Recibo'], ['nf','NF','Nota Fiscal (NFS-e)']]],
     ['Ferramentas', [['novo','Prop','Nova Proposta'], ['relvist','Rel','Relatório de Vistoria']]],
-    ['Comercial', [['atend','Atend','Atendimentos & Funil'], ['renov','Renov','Renovação de Laudos'], ['posvenda','PV','Pós-venda'], ['chamados','Cham','Chamados técnicos']]],
-    ['Gestão', [['fin','Fin','Financeiro'], ['cob','Cob','Cobranças'], ['arquivos','Arq','Arquivos & Mídia']]],
+    ['Comercial', [['atend','Atend','Atendimentos & Funil'], ['renov','Renov','Renovação de Laudos'], ['posvenda','PV','Pós-venda'], ['msgs','Msgs','Modelos de Mensagem'], ['chamados','Cham','Chamados técnicos']]],
+    ['Gestão', [['fin','Fin','Financeiro'], ['cob','Cob','Cobranças'], ['gar','Gar','Garantias'], ['arquivos','Arq','Arquivos & Mídia']]],
     ['Suprimentos', [['forn','Forn','Fornecedores'], ['compras','Compras','Compras']]],
     ['Cadastros', [['cli','Cli','Clientes'], ['contatos','Cont','Contatos'], ['docs','Docs','Documentos do Cliente'], ['svc','Svc','Serviços'], ['prod','Prod','Materiais'], ['ctr','Ctr','Contratos']]],
     ['Sistema', [['imp','Imp','Importar / Migração'], ['cfg','Cfg','Configurações']]]
   ];
-  var ICON={inicio:'🏠',hoje:'☀️',ped:'📋',tarefas:'✅',age:'📅',novo:'✨',rec:'🧾',os:'📝',ctr:'📄',laudo:'🔬',relvist:'📑',cli:'👥',contatos:'📇',docs:'🗂️',nf:'🏛️',renov:'🔄',svc:'🛠️',prod:'📦',fin:'💰',cob:'📢',arquivos:'📁',atend:'📞',posvenda:'⭐',chamados:'🛎️',forn:'🏭',compras:'🛒',tec:'🔧',cfg:'⚙️',imp:'📥',docrap:'⚡'};
+  var ICON={inicio:'🏠',hoje:'☀️',ped:'📋',tarefas:'✅',age:'📅',novo:'✨',rec:'🧾',os:'📝',ctr:'📄',laudo:'🔬',relvist:'📑',cli:'👥',contatos:'📇',docs:'🗂️',nf:'🏛️',renov:'🔄',svc:'🛠️',prod:'📦',fin:'💰',cob:'📢',arquivos:'📁',atend:'📞',posvenda:'⭐',msgs:'💬',gar:'🛡️',chamados:'🛎️',forn:'🏭',compras:'🛒',tec:'🔧',cfg:'⚙️',imp:'📥',docrap:'⚡'};
   function build(){
     if(document.getElementById('gn-side')) return;
     var side=document.createElement('nav'); side.id='gn-side';
@@ -8255,6 +8315,193 @@ function gnRelRenovPDF(){
   if(typeof toast==='function') toast('📄 Relatório de renovações gerado e baixado.','ok');
 }
 // ══════════════════════════════════════════════
+// ═══ ONDA 3: Modelos de mensagem (7) · Relacionamento (4) · Pós-venda (5) · Garantias (8) ═══
+// ══════════════════════════════════════════════
+
+// ---- Helpers comuns ----
+function gnPrimNome(n){ return (String(n||'').trim().split(/\s+/)[0])||'cliente'; }
+function gnSetGet(k){ try{ return JSON.parse(localStorage.getItem(k)||'[]'); }catch(e){ return []; } }
+function gnSetAdd(k,v){ var a=gnSetGet(k); if(a.indexOf(v)<0){ a.push(v); try{ localStorage.setItem(k, JSON.stringify(a)); }catch(e){} try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey(k); }catch(e){} } }
+function gnSetDel(k,v){ var a=gnSetGet(k).filter(function(x){ return x!==v; }); try{ localStorage.setItem(k, JSON.stringify(a)); }catch(e){} try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey(k); }catch(e){} }
+function gnPedConcluidoEm(numero, entry){
+  try{ var ov=(pedOverlay()[numero]||{}); var tl=ov.tl||[]; for(var i=0;i<tl.length;i++){ if(/conclu/i.test(tl[i].txt||'')) return String(tl[i].t).slice(0,10); } }catch(e){}
+  return (entry&&entry.data)?pedISO(entry.data):'';
+}
+function gnSendMsg(nome, tel, email, msg){
+  var num=String(tel||'').replace(/\D/g,'');
+  if(num){ if(num.length<=11) num='55'+num; window.open('https://wa.me/'+num+'?text='+encodeURIComponent(msg),'_blank'); return 'whatsapp'; }
+  if(String(email||'').indexOf('@')>0){ window.open('mailto:'+encodeURIComponent(email)+'?subject='+encodeURIComponent('Gás Network Engenharia')+'&body='+encodeURIComponent(msg),'_blank'); return 'email'; }
+  if(typeof toast==='function') toast('Esse cliente não tem WhatsApp nem e-mail cadastrado.','er'); return 'sem';
+}
+
+// ─── #7 Biblioteca de modelos de mensagem ───
+function modeloData(){ try{ return JSON.parse(localStorage.getItem('gn_modelos')||'[]'); }catch(e){ return []; } }
+function modeloSaveAll(a){ try{ localStorage.setItem('gn_modelos', JSON.stringify(a)); }catch(e){} try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_modelos'); }catch(e){} }
+function modeloPadroes(){ return [
+  {id:'m_renov', titulo:'Renovação de laudo', cat:'Renovação', texto:'Olá, {nome}! Aqui é da Gás Network Engenharia. Identificamos que o laudo de estanqueidade da sua instalação de gás está vencido (ou próximo do vencimento). Para manter a segurança e a conformidade com as normas, recomendamos a renovação. Podemos agendar? Ficamos à disposição!'},
+  {id:'m_cob', titulo:'Lembrete de pagamento', cat:'Cobrança', texto:'Olá, {nome}! Tudo bem? Passando para lembrar, com todo cuidado, sobre o valor em aberto referente ao nosso serviço. Quando puder, me avise para acertarmos. Obrigado!'},
+  {id:'m_agrad', titulo:'Agradecimento pós-serviço', cat:'Agradecimento', texto:'Olá, {nome}! Agradecemos pela confiança. Seu serviço foi concluído e ficamos à disposição sempre que precisar. — Gás Network Engenharia'},
+  {id:'m_aval', titulo:'Pedido de avaliação', cat:'Pós-venda', texto:'Olá, {nome}! Você poderia avaliar nosso atendimento? Sua opinião é muito importante pra gente melhorar cada vez mais. Muito obrigado!'},
+  {id:'m_pv', titulo:'Pós-venda — está tudo certo?', cat:'Pós-venda', texto:'Olá, {nome}! Aqui é da Gás Network. Passando pra saber se está tudo certo com o serviço que realizamos. Qualquer dúvida ou necessidade, é só me chamar!'},
+  {id:'m_aniv', titulo:'Aniversário do cliente', cat:'Relacionamento', texto:'Olá, {nome}! A equipe da Gás Network Engenharia passa para desejar um feliz aniversário! Muita saúde e tudo de bom. Conte sempre com a gente. 🎉'},
+  {id:'m_marco', titulo:'1 ano de instalação', cat:'Relacionamento', texto:'Olá, {nome}! Já faz cerca de 1 ano do serviço que realizamos na sua instalação de gás. É um ótimo momento para uma revisão de segurança. Quer que a gente agende uma verificação? Estamos à disposição!'},
+  {id:'m_gar', titulo:'Aviso de garantia', cat:'Relacionamento', texto:'Olá, {nome}! Passando para lembrar que a garantia do serviço que realizamos está próxima do fim. Se notou qualquer detalhe, me avise que verificamos sem custo dentro da garantia. Estamos à disposição!'}
+]; }
+function modeloSeed(force){
+  if(force){ if(!confirm('Restaurar os modelos padrão? (seus modelos personalizados não são apagados; os padrão que faltarem são adicionados)')) return; }
+  var a=modeloData(); var have={}; a.forEach(function(m){ have[m.id]=1; });
+  var add=0; modeloPadroes().forEach(function(m){ if(!have[m.id]){ a.push(m); add++; } });
+  if(add||force){ modeloSaveAll(a); if(typeof renderModelos==='function') renderModelos(); if(force&&typeof toast==='function') toast('✓ Modelos padrão restaurados ('+add+' adicionado(s)).','ok'); }
+}
+function modeloByCat(cat){ var a=modeloData(); for(var i=0;i<a.length;i++){ if((a[i].cat||'')===cat) return a[i].texto; } return ''; }
+function modeloById(id){ return modeloData().filter(function(x){ return x.id===id; })[0]; }
+function modeloMsg(cat, nome, fallback){ var t=modeloByCat(cat)||fallback||''; return t.replace(/\{nome\}/g, gnPrimNome(nome)); }
+function modeloAdd(){
+  var tit=((document.getElementById('msg-titulo')||{}).value||'').trim();
+  var txt=((document.getElementById('msg-texto')||{}).value||'').trim();
+  var cat=((document.getElementById('msg-cat')||{}).value||'Outro');
+  if(!txt){ if(typeof toast==='function') toast('Escreva o texto da mensagem.','er'); return; }
+  if(!tit) tit=cat;
+  var a=modeloData(); a.unshift({ id:'m'+Date.now(), titulo:tit, cat:cat, texto:txt }); modeloSaveAll(a);
+  ['msg-titulo','msg-texto'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  renderModelos(); if(typeof toast==='function') toast('✓ Modelo salvo.','ok');
+}
+function modeloDel(id){ if(!confirm('Excluir este modelo?')) return; modeloSaveAll(modeloData().filter(function(x){ return x.id!==id; })); renderModelos(); }
+function modeloEdit(id){
+  var m=modeloById(id); if(!m) return;
+  var nt=prompt('Texto do modelo "'+(m.titulo||'')+'":', m.texto||''); if(nt===null) return;
+  var a=modeloData(); a.forEach(function(x){ if(x.id===id) x.texto=nt; }); modeloSaveAll(a); renderModelos(); if(typeof toast==='function') toast('✓ Modelo atualizado.','ok');
+}
+function modeloCopiar(id){
+  var m=modeloById(id); if(!m) return;
+  try{ if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(m.texto||''); if(typeof toast==='function') toast('📋 Modelo copiado.','ok'); return; } }catch(e){}
+  if(typeof toast==='function') toast(m.texto||'','in');
+}
+function renderModelos(){
+  if(!window.__msgsPulled){ window.__msgsPulled=true; try{ if(typeof gnStorePull==='function') gnStorePull('modelos', function(ch){ if(ch) renderModelos(); }); }catch(e){} }
+  if(!modeloData().length){ modeloSeed(false); }
+  var box=document.getElementById('msgs-list'); if(!box) return;
+  var a=modeloData();
+  if(!a.length){ box.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum modelo ainda. Crie acima ou clique em "Restaurar modelos padrão".</div>'; return; }
+  var corCat={'Renovação':'#dc2626','Cobrança':'#b45309','Agradecimento':'#16a34a','Pós-venda':'#7c5cff','Relacionamento':'#0891b2','Orçamento':'#2563eb','Agendamento':'#0e7490','Outro':'#64748b'};
+  var grupos={}; a.forEach(function(m){ var c=m.cat||'Outro'; (grupos[c]=grupos[c]||[]).push(m); });
+  var html='';
+  Object.keys(grupos).forEach(function(cat){
+    html+='<div style="font-weight:800;color:'+(corCat[cat]||'#64748b')+';margin:12px 2px 6px;">'+gnEsc(cat)+'</div>';
+    html+=grupos[cat].map(function(m){
+      return '<div style="border:1px solid var(--gn-border);border-left:4px solid '+(corCat[cat]||'#64748b')+';border-radius:11px;padding:11px 13px;margin-bottom:7px;background:var(--gn-card);">'
+        +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(m.titulo||m.cat)+'</div>'
+        +'<div style="display:flex;gap:5px;flex-wrap:wrap;">'
+        +'<button onclick="modeloCopiar(\''+m.id+'\')" style="background:#0e7490;color:#fff;border:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:600;">📋 Copiar</button>'
+        +'<button onclick="modeloEdit(\''+m.id+'\')" style="background:rgba(124,92,255,.18);color:var(--gn-text);border:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:12px;">✎ Editar</button>'
+        +'<button onclick="modeloDel(\''+m.id+'\')" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:5px 9px;cursor:pointer;font-size:12px;">✕</button>'
+        +'</div></div>'
+        +'<div style="font-size:13px;color:var(--gn-dim);margin-top:6px;white-space:pre-wrap;">'+gnEsc(m.texto||'')+'</div></div>';
+    }).join('');
+  });
+  box.innerHTML=html;
+}
+
+// ─── #4 Mensagens de relacionamento (aniversário + 1 ano de instalação) ───
+function gnAniversariantes(dias){
+  dias=(dias==null)?7:dias; var out=[]; var cli=(typeof cliData==='function')?cliData():[];
+  var hoje=new Date(); var h0=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate());
+  cli.forEach(function(c){
+    var m=String(c.nascimento||'').match(/(\d{4})-(\d{2})-(\d{2})/); if(!m) return;
+    var mm=+m[2], dd=+m[3]; if(!mm||!dd) return;
+    var prox=new Date(h0.getFullYear(), mm-1, dd);
+    if(prox<h0) prox=new Date(h0.getFullYear()+1, mm-1, dd);
+    var d=Math.round((prox-h0)/86400000);
+    if(d<=dias) out.push({cli:c, dias:d});
+  });
+  out.sort(function(a,b){ return a.dias-b.dias; }); return out;
+}
+function gnMarcos1Ano(){
+  var out=[]; var h=[]; try{ h=pedHist(); }catch(e){}
+  var byCli={};
+  h.forEach(function(e){ var iso=pedISO(e.data); if(!iso) return; var k=(e.cliente||'').toLowerCase().trim(); if(!k) return; if(!byCli[k]||iso<byCli[k].iso) byCli[k]={iso:iso, nome:e.cliente}; });
+  var done=gnSetGet('gn_marcos'); var h0=new Date(); h0.setHours(0,0,0,0);
+  Object.keys(byCli).forEach(function(k){
+    var r=byCli[k]; var d=new Date(r.iso+'T00:00:00'); if(isNaN(d)) return;
+    var diasDesde=Math.round((h0-d)/86400000);
+    if(diasDesde>=365 && diasDesde<=380){ var key=k+'|'+(d.getFullYear()+1); if(done.indexOf(key)<0) out.push({nome:r.nome, key:key, desde:r.iso}); }
+  });
+  return out;
+}
+function gnAniverEnviar(id){
+  var c=(typeof cliFind==='function')?cliFind(id):null; if(!c) return;
+  var msg=modeloMsg('Relacionamento', c.nome, 'Olá, {nome}! A equipe da Gás Network passa para desejar um feliz aniversário! 🎉');
+  gnSendMsg(c.nome, c.whatsapp||c.tel, c.email, msg);
+}
+function gnMarcoEnviar(nome, key){
+  var c=(typeof pedCliente==='function')?(pedCliente(nome)||{}):{};
+  var msg=modeloMsg('Relacionamento', nome, 'Olá, {nome}! Já faz cerca de 1 ano do serviço na sua instalação de gás. Quer agendar uma revisão de segurança?');
+  // usa preferencialmente o modelo "1 ano de instalação" se existir
+  var t=(modeloById('m_marco')||{}).texto; if(t) msg=t.replace(/\{nome\}/g, gnPrimNome(nome));
+  var canal=gnSendMsg(nome, c.whatsapp||c.tel, c.email, msg);
+  if(canal!=='sem' && key){ gnSetAdd('gn_marcos', key); try{ if(typeof gnAvisos==='function') gnAvisos(); }catch(e){} }
+}
+function gnMarcoDispensar(key){ if(key){ gnSetAdd('gn_marcos', key); try{ if(typeof gnAvisos==='function') gnAvisos(); }catch(e){} } }
+
+// ─── #5 Pós-venda automático ───
+function gnPosvendaPendentes(){
+  var dias=Number(localStorage.getItem('gn_pv_dias')||'3')||3;
+  var out=[]; var h=[]; try{ h=pedHist(); }catch(e){}
+  var done=gnSetGet('gn_pvdone'); var h0=new Date(); h0.setHours(0,0,0,0);
+  h.forEach(function(e){ var st; try{ st=pedGet(e.numero); }catch(_){ return; } if(st.status!=='Concluído'&&st.status!=='Garantia') return;
+    if(done.indexOf(e.numero)>=0) return;
+    var ci=gnPedConcluidoEm(e.numero,e); if(!ci) return; var d=new Date(ci+'T00:00:00'); if(isNaN(d)) return;
+    var dd=Math.round((h0-d)/86400000); if(dd>=dias) out.push({entry:e, dias:dd, concl:ci});
+  });
+  out.sort(function(a,b){ return b.dias-a.dias; }); return out;
+}
+function pvFeito(numero){ gnSetAdd('gn_pvdone', numero); try{ if(typeof renderPosvenda==='function') renderPosvenda(); }catch(e){} try{ if(typeof gnAvisos==='function') gnAvisos(); }catch(e){} if(typeof toast==='function') toast('✓ Marcado como contato de pós-venda feito.','ok'); }
+
+// ─── #8 Controle de garantia ───
+function garDias(){ return Number(localStorage.getItem('gn_gar_dias')||'90')||90; }
+function garSetDias(){ var v=prompt('Prazo padrão de garantia dos serviços (dias):', garDias()); if(v===null) return; var n=parseInt(String(v).replace(/\D/g,''),10)||90; try{ localStorage.setItem('gn_gar_dias', String(n)); }catch(e){} renderGarantias(); }
+function gnGarantias(){
+  var out=[]; var h=[]; try{ h=pedHist(); }catch(e){}
+  var gd=garDias(); var h0=new Date(); h0.setHours(0,0,0,0);
+  h.forEach(function(e){ var st; try{ st=pedGet(e.numero); }catch(_){ return; } if(st.status!=='Concluído'&&st.status!=='Garantia') return;
+    var ci=gnPedConcluidoEm(e.numero,e); if(!ci) return; var d=new Date(ci+'T00:00:00'); if(isNaN(d)) return;
+    var fim=new Date(d.getTime()); fim.setDate(fim.getDate()+gd);
+    var diasRest=Math.round((fim-h0)/86400000);
+    var status=(diasRest<0)?'vencida':((diasRest<=30)?'vencendo':'vigente');
+    out.push({entry:e, inicio:ci, fim:fim, diasRest:diasRest, status:status});
+  });
+  out.sort(function(a,b){ return a.diasRest-b.diasRest; }); return out;
+}
+function gnGarantiasVencendo(){ return gnGarantias().filter(function(g){ return g.status!=='vigente' && g.diasRest>=-60 && g.diasRest<=30; }); }
+function garEnviar(numero){
+  var e=pedEntry(numero); if(!e) return; var c=(typeof pedCliente==='function')?(pedCliente(e.cliente)||{}):{};
+  var msg=modeloMsg('Relacionamento', e.cliente, 'Olá, {nome}! Passando para falar sobre a garantia do serviço que realizamos. Estamos à disposição!');
+  var t=(modeloById('m_gar')||{}).texto; if(t) msg=t.replace(/\{nome\}/g, gnPrimNome(e.cliente));
+  gnSendMsg(e.cliente, c.whatsapp||c.tel, c.email, msg);
+}
+function renderGarantias(){
+  var box=document.getElementById('gar-list'); var head=document.getElementById('gar-head'); if(!box) return;
+  var arr=gnGarantias();
+  var nVig=arr.filter(function(g){return g.status==='vigente';}).length;
+  var nVenc=arr.filter(function(g){return g.status==='vencendo';}).length;
+  var nFim=arr.filter(function(g){return g.status==='vencida';}).length;
+  if(head){ head.innerHTML='<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:12px;padding:11px 13px;margin-bottom:10px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;">'
+    +'<div style="font-size:13px;color:var(--gn-text);"><strong>'+arr.length+'</strong> serviços com garantia · <span style="color:#16a34a;font-weight:700;">'+nVig+' vigentes</span> · <span style="color:#f59e0b;font-weight:700;">'+nVenc+' vencendo</span> · <span style="color:#dc2626;font-weight:700;">'+nFim+' vencidas</span></div>'
+    +'<button onclick="garSetDias()" style="background:var(--gn-surface2);color:var(--gn-text);border:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:11.5px;">🛡️ Prazo de garantia ('+garDias()+' dias)</button></div>'; }
+  if(!arr.length){ box.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum serviço concluído ainda. Quando você marcar pedidos como <b>Concluído</b>, a garantia aparece aqui automaticamente.</div>'; return; }
+  var cor={vigente:'#16a34a',vencendo:'#f59e0b',vencida:'#dc2626'};
+  var lbl={vigente:'EM GARANTIA',vencendo:'VENCENDO',vencida:'VENCIDA'};
+  box.innerHTML=arr.map(function(g){
+    var e=g.entry; var fimStr=g.fim.toLocaleDateString('pt-BR'); var iniStr=(g.inicio||'').split('-').reverse().join('/');
+    var info=(g.status==='vencida')?('venceu em '+fimStr):((g.status==='vencendo')?('vence em '+g.diasRest+' dia(s) — '+fimStr):('em garantia até '+fimStr));
+    return '<div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--gn-border);border-left:4px solid '+cor[g.status]+';border-radius:10px;margin-bottom:6px;">'
+      +'<div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(e.cliente||'Cliente')+' <span style="font-size:10px;background:'+cor[g.status]+';color:#fff;border-radius:8px;padding:1px 7px;">'+lbl[g.status]+'</span></div>'
+      +'<div style="font-size:12px;color:var(--gn-dim);">'+gnEsc(e.numero||'')+' · concluído em '+iniStr+' · '+info+'</div></div>'
+      +'<button onclick="garEnviar(\''+gnEsc(e.numero)+'\')" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">📲 Falar com cliente</button></div>';
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
 // ═══ NOTA FISCAL DE SERVIÇO (NFS-e) via gateway fiscal + certificado A1 ═══
 // ══════════════════════════════════════════════
 function nfV(id){ var e=document.getElementById(id); return e?(e.value||'').trim():''; }
@@ -8497,6 +8744,71 @@ function gnAvisos(){
     }).join('');
     html+='</div>';
   }
+  // Relacionamento (item 4): aniversariantes
+  try{
+    if(typeof gnAniversariantes==='function'){
+      var av=gnAniversariantes(7);
+      if(av.length){
+        html+='<div style="background:rgba(8,145,178,.10);border:1px solid #0891b2;border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
+          +'<div style="font-weight:800;color:#0891b2;margin-bottom:6px;">🎂 '+av.length+' aniversário(s) por perto</div>';
+        html+=av.slice(0,6).map(function(a){
+          var q=(a.dias===0)?'hoje 🎉':('em '+a.dias+' dia(s)');
+          return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--gn-border);">'
+            +'<span style="color:var(--gn-text);"><strong>'+gnEsc(a.cli.nome||'')+'</strong> · '+q+'</span>'
+            +'<button onclick="gnAniverEnviar(\''+gnEsc(a.cli.id||'')+'\')" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">📲 Parabenizar</button></div>';
+        }).join('');
+        html+='</div>';
+      }
+    }
+  }catch(e){}
+  // Relacionamento (item 4): marco de 1 ano de instalação
+  try{
+    if(typeof gnMarcos1Ano==='function'){
+      var mc=gnMarcos1Ano();
+      if(mc.length){
+        html+='<div style="background:rgba(14,116,144,.10);border:1px solid #0e7490;border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
+          +'<div style="font-weight:800;color:#0e7490;margin-bottom:6px;">📆 '+mc.length+' cliente(s) fazem 1 ano de instalação</div>';
+        html+=mc.slice(0,6).map(function(m){
+          return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--gn-border);">'
+            +'<span style="color:var(--gn-text);"><strong>'+gnEsc(m.nome||'')+'</strong> · ótimo momento para uma revisão</span>'
+            +'<span style="display:flex;gap:5px;white-space:nowrap;">'
+            +'<button onclick="gnMarcoEnviar(\''+gnEsc(m.nome||'').replace(/\x27/g,"\\\x27")+'\',\''+gnEsc(m.key||'').replace(/\x27/g,"\\\x27")+'\')" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:600;">📲 Oferecer revisão</button>'
+            +'<button onclick="gnMarcoDispensar(\''+gnEsc(m.key||'').replace(/\x27/g,"\\\x27")+'\')" title="Dispensar" style="background:var(--gn-surface2);color:var(--gn-text);border:none;border-radius:7px;padding:5px 8px;cursor:pointer;font-size:12px;">✕</button>'
+            +'</span></div>';
+        }).join('');
+        html+='</div>';
+      }
+    }
+  }catch(e){}
+  // Pós-venda automático (item 5)
+  try{
+    if(typeof gnPosvendaPendentes==='function'){
+      var pv=gnPosvendaPendentes();
+      if(pv.length){
+        html+='<div style="background:rgba(124,92,255,.10);border:1px solid #7c5cff;border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
+          +'<div style="font-weight:800;color:#7c5cff;margin-bottom:4px;">⭐ '+pv.length+' serviço(s) prontos para pós-venda</div>'
+          +'<div style="font-size:12.5px;color:var(--gn-text);margin-bottom:8px;">Concluídos há alguns dias. Que tal um contato de pós-venda? Ex.: '+pv.slice(0,3).map(function(x){return gnEsc(x.entry.cliente||'');}).join(', ')+'.</div>'
+          +'<button onclick="goTab(\'posvenda\')" style="background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:7px 13px;cursor:pointer;font-weight:700;font-size:12.5px;">Abrir Pós-venda →</button></div>';
+      }
+    }
+  }catch(e){}
+  // Garantias vencendo (item 8)
+  try{
+    if(typeof gnGarantiasVencendo==='function'){
+      var gv=gnGarantiasVencendo();
+      if(gv.length){
+        html+='<div style="background:rgba(245,158,11,.10);border:1px solid #f59e0b;border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
+          +'<div style="font-weight:800;color:#b45309;margin-bottom:6px;">🛡️ '+gv.length+' garantia(s) vencendo / recém-vencida(s)</div>';
+        html+=gv.slice(0,6).map(function(g){
+          var d=(g.diasRest<0)?('<span style="color:#dc2626;font-weight:700;">venceu há '+(-g.diasRest)+' dia(s)</span>'):('vence em '+g.diasRest+' dia(s)');
+          return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--gn-border);">'
+            +'<span style="color:var(--gn-text);"><strong>'+gnEsc(g.entry.cliente||'')+'</strong> · '+d+'</span>'
+            +'<button onclick="garEnviar(\''+gnEsc(g.entry.numero||'')+'\')" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">📲 Falar com cliente</button></div>';
+        }).join('');
+        html+='<div style="margin-top:8px;"><button onclick="goTab(\'gar\')" style="background:var(--gn-surface2);color:var(--gn-text);border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;">Ver todas as garantias →</button></div></div>';
+      }
+    }
+  }catch(e){}
   box.innerHTML=html;
 }
 
@@ -8654,7 +8966,7 @@ function gnAutodiag(){
   try{
     var críticos=['gnDocPDF','recDoc','osDoc','ctrDoc','laudoGerar','laudoEstGerar','gerarPDF','goTab','gnStoreGet','renderFin','renderRenov','renderNf','gnAssistExec','gnConsulta'];
     var faltando=[]; críticos.forEach(function(fn){ if(typeof window[fn]!=='function') faltando.push(fn); });
-    var panes=['pane-inicio','pane-renov','pane-nf','pane-laudo','pane-fin','pane-cli']; var pf=[]; panes.forEach(function(id){ if(!document.getElementById(id)) pf.push(id); });
+    var panes=['pane-inicio','pane-renov','pane-nf','pane-laudo','pane-fin','pane-cli','pane-msgs','pane-gar','pane-posvenda']; var pf=[]; panes.forEach(function(id){ if(!document.getElementById(id)) pf.push(id); });
     if(faltando.length || pf.length){
       console.warn('[Autodiagnóstico] Itens ausentes:', faltando, pf);
       if(typeof toast==='function') toast('⚠ Aviso: o app detectou que algumas funções não carregaram ('+(faltando.concat(pf)).slice(0,3).join(', ')+'...). Recarregue a página.','er');
