@@ -1156,7 +1156,8 @@ textarea.fi{resize:vertical;}
   </div>
   <div id="pane-inicio" style="display:block;">
     <div class="eyebrow">Painel</div>
-    <div class="pgtitle" style="margin-bottom:4px;" id="ini-saud">Início</div>
+    <div class="pgtitle" style="margin-bottom:4px;" id="ini-saud">&nbsp;</div>
+    <script>(function(){try{var h=new Date().getHours();var s=h<12?'Bom dia':(h<18?'Boa tarde':'Boa noite');var nm='';try{var u=JSON.parse(localStorage.getItem('gn_user')||'{}');if(u&&u.nome)nm=', '+String(u.nome).split(' ')[0];}catch(e){}var el=document.getElementById('ini-saud');if(el)el.textContent=s+nm+'! 👋';}catch(e){}})();</script>
     <div class="pgsub" style="margin-bottom:16px;">Resumo do seu negócio. Toque num card para abrir os detalhes.</div>
 
     <!-- CARD GRANDE DE PEDIDOS (item 4) -->
@@ -1324,9 +1325,9 @@ textarea.fi{resize:vertical;}
       <select id="fin-periodo" onchange="renderFin()" style="padding:8px 10px;border:1px solid var(--gn-border);border-radius:8px;">
         <option value="hoje">Hoje</option>
         <option value="semana">Últimos 7 dias</option>
-        <option value="mes">Este mês</option>
+        <option value="mes" selected>Este mês</option>
         <option value="mespassado">Mês passado</option>
-        <option value="ano" selected>Este ano</option>
+        <option value="ano">Este ano</option>
         <option value="2anos">Últimos 2 anos</option>
         <option value="3anos">Últimos 3 anos</option>
         <option value="tudo">Tudo</option>
@@ -1459,6 +1460,27 @@ textarea.fi{resize:vertical;}
     </div>
     <div id="contatos-status" style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;"></div>
     <div id="contatos-list"></div>
+  </div>
+
+  <div id="pane-docs" style="display:none;">
+    <div class="eyebrow">Documentos</div>
+    <div class="pgtitle" style="margin-bottom:4px;">Documentos do Cliente</div>
+    <div class="pgsub" style="margin-bottom:14px;">Todos os documentos emitidos de um cliente num lugar só (recibos, notas de serviço e contratos). Selecione vários e envie de uma vez pelo WhatsApp ou baixe em lote.</div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+      <label style="font-size:13px;color:var(--gn-dim);">Cliente:</label>
+      <select id="docs-cli" onchange="renderDocsCliente()" style="padding:9px 11px;border:1px solid var(--gn-border);border-radius:9px;min-width:220px;"></select>
+      <input id="docs-busca" oninput="renderDocsCliente()" placeholder="🔎 buscar nº, tipo ou data..." style="flex:1;min-width:160px;padding:9px 11px;border:1px solid var(--gn-border);border-radius:9px;">
+    </div>
+
+    <div id="docs-actions" style="display:none;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;background:rgba(37,211,102,.10);border:1px solid rgba(37,211,102,.30);border-radius:12px;padding:11px 13px;">
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--gn-text);cursor:pointer;"><input type="checkbox" id="docs-selall" onchange="docsSelAll(this.checked)"> Selecionar todos</label>
+      <button onclick="docsBaixarSelec()" style="background:#4338ca;color:#fff;border:none;padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:700;">⬇ Baixar selecionados</button>
+      <button onclick="docsWhatsSelec()" style="background:#25d366;color:#fff;border:none;padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:700;">📲 Enviar pelo WhatsApp</button>
+      <span id="docs-selcount" style="font-size:12px;color:var(--gn-dim);"></span>
+    </div>
+
+    <div id="docs-list"></div>
   </div>
 
   <div id="pane-cli" style="display:none;">
@@ -2031,7 +2053,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // TABS
 // ══════════════════════════════════════════════
 function goTab(t) {
-  ['inicio','ped','age','tec','novo','hist','laudo','relvist','fin','cli','svc','rec','os','prod','rel','chk','ctr','cfg','imp','pro','docrap','hoje','tarefas','cob','atend','forn','compras','chamados','posvenda','arquivos','contatos'].forEach(id => {
+  ['inicio','ped','age','tec','novo','hist','laudo','relvist','fin','cli','svc','rec','os','prod','rel','chk','ctr','cfg','imp','pro','docrap','hoje','tarefas','cob','atend','forn','compras','chamados','posvenda','arquivos','contatos','docs'].forEach(id => {
     var p=document.getElementById('pane-'+id); if(p) p.style.display = id===t?'block':'none';
     var tb=document.getElementById('tab-'+id); if(tb) tb.classList.toggle('on', id===t);
   });
@@ -2063,6 +2085,7 @@ function goTab(t) {
   if (t==='posvenda'){ try{ if(window.renderPosvenda) renderPosvenda(); }catch(e){} }
   if (t==='arquivos'){ try{ if(window.renderArquivos) renderArquivos(); }catch(e){} }
   if (t==='contatos'){ try{ if(window.renderContatos) renderContatos(); if(window.gnPullContatos) gnPullContatos(); }catch(e){} }
+  if (t==='docs'){ try{ if(window.renderDocsCliente) renderDocsCliente(); }catch(e){} }
   try{ if(window.notifBadge) notifBadge(); }catch(e){}
 }
 
@@ -6389,10 +6412,10 @@ function renderInicio(){
     ['Comercial', [['atend','Atend','Atendimentos & Funil'], ['posvenda','PV','Pós-venda'], ['chamados','Cham','Chamados técnicos']]],
     ['Gestão', [['fin','Fin','Financeiro'], ['cob','Cob','Cobranças'], ['arquivos','Arq','Arquivos & Mídia']]],
     ['Suprimentos', [['forn','Forn','Fornecedores'], ['compras','Compras','Compras']]],
-    ['Cadastros', [['cli','Cli','Clientes'], ['contatos','Cont','Contatos'], ['svc','Svc','Serviços'], ['prod','Prod','Materiais'], ['ctr','Ctr','Contratos']]],
+    ['Cadastros', [['cli','Cli','Clientes'], ['contatos','Cont','Contatos'], ['docs','Docs','Documentos do Cliente'], ['svc','Svc','Serviços'], ['prod','Prod','Materiais'], ['ctr','Ctr','Contratos']]],
     ['Sistema', [['imp','Imp','Importar / Migração'], ['cfg','Cfg','Configurações']]]
   ];
-  var ICON={inicio:'🏠',hoje:'☀️',ped:'📋',tarefas:'✅',age:'📅',novo:'✨',rec:'🧾',os:'📝',ctr:'📄',laudo:'🔬',relvist:'📑',cli:'👥',contatos:'📇',svc:'🛠️',prod:'📦',fin:'💰',cob:'📢',arquivos:'📁',atend:'📞',posvenda:'⭐',chamados:'🛎️',forn:'🏭',compras:'🛒',tec:'🔧',cfg:'⚙️',imp:'📥',docrap:'⚡'};
+  var ICON={inicio:'🏠',hoje:'☀️',ped:'📋',tarefas:'✅',age:'📅',novo:'✨',rec:'🧾',os:'📝',ctr:'📄',laudo:'🔬',relvist:'📑',cli:'👥',contatos:'📇',docs:'🗂️',svc:'🛠️',prod:'📦',fin:'💰',cob:'📢',arquivos:'📁',atend:'📞',posvenda:'⭐',chamados:'🛎️',forn:'🏭',compras:'🛒',tec:'🔧',cfg:'⚙️',imp:'📥',docrap:'⚡'};
   function build(){
     if(document.getElementById('gn-side')) return;
     var side=document.createElement('nav'); side.id='gn-side';
@@ -7837,6 +7860,115 @@ function renderInicio(){
 </script>
 <script>
 // ══════════════════════════════════════════════
+// ═══ DOCUMENTOS DO CLIENTE (visão por cliente + envio em lote no WhatsApp) ═══
+// ══════════════════════════════════════════════
+var docsPulled=false;
+function docsNorm(s){ return String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
+// Agrega todos os documentos regeneráveis (recibo, nota de serviço, contrato)
+function docsTodos(){
+  var out=[];
+  try{ gnStoreGet('rec').forEach(function(r){ out.push({tipo:'Recibo', emoji:'🧾', cor:'#16a34a', store:'rec', id:r.id, nome:r.nome||'', numero:r.numero||'', data:r.data||'', valor:Number(r.valor)||0, criadoEm:r.criadoEm||''}); }); }catch(e){}
+  try{ gnStoreGet('os').forEach(function(o){ out.push({tipo:'Nota de Serviço', emoji:'📝', cor:'#4338ca', store:'os', id:o.id, nome:o.nome||'', numero:o.numero||'', data:o.data||'', valor:Number(o.valor)||0, criadoEm:o.criadoEm||''}); }); }catch(e){}
+  try{ gnStoreGet('ctr').forEach(function(c){ out.push({tipo:'Contrato', emoji:'📄', cor:'#b45309', store:'ctr', id:c.id, nome:c.nome||'', numero:c.numero||'', data:c.data||'', valor:Number(c.valor)||0, criadoEm:c.criadoEm||''}); }); }catch(e){}
+  return out;
+}
+// Telefone do cliente (gn_cli primeiro, depois contatos do Google)
+function docsFone(nome){
+  var n=''; var alvo=docsNorm(nome);
+  try{ var cli=JSON.parse(localStorage.getItem('gn_cli')||'[]').filter(function(c){ return docsNorm(c.nome)===alvo; })[0]; if(cli) n=String(cli.whatsapp||cli.tel||cli.telefone||'').replace(/\D/g,''); }catch(e){}
+  if(!n){ try{ var ct=JSON.parse(localStorage.getItem('gn_contatos')||'[]').filter(function(c){ return docsNorm(c.nome)===alvo; })[0]; if(ct) n=String(ct.whatsapp||ct.tel||ct.telefone||'').replace(/\D/g,''); }catch(e){} }
+  if(n && n.length<=11) n='55'+n;
+  return n;
+}
+function docsFillCli(){
+  var sel=document.getElementById('docs-cli'); if(!sel) return;
+  var cur=sel.value;
+  var nomes={}; docsTodos().forEach(function(d){ if(d.nome) nomes[d.nome]=(nomes[d.nome]||0)+1; });
+  var arr=Object.keys(nomes).sort(function(a,b){ return a.localeCompare(b); });
+  sel.innerHTML='<option value="">— escolha um cliente —</option>'+arr.map(function(n){ return '<option value="'+gnEsc(n)+'">'+gnEsc(n)+' ('+nomes[n]+')</option>'; }).join('');
+  if(cur && arr.indexOf(cur)>=0) sel.value=cur;
+}
+// Regenera + baixa o PDF de um documento (pelo store/id)
+function docsRegen(store, id){
+  var arr=[]; try{ arr=gnStoreGet(store); }catch(e){ return false; }
+  var d=arr.filter(function(x){ return x.id===id; })[0]; if(!d) return false;
+  try{
+    if(store==='rec' && typeof recDoc==='function') recDoc(d, true);
+    else if(store==='os' && typeof osDoc==='function') osDoc(d, true);
+    else if(store==='ctr' && typeof ctrDoc==='function') ctrDoc(d, true);
+    else return false;
+  }catch(e){ return false; }
+  return true;
+}
+function docsSelecionados(){
+  return Array.prototype.slice.call(document.querySelectorAll('.docs-chk:checked')).map(function(c){ return {store:c.getAttribute('data-store'), id:c.getAttribute('data-id'), tipo:c.getAttribute('data-tipo'), numero:c.getAttribute('data-num'), valor:Number(c.getAttribute('data-val'))||0}; });
+}
+function docsUpdCount(){
+  var sel=docsSelecionados(); var el=document.getElementById('docs-selcount'); if(el) el.textContent=sel.length?(sel.length+' selecionado(s)'):'';
+}
+function docsSelAll(on){ Array.prototype.forEach.call(document.querySelectorAll('.docs-chk'), function(c){ c.checked=!!on; }); docsUpdCount(); }
+function docsBaixarSelec(){
+  var sel=docsSelecionados(); if(!sel.length){ toast('Selecione ao menos um documento.','er'); return; }
+  var ok=0; sel.forEach(function(s){ if(docsRegen(s.store, s.id)) ok++; });
+  toast('⬇ '+ok+' documento(s) baixado(s) e salvos na nuvem.','ok');
+}
+function docsWhatsSelec(){
+  var sel=docsSelecionados(); if(!sel.length){ toast('Selecione ao menos um documento.','er'); return; }
+  var nome=(document.getElementById('docs-cli')||{}).value||''; if(!nome){ toast('Escolha um cliente.','er'); return; }
+  // Baixa os PDFs primeiro (pra você anexar no WhatsApp)
+  var ok=0; sel.forEach(function(s){ if(docsRegen(s.store, s.id)) ok++; });
+  var linhas=sel.map(function(s){ return '• '+s.tipo+' '+s.numero+(s.valor?(' ('+gnBRL(s.valor)+')'):''); }).join('\n');
+  var msg='Olá, '+nome+'! Seguem seus documentos da Gás Network:\n'+linhas+'\n\nQualquer dúvida estou à disposição.';
+  var num=docsFone(nome);
+  var url='https://wa.me/'+num+'?text='+encodeURIComponent(msg);
+  setTimeout(function(){ window.open(url,'_blank'); }, 400);
+  toast('📲 Baixei '+ok+' PDF(s) e abri o WhatsApp de '+nome+'. É só anexar os arquivos que acabei de baixar.','ok');
+}
+function renderDocsCliente(){
+  if(!docsPulled){ docsPulled=true; try{ ['rec','os','ctr'].forEach(function(k){ gnStorePull(k, function(ch){ if(ch) renderDocsCliente(); }); }); }catch(e){} }
+  docsFillCli();
+  var sel=document.getElementById('docs-cli'); var nome=sel?sel.value:'';
+  var actions=document.getElementById('docs-actions');
+  var list=document.getElementById('docs-list'); if(!list) return;
+  if(!nome){
+    if(actions) actions.style.display='none';
+    var total=docsTodos().length;
+    list.innerHTML='<div style="color:var(--gn-dim);padding:16px;border:1px dashed var(--gn-border);border-radius:12px;">Escolha um cliente acima para ver todos os documentos dele.'+(total?(' Há '+total+' documento(s) emitido(s) no total.'):' Ainda não há documentos emitidos.')+'</div>';
+    return;
+  }
+  var busca=docsNorm((document.getElementById('docs-busca')||{}).value||'');
+  var arr=docsTodos().filter(function(d){ return docsNorm(d.nome)===docsNorm(nome); });
+  if(busca) arr=arr.filter(function(d){ return docsNorm(d.tipo+' '+d.numero+' '+d.data).indexOf(busca)>=0; });
+  arr.sort(function(a,b){ return (b.criadoEm||b.data||'').localeCompare(a.criadoEm||a.data||''); });
+  if(actions) actions.style.display=arr.length?'flex':'none';
+  var fone=docsFone(nome);
+  if(!arr.length){ list.innerHTML='<div style="color:var(--gn-dim);padding:16px;border:1px dashed var(--gn-border);border-radius:12px;">Nenhum documento encontrado para este cliente'+(busca?' com esse filtro':'')+'.</div>'; return; }
+  var head='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;">'+arr.length+' documento(s) de <strong style="color:var(--gn-text);">'+gnEsc(nome)+'</strong>'+(fone?(' · 📱 '+gnEsc(fone)):' · <span style="color:#dc2626;">sem telefone cadastrado</span>')+'</div>';
+  list.innerHTML=head+arr.map(function(d){
+    return '<div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--gn-border);border-left:4px solid '+d.cor+';border-radius:10px;margin-bottom:6px;">'
+      + '<input type="checkbox" class="docs-chk" data-store="'+d.store+'" data-id="'+d.id+'" data-tipo="'+gnEsc(d.tipo)+'" data-num="'+gnEsc(d.numero)+'" data-val="'+d.valor+'" onchange="docsUpdCount()" style="width:18px;height:18px;cursor:pointer;flex:0 0 auto;">'
+      + '<div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+d.emoji+' '+gnEsc(d.tipo)+(d.valor?(' · <span style="color:#16a34a;">'+gnBRL(d.valor)+'</span>'):'')+'</div>'
+      + '<div style="font-size:12px;color:var(--gn-dim);">'+gnEsc(d.numero)+' · '+((d.data||'').split('-').reverse().join('/'))+'</div></div>'
+      + '<button onclick="docsRegen(\''+d.store+'\',\''+d.id+'\')" style="background:#4338ca;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:600;">⬇ PDF</button>'
+      + '<button onclick="docsWhatsUm(\''+d.store+'\',\''+d.id+'\')" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:600;">WhatsApp</button>'
+      + '</div>';
+  }).join('');
+  docsUpdCount();
+}
+// Envia um único documento pelo WhatsApp (baixa + abre conversa)
+function docsWhatsUm(store, id){
+  var arr=[]; try{ arr=gnStoreGet(store); }catch(e){}
+  var d=arr.filter(function(x){ return x.id===id; })[0]; if(!d) return;
+  docsRegen(store, id);
+  var tipo=(store==='rec')?'Recibo':((store==='os')?'Nota de Serviço':'Contrato');
+  var msg='Olá, '+(d.nome||'')+'! Segue seu(sua) '+tipo+' '+(d.numero||'')+(d.valor?(' ('+gnBRL(d.valor)+')'):'')+'. Qualquer dúvida estou à disposição.';
+  var num=docsFone(d.nome);
+  setTimeout(function(){ window.open('https://wa.me/'+num+'?text='+encodeURIComponent(msg),'_blank'); }, 400);
+  toast('📲 Baixei o PDF e abri o WhatsApp. É só anexar o arquivo.','ok');
+}
+</script>
+<script>
+// ══════════════════════════════════════════════
 // ═══ ASSISTENTE VIRTUAL (chat flutuante + IA com visão + memória no Drive) ═══
 // ══════════════════════════════════════════════
 (function(){
@@ -7845,7 +7977,7 @@ function renderInicio(){
   function hist(){ try{ return JSON.parse(localStorage.getItem('gn_assist_hist')||'[]'); }catch(e){ return []; } }
   function saveHist(a){ try{ localStorage.setItem('gn_assist_hist', JSON.stringify(a.slice(-40))); }catch(e){} }
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  var TABLBL={age:'Agenda',novo:'Nova Proposta',os:'Nota de Serviço',rec:'Recibo',laudo:'Laudo de Estanqueidade',docrap:'Documento Rápido',fin:'Financeiro',compras:'Compras',cli:'Clientes',prod:'Materiais',arquivos:'Arquivos & Mídia',ped:'Pedidos',tarefas:'Tarefas'};
+  var TABLBL={age:'Agenda',novo:'Nova Proposta',os:'Nota de Serviço',rec:'Recibo',laudo:'Laudo de Estanqueidade',docrap:'Documento Rápido',fin:'Financeiro',compras:'Compras',cli:'Clientes',prod:'Materiais',arquivos:'Arquivos & Mídia',ped:'Pedidos',tarefas:'Tarefas',docs:'Documentos do Cliente',contatos:'Contatos'};
   var _pendingImg=null;
   function build(){
     if(document.getElementById('gn-assist-btn')) return;
@@ -7876,7 +8008,7 @@ function renderInicio(){
   }
   function renderMsgs(){
     var box=document.getElementById('gn-assist-msgs'); if(!box) return; var h=hist();
-    if(!h.length){ box.innerHTML='<div class="gn-am a">Olá, Matheus! Sou seu assistente. Posso ajudar a emitir documentos, agendar, montar lista de compras, gerar relatórios e responder dúvidas. Me diga o que precisa — se faltar algo, eu pergunto.</div>'; return; }
+    if(!h.length){ box.innerHTML='<div class="gn-am a">Olá, Matheus! Sou seu assistente e posso EXECUTAR tarefas pra você. Experimente:<br>• "Emite um recibo de R$ 350 pro João, instalação de gás"<br>• "Cria uma nota de serviço pra Maria, troca de regulador, R$ 180"<br>• "Agenda visita na sexta às 10h pro cliente Carlos"<br>• "Adiciona 5 metros de tubo e 2 reguladores nas compras"<br>Se faltar algum dado, eu pergunto. 😉</div>'; return; }
     box.innerHTML=h.map(function(m){ return '<div class="gn-am '+(m.r==='u'?'u':'a')+'">'+esc(m.t)+(m.abrir?('<br><button onclick="gnAssistAbrir(\''+m.abrir+'\')" style="margin-top:6px;background:#7c5cff;color:#fff;border:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:12px;">Abrir '+esc(m.abrirLbl||m.abrir)+'</button>'):'')+'</div>'; }).join('');
     box.scrollTop=box.scrollHeight;
   }
@@ -7885,16 +8017,132 @@ function renderInicio(){
     var inp=document.getElementById('gn-assist-in'); var txt=(inp.value||'').trim(); if(!txt && !_pendingImg) return;
     var h=hist(); h.push({r:'u',t:txt||'(imagem enviada)'}); saveHist(h); inp.value=''; renderMsgs();
     var co={}; try{ co=(typeof gnCO==='function')?gnCO():{}; }catch(e){}
-    var sys='Você é o assistente virtual da '+(co.fantasia||'Gás Network')+' (engenharia/instalações de gás). Fale em português do Brasil, prático e amigável. '
-      +'Telas do app: age=Agenda, novo=Nova Proposta/Orçamento, os=Nota de Serviço, rec=Recibo, laudo=Laudo de Estanqueidade, docrap=Documento Rápido, fin=Financeiro, compras=Lista de Compras, cli=Clientes, prod=Materiais, arquivos=Arquivos e Mídia, ped=Pedidos, tarefas=Tarefas. '
-      +'Quando o usuário quiser executar algo, ajude e leve à tela certa. Se faltar informação, PERGUNTE de forma curta. '
-      +'Memória sobre o usuário/empresa: '+JSON.stringify(mem()).slice(0,2000)+'. '
-      +'DEVOLVA SOMENTE um JSON: {"fala":"sua resposta","abrir":null,"lembrar":null}. "abrir"=id de uma tela (ou null). "lembrar"=fato curto pra guardar (ou null).';
-    function done(j){ var hh=hist(); hh.push({r:'a', t:(j&&j.fala)||'(sem resposta)', abrir:(j&&j.abrir)||null, abrirLbl:(j&&j.abrir&&TABLBL[j.abrir])||(j&&j.abrir)}); saveHist(hh); if(j&&j.lembrar){ var mm=mem(); mm.push(String(j.lembrar)); saveMem(mm); } renderMsgs(); }
+    var hoje=new Date().toISOString().slice(0,10);
+    var clientesNomes=''; try{ clientesNomes=(JSON.parse(localStorage.getItem('gn_cli')||'[]')).map(function(c){return c.nome;}).filter(Boolean).slice(0,60).join(', '); }catch(e){}
+    var sys='Você é o assistente virtual da '+(co.fantasia||'Gás Network')+' (engenharia/instalações de gás). Fale em português do Brasil, prático e amigável. A data de hoje é '+hoje+'. '
+      +'Você NÃO apenas orienta: você EXECUTA tarefas no app. Pode emitir documentos (recibo, nota de serviço, laudo técnico, orçamento), agendar compromissos (entram no Google Agenda), montar lista de compras de materiais, e abrir telas. '
+      +'Telas do app: age=Agenda, novo=Nova Proposta/Orçamento, os=Nota de Serviço, rec=Recibo, laudo=Laudo de Estanqueidade/Técnico, docrap=Documento Rápido, fin=Financeiro, compras=Lista de Compras, cli=Clientes, contatos=Contatos, docs=Documentos do Cliente (todos os docs de um cliente, com envio em lote no WhatsApp), prod=Materiais, arquivos=Arquivos e Mídia, ped=Pedidos, tarefas=Tarefas. '
+      +(clientesNomes?('Clientes já cadastrados: '+clientesNomes+'. '):'')
+      +'Memória sobre o usuário/empresa: '+JSON.stringify(mem()).slice(0,1500)+'. '
+      +'REGRAS DE EXECUÇÃO: Quando o usuário pedir para emitir/criar/gerar um documento, agendar, ou montar lista de compras, e você tiver os dados mínimos, devolva uma AÇÃO no campo "acao". Se faltar um dado essencial (ex.: valor do recibo, dia do agendamento), NÃO crie a ação — em vez disso pergunte de forma curta e objetiva no campo "fala". '
+      +'Dados mínimos: recibo precisa de nome e valor; nota_servico precisa de nome; laudo precisa de cliente e objetivo; agendar precisa de titulo (ou cliente+servico) e data; compras precisa de pelo menos 1 item. Converta datas relativas ("sexta","amanhã") para AAAA-MM-DD com base em hoje. Valores em número (ex.: 350.00). '
+      +'DEVOLVA SOMENTE um JSON válido com este formato: {"fala":"sua resposta ao usuário","abrir":null,"lembrar":null,"acao":null}. '
+      +'"abrir" = id de tela para abrir (ou null). "lembrar" = fato curto para guardar na memória (ou null). '
+      +'"acao" = null OU um objeto {"tipo":"recibo|nota_servico|laudo|orcamento|agendar|compras","dados":{...}}. '
+      +'Campos de "dados" por tipo: '
+      +'recibo:{nome,valor,forma,ref,cpf,data}; '
+      +'nota_servico:{nome,end,valor,desc,exec,mat,status,data}; '
+      +'laudo:{cliente,objetivo,local,vistoria,metodo,normas,resultado,naoconf,recomendacoes,conclusao,art,doc,dataemis,dataexec}; '
+      +'orcamento:{nome,cpf,end,obra,resp,tel,email,obj,escopo}; '
+      +'agendar:{titulo,cliente,data,hora,horaFim,obs,servico}; '
+      +'compras:{itens:[{material,qtd}]}. '
+      +'Quando criar uma ação, em "fala" confirme de forma curta o que está fazendo (ex.: "Emitindo o recibo de R$ 350 para João...").';
+    function done(j){
+      var hh=hist();
+      var falaMsg=(j&&j.fala)||'(sem resposta)';
+      var abrirTab=(j&&j.abrir)||null;
+      // Executa a ação, se houver
+      if(j&&j.acao&&j.acao.tipo){
+        var res=null; try{ res=gnAssistExec(j.acao); }catch(e){ res={ok:false,msg:'Tive um erro ao executar: '+(e&&e.message||e)}; }
+        hh.push({r:'a', t:falaMsg, abrir:abrirTab, abrirLbl:(abrirTab&&TABLBL[abrirTab])||abrirTab});
+        if(res){ hh.push({r:'a', t:res.msg, abrir:(res.abrir||null), abrirLbl:(res.abrir&&TABLBL[res.abrir])||res.abrir}); }
+        saveHist(hh);
+        if(j&&j.lembrar){ var mm0=mem(); mm0.push(String(j.lembrar)); saveMem(mm0); }
+        renderMsgs(); return;
+      }
+      hh.push({r:'a', t:falaMsg, abrir:abrirTab, abrirLbl:(abrirTab&&TABLBL[abrirTab])||abrirTab});
+      saveHist(hh);
+      if(j&&j.lembrar){ var mm=mem(); mm.push(String(j.lembrar)); saveMem(mm); }
+      renderMsgs();
+    }
     function go(imgURL){ (typeof gnAIVision==='function'?gnAIVision(sys,txt,imgURL):gnAI(sys,txt)).then(done).catch(function(e){ var hh=hist(); hh.push({r:'a',t:'Tive um problema pra responder agora ('+(e&&e.message||e)+'). Tenta de novo?'}); saveHist(hh); renderMsgs(); }); }
     if(_pendingImg){ var f=_pendingImg; _pendingImg=null; var ib=document.getElementById('gn-assist-img'); if(ib) ib.textContent='📷'; var r=new FileReader(); r.onload=function(e){ go(String(e.target.result||'')); }; r.readAsDataURL(f); }
     else { go(''); }
   }
+  // ═══ EXECUTOR DE AÇÕES DO ASSISTENTE (emite documentos, agenda, compras) ═══
+  function _brl(v){ try{ return (typeof gnBRL==='function')?gnBRL(v):('R$ '+(Number(v)||0).toFixed(2)); }catch(e){ return 'R$ '+(Number(v)||0).toFixed(2); } }
+  function _hoje(){ return new Date().toISOString().slice(0,10); }
+  function _emitRecibo(d){
+    d=d||{};
+    if(!d.nome){ return {ok:false,msg:'Pra emitir o recibo preciso do nome do cliente. Qual é?'}; }
+    var valor=Number(d.valor)||0; if(!valor){ return {ok:false,msg:'Qual o valor do recibo de '+d.nome+'?'}; }
+    var dataIso=d.data||_hoje();
+    var numero=(typeof gnDocNum==='function')?gnDocNum('Recibo'):('REC-'+Date.now());
+    var rec={ id:'r'+Date.now(), numero:numero, nome:d.nome, cpf:d.cpf||'', valor:valor, forma:d.forma||'', ref:d.ref||'', data:dataIso, criadoEm:new Date().toISOString() };
+    if(typeof gnStoreUpsert==='function') gnStoreUpsert('rec', rec);
+    if(typeof recDoc==='function') recDoc(rec, true);
+    try{ if(typeof finData==='function'){ var f=finData(); f.unshift({id:'f'+Date.now(),tipo:'receita',desc:'Recibo '+numero+' — '+d.nome,valor:valor,data:dataIso,status:'pago',cliente:d.nome,categoria:'Recebimento',origem:'recibo:'+rec.id}); if(typeof finSaveAll==='function') finSaveAll(f); if(typeof finCloudPush==='function') finCloudPush(f[0]); } }catch(e){}
+    try{ if(typeof renderRec==='function') renderRec(); }catch(e){}
+    return {ok:true, abrir:'rec', msg:'✅ Recibo '+numero+' de '+_brl(valor)+' para '+d.nome+' gerado, salvo na nuvem e lançado no financeiro como recebido. O PDF foi baixado.'};
+  }
+  function _emitOS(d){
+    d=d||{};
+    if(!d.nome){ return {ok:false,msg:'Qual o nome do cliente da Nota de Serviço?'}; }
+    var dataIso=d.data||_hoje();
+    var os={ id:'o'+Date.now(), numero:((typeof gnDocNum==='function')?gnDocNum('Nota de Serviço'):('NS-'+Date.now())), nome:d.nome, end:d.end||'', status:d.status||'Aberta', valor:Number(d.valor)||0, desc:d.desc||'', exec:d.exec||'', mat:d.mat||'', data:dataIso, criadoEm:new Date().toISOString() };
+    if(typeof gnStoreUpsert==='function') gnStoreUpsert('os', os);
+    try{ if(typeof osSyncFinance==='function') osSyncFinance(os); }catch(e){}
+    if(typeof osDoc==='function') osDoc(os, true);
+    try{ if(typeof renderOs==='function') renderOs(); }catch(e){}
+    return {ok:true, abrir:'os', msg:'✅ Nota de Serviço '+os.numero+' para '+d.nome+(os.valor?(' ('+_brl(os.valor)+')'):'')+' gerada e salva na nuvem. O PDF foi baixado.'};
+  }
+  function _emitLaudo(d){
+    d=d||{};
+    if(!d.cliente && !d.objetivo){ return {ok:false,msg:'Pra emitir o laudo preciso pelo menos do cliente e do objetivo. Pode me passar?'}; }
+    function setv(id,v){ var el=document.getElementById(id); if(el && v!=null && v!=='') el.value=v; }
+    setv('lau-cli',d.cliente); setv('lau-obj',d.objetivo); setv('lau-local',d.local); setv('lau-vistoria',d.vistoria); setv('lau-metodo',d.metodo); setv('lau-normas',d.normas); setv('lau-result',d.resultado); setv('lau-naoconf',d.naoconf); setv('lau-recom',d.recomendacoes); setv('lau-conclusao',d.conclusao); setv('lau-art',d.art); setv('lau-doc',d.doc); setv('lau-dataemis',d.dataemis); setv('lau-dataexec',d.dataexec);
+    if(typeof laudoGerar==='function'){ try{ laudoGerar(false); }catch(e){ return {ok:false,msg:'Não consegui gerar o laudo: '+(e&&e.message||e)}; } return {ok:true, abrir:'laudo', msg:'✅ Laudo técnico de '+(d.cliente||'cliente')+' gerado e salvo na nuvem. O PDF foi baixado. Confira na tela do Laudo se quer ajustar algum detalhe.'}; }
+    return {ok:false, abrir:'laudo', msg:'Abri a tela de Laudo pra você — preenchi o que deu, finalize por lá.'};
+  }
+  function _emitOrcamento(d){
+    d=d||{};
+    if(!d.nome){ return {ok:false,msg:'Pra montar o orçamento preciso do nome do cliente. Qual é?'}; }
+    function setv(id,v){ var el=document.getElementById(id); if(el && v!=null && v!=='') el.value=v; }
+    setv('f-nome',d.nome); setv('f-cpf',d.cpf); setv('f-end-cliente',d.end); setv('f-end-obra',d.obra); setv('f-responsavel',d.resp); setv('f-tel',d.tel); setv('f-email',d.email); setv('f-obj',d.obj); setv('f-escopo',d.escopo);
+    if(typeof goTab==='function') goTab('novo');
+    return {ok:true, abrir:'novo', msg:'📝 Abri o Orçamento já com os dados de '+d.nome+' preenchidos. Adicione os serviços e o valor na tela e clique em Gerar PDF — eu deixei tudo pronto pra você só completar.'};
+  }
+  function _agendar(d){
+    d=d||{};
+    if(!d.titulo && !d.cliente && !d.servico){ return {ok:false,msg:'O que vou agendar? Me diga o serviço/título.'}; }
+    if(!d.data){ return {ok:false,msg:'Para que dia agendo? (ex.: 30/05 ou "sexta")'}; }
+    var titulo=d.titulo||((d.servico||'Compromisso')+(d.cliente?(' - '+d.cliente):''));
+    var c={ id:'a'+Date.now(), titulo:titulo, cliente:d.cliente||'', data:d.data, hora:d.hora||'09:00', horaFim:d.horaFim||'', obs:d.obs||[d.servico].filter(Boolean).join(' '), criadoEm:new Date().toISOString() };
+    if(typeof gnStoreUpsert==='function') gnStoreUpsert('agenda', c);
+    try{ if(typeof ageCloudCalendar==='function') ageCloudCalendar(c); }catch(e){}
+    try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_agenda'); }catch(e){}
+    try{ if(typeof renderAge==='function') renderAge(); }catch(e){}
+    var dataBR=(String(c.data).indexOf('-')>0)?c.data.split('-').reverse().join('/'):c.data;
+    return {ok:true, abrir:'age', msg:'✅ Agendado: '+titulo+' em '+dataBR+' às '+c.hora+'. Também enviei para o seu Google Agenda.'};
+  }
+  function _addCompras(d){
+    d=d||{};
+    var itens=d.itens||d.materiais||[]; if(typeof itens==='string') itens=[itens];
+    if(!itens.length){ return {ok:false,msg:'Quais materiais adiciono à lista de compras?'}; }
+    var a=[]; try{ a=JSON.parse(localStorage.getItem('gn_compras')||'[]'); }catch(e){}
+    var n=0;
+    itens.forEach(function(it){ var nome=(typeof it==='string')?it:((it&&(it.material||it.nome))||''); if(!nome) return; var qtd=String((it&&it.qtd)||'1').trim()||'1';
+      var ex=a.filter(function(x){ return (x.material||'').toLowerCase()===nome.toLowerCase() && x.status!=='Comprado' && x.status!=='Recebido'; })[0];
+      if(ex){ ex.qtd=qtd; } else { a.unshift({id:'k'+Date.now()+'_'+(n), material:nome, qtd:qtd, forn:'', valor:'', status:'Necessário comprar', criadoEm:new Date().toISOString()}); }
+      n++; });
+    try{ localStorage.setItem('gn_compras',JSON.stringify(a)); }catch(e){}
+    try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_compras'); }catch(e){}
+    try{ if(typeof renderCompras==='function') renderCompras(); }catch(e){}
+    return {ok:true, abrir:'compras', msg:'✅ Adicionei '+n+' item(ns) à Lista de Compras.'};
+  }
+  window.gnAssistExec=function(acao){
+    if(!acao||!acao.tipo) return {ok:false,msg:'Não entendi o que devo fazer.'};
+    var d=acao.dados||{};
+    switch(String(acao.tipo)){
+      case 'recibo': return _emitRecibo(d);
+      case 'nota_servico': case 'os': case 'ordem_servico': return _emitOS(d);
+      case 'laudo': case 'laudo_tecnico': return _emitLaudo(d);
+      case 'orcamento': case 'proposta': return _emitOrcamento(d);
+      case 'agendar': case 'agenda': case 'agendamento': return _agendar(d);
+      case 'compras': case 'lista_compras': case 'materiais': return _addCompras(d);
+      default: return {ok:false,msg:'Ainda não sei executar "'+acao.tipo+'", mas posso te levar à tela certa.'};
+    }
+  };
   function memUpload(){
     var inp=document.getElementById('gn-assist-memfile'); if(!inp.files||!inp.files.length) return;
     if(typeof GN_CLOUD2==='undefined'||!GN_CLOUD2){ if(typeof toast==='function') toast('Nuvem indisponível.','er'); return; }
