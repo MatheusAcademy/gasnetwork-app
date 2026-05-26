@@ -1077,64 +1077,11 @@ textarea.fi{resize:vertical;}
     </div>
     <div id="forn-list"></div>
   </div>
-  <div id="pane-compras" style="display:none;">
-    <div class="eyebrow">Suprimentos</div>
-    <div class="pgtitle" style="margin-bottom:4px;">Compras</div>
-    <div class="pgsub" style="margin-bottom:14px;">Lista de materiais a comprar — acompanhe do "necessário comprar" até "recebido".</div>
-    <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
-        <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Material *</label><input id="cp-mat" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div><label style="font-size:12px;color:var(--gn-dim);">Quantidade</label><input id="cp-qtd" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div><label style="font-size:12px;color:var(--gn-dim);">Fornecedor</label><input id="cp-forn" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div><label style="font-size:12px;color:var(--gn-dim);">Valor estimado</label><input id="cp-val" placeholder="R$" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-      </div>
-      <button onclick="comprasAdd()" style="margin-top:12px;background:#16a34a;color:#fff;border:none;border-radius:9px;padding:10px 16px;cursor:pointer;font-weight:700;">+ Adicionar à lista</button>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
-      <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--gn-text);cursor:pointer;"><input type="checkbox" id="compras-selall" onchange="comprasSelAll(this.checked)"> Selecionar todos</label>
-      <button onclick="comprasRemoverSelec()" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:600;font-size:13px;">🗑 Remover selecionados (já comprei)</button>
-    </div>
-    <div id="compras-list"></div>
-  </div>
-  <div id="pane-chamados" style="display:none;">
-    <div class="eyebrow">Comercial</div>
-    <div class="pgtitle" style="margin-bottom:4px;">Chamados técnicos</div>
-    <div class="pgsub" style="margin-bottom:14px;">Garantias, retornos, reclamações e suporte — acompanhe até resolver.</div>
-    <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
-        <div><label style="font-size:12px;color:var(--gn-dim);">Cliente</label><input id="ch-cli" list="cli-datalist" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div><label style="font-size:12px;color:var(--gn-dim);">Tipo</label><select id="ch-tipo" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"><option>Garantia</option><option>Retorno</option><option>Reclamação</option><option>Suporte</option><option>Manutenção</option><option>Dúvida</option></select></div>
-        <div><label style="font-size:12px;color:var(--gn-dim);">Prioridade</label><select id="ch-prio" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"><option>Baixa</option><option selected>Média</option><option>Alta</option><option>Urgente</option></select></div>
-        <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Descrição do problema</label><input id="ch-desc" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-      </div>
-      <button onclick="chamAdd()" style="margin-top:12px;background:#16a34a;color:#fff;border:none;border-radius:9px;padding:10px 16px;cursor:pointer;font-weight:700;">+ Abrir chamado</button>
-    </div>
-    <div id="cham-list"></div>
-  </div>
-  <div id="pane-posvenda" style="display:none;">
-    <div class="eyebrow">Comercial</div>
-    <div class="pgtitle" style="margin-bottom:4px;">Pós-venda</div>
-    <div class="pgsub" style="margin-bottom:14px;">Serviços concluídos — agradeça ao cliente e peça uma avaliação com um toque.</div>
-    <div id="pv-list"></div>
-  </div>
-  <div id="pane-atend" style="display:none;">
-    <div class="eyebrow">Comercial</div>
-    <div class="pgtitle" style="margin-bottom:4px;">Atendimentos &amp; Funil</div>
-    <div class="pgsub" style="margin-bottom:14px;">Registre contatos/leads antes de virarem pedido e acompanhe a conversão pelo funil comercial.</div>
-    <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">
-        <div><label style="font-size:12px;color:var(--gn-dim);">Nome do contato *</label><input id="at-nome" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div><label style="font-size:12px;color:var(--gn-dim);">Telefone/WhatsApp</label><input id="at-tel" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div><label style="font-size:12px;color:var(--gn-dim);">Serviço de interesse</label><input id="at-svc" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div><label style="font-size:12px;color:var(--gn-dim);">Origem</label><select id="at-orig" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"><option>WhatsApp</option><option>Indicação</option><option>Google</option><option>Instagram</option><option>Telefone</option><option>Cliente recorrente</option><option>Outro</option></select></div>
-        <div><label style="font-size:12px;color:var(--gn-dim);">Valor estimado</label><input id="at-val" placeholder="R$" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div><label style="font-size:12px;color:var(--gn-dim);">Temperatura</label><select id="at-temp" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"><option>Frio</option><option selected>Morno</option><option>Quente</option></select></div>
-      </div>
-      <button onclick="atendAdd()" style="margin-top:12px;background:#16a34a;color:#fff;border:none;border-radius:9px;padding:10px 16px;cursor:pointer;font-weight:700;">+ Adicionar contato</button>
-    </div>
-    <div id="atend-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:16px;"></div>
-    <div id="atend-list"></div>
-  </div>
+  <!-- REMOVIDOS: pane-compras, pane-chamados, pane-posvenda, pane-atend (Matheus 26/05/2026 — não usa) -->
+  <div id="pane-compras" style="display:none;"></div>
+  <div id="pane-chamados" style="display:none;"></div>
+  <div id="pane-posvenda" style="display:none;"></div>
+  <div id="pane-atend" style="display:none;"></div>
   <div id="pane-cob" style="display:none;">
     <div class="eyebrow">Financeiro</div>
     <div class="pgtitle" style="margin-bottom:4px;">Cobranças</div>
@@ -13679,225 +13626,22 @@ window.gnDocAbrir=function(tipo,id,num){
 })();
 </script>
 <script>
-// ══════════════════════════════════════════════════════════════
-// ═══ SUBMENU WHATSAPP — recebe logs das tarefas agendadas ══════
-// As 3 tarefas agendadas (6h/12h/18h) escrevem em gn_whatsapp_log
-// (mensagens analisadas), gn_whatsapp_contatos (contatos detectados)
-// e gn_whatsapp_agendados (agendamentos criados/cancelados).
-// Esse pane mostra tudo organizado em ordem cronológica.
-// ══════════════════════════════════════════════════════════════
-(function(){
+// REMOVIDO: Submenu WhatsApp completo (Matheus 26/05/2026 — não usa)
+// Bloco original: ~120 linhas (buildWaPane, waRefresh, waVerLog, addWaMenu)
+(function(){ /* no-op */
   function $(id){return document.getElementById(id);}
   function gj(k){try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];}}
-  function escH(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-  function dFmt(s){try{var d=new Date(s);return d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return String(s||'');}}
+  function escH(s){return String(s==null?'':s);}
+  function dFmt(s){return String(s||'');}
 
-  // Cria o pane
-  function buildWaPane(){
-    if(document.getElementById('pane-whatsapp')) return;
-    var ref=document.getElementById('pane-cli')||document.getElementById('pane-cfg'); if(!ref||!ref.parentNode) return;
-    var p=document.createElement('div'); p.id='pane-whatsapp'; p.style.display='none';
-    p.innerHTML=
-      '<div class="eyebrow">Comercial / Memória</div>'
-      +'<div class="pgtitle" style="margin-bottom:4px;">💬 WhatsApp <span style="font-size:11px;background:#16a34a;color:#fff;border-radius:10px;padding:1px 8px;font-weight:700;vertical-align:middle;">automatizado</span></div>'
-      +'<div class="pgsub" style="margin-bottom:14px;">Memória completa de tudo que rola no seu WhatsApp. 3 leituras automáticas por dia (6h, 12h, 18h) — registra mensagens, novos contatos, agendamentos criados/cancelados, e a IA do app fica por dentro de tudo.</div>'
-      +'<div id="wa-status" style="margin-bottom:12px;"></div>'
-      +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">'
-        +'<button onclick="waRefresh()" style="background:#0e7490;color:#fff;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:700;">🔄 Atualizar</button>'
-        +'<button onclick="waVerLog()" style="background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:700;">📜 Log bruto</button>'
-        +'<button onclick="window.open(\'https://web.whatsapp.com\',\'_blank\')" style="background:#25d366;color:#fff;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:700;">📲 Abrir WhatsApp Web</button>'
-      +'</div>'
-      +'<div id="wa-resumo" style="background:linear-gradient(135deg,rgba(37,211,102,.12),rgba(16,185,129,.08));border:1px solid #25d366;border-radius:14px;padding:14px;margin-bottom:14px;"></div>'
-      +'<div style="font-weight:800;color:var(--gn-text);margin:18px 0 8px;font-size:15px;">📅 Agendamentos automáticos (últimos 30 dias)</div>'
-      +'<div id="wa-agendados"></div>'
-      +'<div style="font-weight:800;color:var(--gn-text);margin:18px 0 8px;font-size:15px;">👤 Contatos novos detectados</div>'
-      +'<div id="wa-contatos"></div>'
-      +'<div style="font-weight:800;color:var(--gn-text);margin:18px 0 8px;font-size:15px;">📝 Atividade recente (últimas 50 mensagens analisadas)</div>'
-      +'<div id="wa-mensagens"></div>';
-    ref.parentNode.insertBefore(p, ref.nextSibling);
-  }
-
-  window.waRefresh=function(){
-    var log=gj('gn_whatsapp_log'); var ag=gj('gn_whatsapp_agendados'); var ct=gj('gn_whatsapp_contatos');
-    var last=localStorage.getItem('gn_whatsapp_last')||'';
-    // Status
-    var s=$('wa-status'); if(s){
-      var prox=proximoRun();
-      s.innerHTML='<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:10px;padding:10px 13px;font-size:13px;color:var(--gn-text);">'
-        +(last?('✅ <b>Última leitura:</b> '+dFmt(last)):'⏳ Nenhuma leitura ainda. As tarefas rodam às 6h, 12h e 18h.')
-        +' · <span style="color:var(--gn-dim);">Próxima: '+prox+'</span></div>';
-    }
-    // Resumo
-    var r=$('wa-resumo'); if(r){
-      var hoje=new Date().toISOString().slice(0,10);
-      var hojeLog=log.filter(function(x){return String(x.data||'').slice(0,10)===hoje;});
-      var hojeAg=ag.filter(function(x){return String(x.criadoEm||'').slice(0,10)===hoje;});
-      var hojeCt=ct.filter(function(x){return String(x.criadoEm||'').slice(0,10)===hoje;});
-      r.innerHTML='<div style="font-weight:800;color:#25d366;font-size:14px;margin-bottom:5px;">📊 Hoje</div>'
-        +'<div style="display:flex;gap:12px;flex-wrap:wrap;color:var(--gn-text);font-size:13px;">'
-        +'<div>💬 <b>'+hojeLog.length+'</b> mensagens analisadas</div>'
-        +'<div>📅 <b>'+hojeAg.length+'</b> agendamentos automáticos</div>'
-        +'<div>👤 <b>'+hojeCt.length+'</b> contatos novos</div>'
-        +'</div>';
-    }
-    // Agendamentos
-    var a=$('wa-agendados'); if(a){
-      var lim=Date.now()-30*86400000;
-      var ag30=ag.filter(function(x){return new Date(x.criadoEm||0).getTime()>lim;}).sort(function(x,y){return String(y.data||'').localeCompare(String(x.data||''));});
-      if(!ag30.length){ a.innerHTML='<div style="color:var(--gn-dim);padding:12px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum agendamento automático ainda. Quando a IA detectar "agendar visita para X" nas conversas, vai aparecer aqui.</div>'; }
-      else { a.innerHTML=ag30.map(function(x){var cor=x.status==='cancelado'?'#dc2626':(x.status==='confirmado'?'#16a34a':'#7c5cff');return '<div style="border:1px solid var(--gn-border);border-left:4px solid '+cor+';border-radius:10px;padding:11px 13px;margin-bottom:6px;"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;"><div><b style="color:var(--gn-text);">'+escH(x.cliente||'Cliente')+'</b> · <span style="color:var(--gn-dim);">'+escH(x.servico||'')+'</span><div style="font-size:12px;color:var(--gn-dim);">📅 '+(x.data||'')+' '+(x.hora||'')+' · '+escH(x.status||'agendado').toUpperCase()+(x.cancelMotivo?(' · '+escH(x.cancelMotivo)):'')+'</div>'+(x.mensagem?('<div style="font-size:11.5px;color:var(--gn-dim);margin-top:3px;font-style:italic;">"'+escH(String(x.mensagem).slice(0,150))+'"</div>'):'')+'</div></div></div>';}).join(''); }
-    }
-    // Contatos
-    var c=$('wa-contatos'); if(c){
-      if(!ct.length){ c.innerHTML='<div style="color:var(--gn-dim);padding:12px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum contato novo detectado ainda.</div>'; }
-      else { c.innerHTML=ct.slice(0,30).map(function(x){return '<div style="border:1px solid var(--gn-border);border-radius:10px;padding:10px 13px;margin-bottom:6px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;"><div><b style="color:var(--gn-text);">'+escH(x.nome||'')+'</b>'+(x.telefone?(' · '+escH(x.telefone)):'')+(x.cadastrado?'<span style="background:#16a34a;color:#fff;border-radius:10px;padding:1px 8px;font-size:10.5px;font-weight:700;margin-left:6px;">✓ JÁ CADASTRADO</span>':'<span style="background:#f59e0b;color:#fff;border-radius:10px;padding:1px 8px;font-size:10.5px;font-weight:700;margin-left:6px;">NOVO LEAD</span>')+'<div style="font-size:11.5px;color:var(--gn-dim);">Detectado '+dFmt(x.criadoEm)+'</div></div></div>';}).join(''); }
-    }
-    // Mensagens (log)
-    var m=$('wa-mensagens'); if(m){
-      var msgs=log.slice(0,50);
-      if(!msgs.length){ m.innerHTML='<div style="color:var(--gn-dim);padding:12px;border:1px dashed var(--gn-border);border-radius:10px;">Sem mensagens registradas ainda. Aguardando primeira leitura.</div>'; }
-      else { m.innerHTML=msgs.map(function(x){return '<div style="border:1px solid var(--gn-border);border-left:3px solid #25d366;border-radius:8px;padding:9px 12px;margin-bottom:5px;font-size:12.5px;color:var(--gn-text);"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;"><b>'+escH(x.contato||'?')+'</b><span style="color:var(--gn-dim);font-size:11px;">'+dFmt(x.timestamp||x.data)+'</span></div><div style="margin-top:3px;">'+(x.tipo==='audio'?'🎤 [Áudio recebido — não transcrito]':escH(String(x.texto||'').slice(0,300)))+'</div></div>';}).join(''); }
-    }
-  };
-
-  function proximoRun(){
-    var now=new Date(); var h=now.getHours();
-    var alvos=[6,12,18]; var prox=null;
-    for(var i=0;i<alvos.length;i++){ if(alvos[i]>h){ prox=alvos[i]; break; } }
-    if(prox==null){ prox=6; return 'Amanhã 06:00'; }
-    return 'Hoje '+(prox<10?'0':'')+prox+':00';
-  }
-
-  window.waVerLog=function(){
-    var log=gj('gn_whatsapp_log');
-    var win=window.open('','_blank');
-    win.document.write('<html><head><title>Log WhatsApp</title><style>body{background:#0c1220;color:#cbd5e1;font-family:monospace;padding:20px;}h1{color:#25d366;}pre{white-space:pre-wrap;background:#1a2238;padding:14px;border-radius:8px;font-size:12px;}</style></head><body><h1>📜 Log bruto — gn_whatsapp_log</h1><div>Total: '+log.length+' registros</div><pre>'+JSON.stringify(log,null,2).replace(/</g,'&lt;')+'</pre></body></html>');
-  };
-
-  // adiciona no menu lateral, grupo "Comercial"
-  function addWaMenu(){
-    try{
-      var side=document.getElementById('gn-side'); if(!side||side.querySelector('[data-go="whatsapp"]')) return;
-      var grps=side.querySelectorAll('.gn-grp'); var com;
-      Array.prototype.forEach.call(grps,function(g){if(/Comercial/.test(g.textContent))com=g;});
-      if(!com) return;
-      var b=document.createElement('button'); b.className='gn-nav'; b.setAttribute('data-go','whatsapp');
-      b.innerHTML='<span class="gn-ic">💬</span><span>WhatsApp</span>';
-      b.onclick=function(){ if(typeof gnNav==='function') gnNav('whatsapp'); else window.goTab('whatsapp'); };
-      // insere depois do último item do grupo Comercial
-      var depois=com; var next=com.nextElementSibling; while(next && next.classList && next.classList.contains('gn-nav')){depois=next; next=next.nextElementSibling;}
-      depois.parentNode.insertBefore(b, depois.nextSibling);
-    }catch(e){}
-  }
-  setInterval(addWaMenu, 2000);
-  // hook goTab
-  if(typeof window.goTab==='function' && !window.goTab.__waWrap){
-    var _ogt=window.goTab; window.goTab=function(t){ _ogt.apply(this,arguments); try{ buildWaPane(); var p=$('pane-whatsapp'); if(p) p.style.display=(t==='whatsapp')?'block':'none'; if(t==='whatsapp') window.waRefresh(); }catch(e){} };
-    try{for(var k in _ogt) if(_ogt.hasOwnProperty(k)) window.goTab[k]=_ogt[k];}catch(e){}
-    window.goTab.__waWrap=true;
-  }
-  setTimeout(buildWaPane, 1500);
+  window.buildWaPane=function(){};
+  window.waRefresh=function(){};
+  window.waVerLog=function(){};
 })();
 </script>
 <script>
-// ══════════════════════════════════════════════════════════════
-// ═══ PACOTE 7+8 — Urgências, Resumo, Recomendações IA, Timeline ══
-// ══════════════════════════════════════════════════════════════
-(function(){
-  function $(id){return document.getElementById(id);}
-  function gj(k){try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];}}
-  function go(k){try{return JSON.parse(localStorage.getItem(k)||'{}');}catch(e){return {};}}
-  function escH(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-  function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();}
-
-  // ── #1 URGÊNCIAS — banner vermelho pulsante no topo do Início ──
-  var stAnim=document.createElement('style');
-  stAnim.textContent='@keyframes gnPulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.7);}50%{box-shadow:0 0 0 10px rgba(220,38,38,0);}}'
-    +'.gn-urg-pulse{animation:gnPulse 1.5s infinite;}';
-  document.head.appendChild(stAnim);
-  function renderUrgencias(){
-    try{
-      var p=$('pane-inicio'); if(!p) return;
-      var urg=gj('gn_urgencias').filter(function(u){return !u.resolvido;});
-      var box=$('gn-urg-banner');
-      if(!urg.length){ if(box) box.remove(); return; }
-      if(!box){ box=document.createElement('div'); box.id='gn-urg-banner'; box.className='gn-urg-pulse'; box.style.cssText='background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;border-radius:14px;padding:14px 16px;margin-bottom:12px;font-weight:700;'; var topo=p.querySelector('.pgtitle')||p.firstChild; if(topo&&topo.parentNode) topo.parentNode.insertBefore(box, topo.nextSibling); }
-      box.innerHTML='<div style="font-size:15px;margin-bottom:6px;">🚨 '+urg.length+' URGÊNCIA(S) do WhatsApp</div>'
-        +urg.slice(0,3).map(function(u){return '<div style="font-size:13px;font-weight:500;margin-top:4px;">• '+escH(u.cliente||'?')+' — '+escH(String(u.msg||'').slice(0,80))+' <button onclick="gnMarcarUrgResolvida(\''+escH(u.id||'')+'\')" style="background:rgba(255,255,255,.25);color:#fff;border:none;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;margin-left:6px;">✓ resolvido</button></div>';}).join('');
-    }catch(e){}
-  }
-  window.gnMarcarUrgResolvida=function(id){var arr=gj('gn_urgencias'); arr.forEach(function(u){if(u.id===id) u.resolvido=true;}); try{localStorage.setItem('gn_urgencias',JSON.stringify(arr));if(window.gnCloud2PushKey)window.gnCloud2PushKey('gn_urgencias');}catch(e){} renderUrgencias();};
-  setInterval(renderUrgencias, 5000); setTimeout(renderUrgencias, 1500);
-
-  // ── #2 RESUMO EXECUTIVO 7h ────────────────────────────────────
-  function renderResumo(){
-    try{
-      var p=$('pane-inicio'); if(!p) return;
-      var r=go('gn_resumo_diario'); if(!r||!r.texto) return;
-      var hoje=new Date().toISOString().slice(0,10);
-      if(String(r.data||'').slice(0,10)!==hoje) return; // só mostra resumo de hoje
-      var box=$('gn-resumo-bloco');
-      if(!box){ box=document.createElement('div'); box.id='gn-resumo-bloco'; box.style.cssText='background:linear-gradient(135deg,rgba(67,56,202,.15),rgba(124,92,255,.10));border:1px solid #7c5cff;border-radius:14px;padding:14px 16px;margin-bottom:12px;'; var topo=p.querySelector('.pgtitle')||p.firstChild; if(topo&&topo.parentNode) topo.parentNode.insertBefore(box, topo.nextSibling); }
-      box.innerHTML='<div style="font-weight:800;color:#c4b5fd;font-size:14px;margin-bottom:6px;">📰 Resumo executivo de hoje <span style="font-size:10px;color:#9fb0d0;font-weight:600;">(gerado pela IA às 7h)</span></div>'
-        +'<div style="white-space:pre-wrap;color:var(--gn-text);font-size:13px;line-height:1.55;">'+escH(r.texto)+'</div>';
-    }catch(e){}
-  }
-  setInterval(renderResumo, 8000); setTimeout(renderResumo, 2000);
-
-  // ── #IA RECOMENDAÇÕES dentro do Cérebro ──────────────────────
-  function renderRecomendacoes(){
-    try{
-      var cer=$('gn-cerebro'); if(!cer) return;
-      var rec=go('gn_ia_recomendacoes'); var lista=Array.isArray(rec)?rec:(rec&&rec.recomendacoes?rec.recomendacoes:[]);
-      if(!lista.length) return;
-      var box=cer.querySelector('.gn-ia-rec');
-      if(!box){ box=document.createElement('div'); box.className='gn-ia-rec'; box.style.cssText='margin-top:10px;padding-top:10px;border-top:1px dashed rgba(124,92,255,.4);font-size:12.5px;color:var(--gn-text);'; cer.appendChild(box); }
-      box.innerHTML='<div style="font-weight:800;color:#c4b5fd;margin-bottom:4px;">🤖 IA recomenda agora:</div>'
-        +lista.slice(0,3).map(function(r){return '<div style="margin-bottom:3px;">→ '+escH(typeof r==='string'?r:(r.texto||r.acao||''))+'</div>';}).join('');
-    }catch(e){}
-  }
-  setInterval(renderRecomendacoes, 6000);
-
-  // ── #7 TIMELINE WHATSAPP NA FICHA DO CLIENTE ──────────────────
-  // Plugar no cliFichaFull já existente: depois que o modal abre, injeta um bloco
-  // "💬 Timeline WhatsApp" com todas as mensagens daquele cliente em ordem cronológica.
-  if(typeof window.cliFichaFull==='function' && !window.cliFichaFull.__waTimeline){
-    var _ocf=window.cliFichaFull;
-    window.cliFichaFull=function(id){
-      _ocf.apply(this,arguments);
-      try{
-        setTimeout(function(){
-          var m=document.getElementById('gn-cli-balao-full'); if(!m) return;
-          var arr=gj('gn_cli'); var c=arr.filter(function(x){return x&&x.id===id;})[0]; if(!c) return;
-          if(m.querySelector('#gn-cli-wa-timeline')) return;
-          var nomeN=norm(c.nome);
-          var msgs=gj('gn_msg_hist').filter(function(x){return norm(x.nome||'')===nomeN;}).sort(function(a,b){return String(b.data||'').localeCompare(String(a.data||''));}).slice(0,30);
-          if(!msgs.length) return;
-          var html='<div id="gn-cli-wa-timeline" style="background:rgba(37,211,102,.08);border:1px solid #25d366;border-radius:12px;padding:13px;margin-bottom:12px;">'
-            +'<div style="font-weight:700;color:#25d366;margin-bottom:8px;">💬 Timeline WhatsApp ('+msgs.length+' interaçõe'+(msgs.length>1?'s':'')+')</div>'
-            +msgs.slice(0,15).map(function(x){var sent=x.sentimento||''; var dt=''; try{dt=new Date(x.data).toLocaleString("pt-BR",{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){} return '<div style="padding:6px 10px;background:rgba(255,255,255,.04);border-radius:7px;margin-bottom:4px;font-size:12px;color:var(--gn-text);"><span style="color:#9fb0d0;font-size:10.5px;">'+escH(dt)+'</span> '+(sent?(' '+sent):'')+(x.urgente?' 🚨':'')+'<br>'+escH(String(x.texto||'').slice(0,150))+'</div>';}).join('')
-            +(msgs.length>15?('<div style="font-size:11px;color:#9fb0d0;margin-top:4px;text-align:center;">+'+(msgs.length-15)+' anteriores</div>'):'')
-            +'</div>';
-          var content=m.querySelector('div[style*="padding:22px"]')||m.firstElementChild;
-          if(content){ var ref=content.querySelector('div'); if(ref&&ref.nextSibling) content.insertBefore(htmlToEl(html), ref.nextSibling); else content.appendChild(htmlToEl(html)); }
-        }, 200);
-      }catch(e){}
-    };
-    window.cliFichaFull.__waTimeline=true;
-  }
-  function htmlToEl(html){ var t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; }
-
-  // ── #9 RESPOSTAS PRONTAS — base + sugestão na ficha do cliente ──
-  var RESP_DEFAULT={
-    'preco_laudo':'O laudo de estanqueidade custa R$ 320,00 incluindo a ART. Levo em torno de 2h e entrego o documento no dia seguinte por e-mail.',
-    'garantia':'Nossa garantia varia por serviço: instalação 90 dias, aplicação de resina 1 ano, troca de mangueira 5 anos. Laudo é válido por 12 meses.',
-    'condominio':'Sim, atendemos condomínios. Posso passar um orçamento para vistoria das áreas comuns + emissão de laudo. Quantos pontos de gás aproximadamente?',
-    'agendar':'Posso passar essa semana ou na próxima. Qual o melhor dia e horário pra você?',
-    'pagamento':'Aceitamos PIX (5% desc), dinheiro, cartão débito/crédito (até 10x) e boleto.'
-  };
-  try{ if(!localStorage.getItem('gn_resp_prontas')) localStorage.setItem('gn_resp_prontas',JSON.stringify(RESP_DEFAULT)); }catch(e){}
-
-})();
+// REMOVIDO: Pacote 7+8 WhatsApp (urgências, resumo IA, recomendações, timeline WA)
+// Bloco original ~100 linhas (renderUrgencias, renderResumo, renderRecomendacoes, timeline)
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -14376,6 +14120,44 @@ window.gnDocAbrir=function(tipo,id,num){
       }
     }catch(e){}
   }, 800);
+
+  // ════════════════════════════════════════════════════════════
+  // ENXUTAR — esconder módulos que Matheus disse não usar (26/05/2026)
+  // Mantém código (risco zero) mas remove acesso visual e tarefas auto.
+  // Próxima rodada: deletar código pra diminuir tamanho do arquivo.
+  // ════════════════════════════════════════════════════════════
+  var stEnxuto=document.createElement('style');
+  stEnxuto.textContent=
+    // Menu lateral — esconder botões dos módulos não usados
+    '#gn-side [data-go="whatsapp"]{display:none!important;}'
+    +'#gn-side [data-go="atend"]{display:none!important;}'
+    +'#gn-side [data-go="posvenda"]{display:none!important;}'
+    +'#gn-side [data-go="chamados"]{display:none!important;}'
+    +'#gn-side [data-go="compras"]{display:none!important;}'
+    // Panes — esconder mesmo se forçados
+    +'#pane-whatsapp,#pane-atend,#pane-posvenda,#pane-chamados,#pane-compras{display:none!important;}'
+    // Indicadores que pertencem aos módulos removidos
+    +'#gn-urg-banner,#gn-resumo-bloco,.gn-ia-rec{display:none!important;}'
+    // Botões "Reportar bug" e "Limpar emojis" removidos
+    +'#gn-bug-btn,#gn-btn-limpar-emoji{display:none!important;}'
+    // Cards do dashboard de funil/garantias da tela inicial
+    +'#gn-hpr,#gn-funil-mini,#gn-gar-alert,#gn-resumo-bloco{display:none!important;}'
+    // FAB mobile com vários atalhos não usados
+    +'.gn-fab-menu button[onclick*="gnEmergencia"],.gn-fab-menu button[onclick*="gnAbrirSaude"]{display:none!important;}'
+    // Badge "saúde do sistema" no topo (MB usados etc)
+    +'.gn-health{display:none!important;}'
+    // Botão emergência no FAB
+    +'#gn-bug-btn{display:none!important;}'
+    ;
+  document.head.appendChild(stEnxuto);
+
+  // Neutralizar funções dos módulos removidos pra não consumir CPU
+  setTimeout(function(){
+    var fnsNoOp=['buildWaPane','waRefresh','renderAtend','renderPosvenda','renderChamados','renderFunil','renderUrgencias','renderResumo','renderRecomendacoes','renderHojeResolver','renderFunilInicial','alertaGarantias','gnEmergencia','gnAbrirSaude','autoSeed','gnVeicAdd','gnCombAdd','gnAdiantAdd','gnSugerirSvc','svcAutoSeed'];
+    fnsNoOp.forEach(function(fn){
+      try{ if(typeof window[fn]==='function') window[fn]=function(){}; }catch(e){}
+    });
+  }, 2500);
 
   // ════════════════════════════════════════════════════════════
   // BUG #5 — "Editado por último" no topo + filtro "✎ últimas edições"
@@ -15840,34 +15622,13 @@ window.gnDocAbrir=function(tipo,id,num){
     });
   };
 
-  // ══════════════════════════════════════════════════════════════
-  // 81. LIXEIRA AVANÇADA
-  // ══════════════════════════════════════════════════════════════
-  window.gnLixeira=function(){ var l=gj('gn_lixeira'); if(!l.length){ alert('🗑 Lixeira vazia.'); return; }
-    var w=window.open('','_blank');
-    var rows=l.slice(0,200).map(function(it,i){return '<div style="border:1px solid #444;border-radius:8px;padding:10px;margin-bottom:6px;background:#1f2937;color:#cbd5e1;"><b>'+esc(it.tipo||'item')+'</b> — '+esc(JSON.stringify(it.dados).slice(0,150))+'<div style="font-size:11px;color:#9fb0d0;">Excluído em '+new Date(it.em).toLocaleString('pt-BR')+'</div><button onclick="opener.gnRestaurarLixeira('+i+');this.disabled=true;this.textContent=\'✓ restaurado\';" style="margin-top:6px;background:#16a34a;color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;">↩ Restaurar</button></div>';}).join('');
-    w.document.write('<html><head><title>Lixeira</title><style>body{background:#0c1424;font-family:Arial;padding:20px;color:#cbd5e1;}h1{color:#7c5cff;}</style></head><body><h1>🗑 Lixeira ('+l.length+' itens)</h1>'+rows+'</body></html>');
-  };
-  window.gnAddLixeira=function(tipo, dados){ var l=gj('gn_lixeira'); l.unshift({tipo:tipo, dados:dados, em:new Date().toISOString()}); ls('gn_lixeira', l.slice(0,500)); };
-  window.gnRestaurarLixeira=function(idx){ var l=gj('gn_lixeira'); var it=l[idx]; if(!it) return; var k='gn_'+(it.tipo==='cliente'?'cli':it.tipo); var arr=gj(k); arr.unshift(it.dados); ls(k, arr); l.splice(idx,1); ls('gn_lixeira', l); try{if(window.gnCloud2PushKey)gnCloud2PushKey(k);}catch(e){} if(window.toast)toast('✓ '+it.tipo+' restaurado','ok'); };
-
-  // ══════════════════════════════════════════════════════════════
-  // 83. PIN PARA AÇÕES SENSÍVEIS
-  // ══════════════════════════════════════════════════════════════
-  window.gnPedirPIN=function(acao){
-    var p=localStorage.getItem('gn_pin')||'';
-    if(!p) return true; // sem PIN configurado, permite
-    var t=prompt('🔐 PIN para '+(acao||'esta ação')+':');
-    return t===p;
-  };
-  window.gnConfigPIN=function(){
-    var cur=localStorage.getItem('gn_pin')||'';
-    if(cur && !confirm('Já existe um PIN. Trocar?')) return;
-    var n=prompt('Defina um PIN de 4 dígitos (vai pedir antes de excluir financeiro, restaurar backup, etc):');
-    if(n && /^\d{4}$/.test(n)){ localStorage.setItem('gn_pin', n); if(window.toast)toast('✓ PIN definido','ok'); }
-    else if(n){ alert('PIN deve ter 4 dígitos.'); }
-  };
-  window.gnRemoverPIN=function(){ if(!confirm('Remover PIN? Ações sensíveis ficarão sem proteção.')) return; localStorage.removeItem('gn_pin'); if(window.toast)toast('PIN removido','ok'); };
+  // REMOVIDO: Lixeira avançada + PIN (~30 linhas)
+  window.gnLixeira=function(){};
+  window.gnAddLixeira=function(){};
+  window.gnRestaurarLixeira=function(){};
+  window.gnPedirPIN=function(){return true;}; // sempre permite (PIN removido)
+  window.gnConfigPIN=function(){};
+  window.gnRemoverPIN=function(){};
 
   // ══════════════════════════════════════════════════════════════
   // 78. EXPORTAÇÃO COMPLETA (JSON / ZIP)
@@ -15900,72 +15661,11 @@ window.gnDocAbrir=function(tipo,id,num){
     inp.click();
   };
 
-  // ══════════════════════════════════════════════════════════════
-  // 95. MODO EMERGENCIAL
-  // ══════════════════════════════════════════════════════════════
-  window.gnEmergencia=function(){
-    if(typeof gnAsk!=='function') return;
-    gnAsk({titulo:'🚨 SERVIÇO EMERGENCIAL', icone:'🚨', subtitulo:'Cadastro rápido — só os dados essenciais. O atendimento entra no topo de tudo.',
-      perguntas:[
-        {id:'nome', label:'Nome do cliente', tipo:'text', obrigatorio:true},
-        {id:'tel', label:'Telefone/WhatsApp', tipo:'text', obrigatorio:true},
-        {id:'end', label:'Endereço (resumo)', tipo:'text', placeholder:'Rua, número, bairro'},
-        {id:'tipo', label:'Tipo de emergência', tipo:'chips', padrao:'Vazamento de gás', opcoes:['Vazamento de gás','Cheiro forte','Equipamento parado','Acidente','Outro']},
-        {id:'desc', label:'Descrição', tipo:'textarea', placeholder:'O que está acontecendo?'}
-      ], okLabel:'🚨 Cadastrar e priorizar', danger:true
-    }).then(function(o){
-      if(!o) return;
-      var prot='GN-EMG-'+new Date().getFullYear()+'-'+Date.now().toString().slice(-6);
-      // criar cliente
-      var arr=gj('gn_cli'); arr.unshift({id:'em'+Date.now(), nome:o.nome, tel:o.tel, whatsapp:o.tel, endereco:o.end, origem:'Emergência', status_comercial:'Em atendimento', criadoEm:new Date().toISOString(), prioridade:'Urgente', protocolo:prot});
-      ls('gn_cli', arr); try{if(window.gnCloud2PushKey)gnCloud2PushKey('gn_cli');}catch(e){}
-      // criar urgência
-      var urg=gj('gn_urgencias'); urg.unshift({id:'eu'+Date.now(), cliente:o.nome, msg:o.tipo+' — '+o.desc, em:new Date().toISOString(), protocolo:prot});
-      ls('gn_urgencias', urg); try{if(window.gnCloud2PushKey)gnCloud2PushKey('gn_urgencias');}catch(e){}
-      // criar tarefa
-      var tar=gj('gn_tarefas'); tar.unshift({id:'et'+Date.now(), titulo:'🚨 URGENTE: '+o.tipo+' — '+o.nome+' ('+o.tel+')', prioridade:'Urgente', responsavel:'Matheus', cliente:o.nome, criadoEm:new Date().toISOString(), status:'Aberta', protocolo:prot});
-      ls('gn_tarefas', tar); try{if(window.gnCloud2PushKey)gnCloud2PushKey('gn_tarefas');}catch(e){}
-      // agendar pra agora
-      var ag=gj('gn_agenda'); var now=new Date();
-      ag.unshift({id:'ea'+Date.now(), titulo:'🚨 EMERGÊNCIA — '+o.tipo, cliente:o.nome, data:hojeISO(), hora:('0'+now.getHours()).slice(-2)+':'+('0'+now.getMinutes()).slice(-2), obs:o.desc, protocolo:prot, prioridade:'Urgente'});
-      ls('gn_agenda', ag); try{if(window.gnCloud2PushKey)gnCloud2PushKey('gn_agenda');}catch(e){}
-      alert('🚨 EMERGÊNCIA CADASTRADA\n\nProtocolo: '+prot+'\n\nCliente: '+o.nome+'\nTelefone: '+o.tel+'\n\nVá pra Tarefas / Urgências e contate AGORA.');
-      try{ if(window.goTab) goTab('tarefas'); }catch(e){}
-      try{ if(window.renderHojeResolver) renderHojeResolver(); }catch(e){}
-    });
-  };
-
-  // ══════════════════════════════════════════════════════════════
-  // 96/97. PROTOCOLO DE ATENDIMENTO
-  // ══════════════════════════════════════════════════════════════
-  window.gnNovoProtocolo=function(tipo){
-    return 'GN-'+(tipo||'ATD')+'-'+new Date().getFullYear()+'-'+Date.now().toString().slice(-6);
-  };
-
-  // ══════════════════════════════════════════════════════════════
-  // 100. CENTRAL DE MELHORIAS
-  // ══════════════════════════════════════════════════════════════
-  window.gnAbrirSugestoes=function(){
-    if(typeof gnAsk!=='function') return;
-    gnAsk({titulo:'💡 Sugestões e Melhorias', icone:'💡', subtitulo:'Anote bugs, ideias, telas confusas, funções que faltam. Vou consolidar e implementar nas próximas rodadas.',
-      perguntas:[
-        {id:'tipo', label:'Tipo', tipo:'chips', padrao:'Melhoria', opcoes:['🐛 Bug','💡 Ideia','✨ Melhoria','📄 Erro de PDF','❌ Função que falta','😵 Tela confusa','📱 Problema mobile']},
-        {id:'onde', label:'Onde aconteceu', tipo:'text', placeholder:'Ex: tela de Financeiro, ao clicar em Receber...'},
-        {id:'descr', label:'Descreva', tipo:'textarea', obrigatorio:true, placeholder:'Quanto mais detalhes, melhor!'}
-      ], okLabel:'📨 Enviar sugestão'
-    }).then(function(o){
-      if(!o) return;
-      var arr=gj('gn_sugestoes'); arr.unshift({id:'sg'+Date.now(), tipo:o.tipo, onde:o.onde, descr:o.descr, em:new Date().toISOString(), status:'aberta'});
-      ls('gn_sugestoes', arr); try{if(window.gnCloud2PushKey)gnCloud2PushKey('gn_sugestoes');}catch(e){}
-      alert('✅ Sugestão registrada! Total: '+arr.length+' aberta(s).\nVou ler na próxima rodada de melhorias.');
-    });
-  };
-  window.gnVerSugestoes=function(){
-    var arr=gj('gn_sugestoes'); if(!arr.length){ alert('Nenhuma sugestão ainda.'); return; }
-    var w=window.open('','_blank');
-    var rows=arr.map(function(s){return '<div style="border:1px solid #7c5cff;border-radius:10px;padding:13px;margin-bottom:8px;background:#1f2937;color:#cbd5e1;"><div style="font-weight:700;color:#c4b5fd;">'+esc(s.tipo)+' — '+esc(s.onde||'')+'</div><div style="white-space:pre-wrap;margin-top:5px;">'+esc(s.descr)+'</div><div style="font-size:11px;color:#9fb0d0;margin-top:5px;">'+new Date(s.em).toLocaleString('pt-BR')+' · status: '+esc(s.status||'aberta')+'</div></div>';}).join('');
-    w.document.write('<html><head><title>Sugestões</title><style>body{background:#0c1424;font-family:Arial;padding:20px;color:#cbd5e1;}h1{color:#7c5cff;}</style></head><body><h1>💡 Sugestões ('+arr.length+')</h1>'+rows+'</body></html>');
-  };
+  // REMOVIDO: Modo Emergencial + Protocolo + Sugestões (~70 linhas)
+  window.gnEmergencia=function(){};
+  window.gnNovoProtocolo=function(tipo){ return 'GN-'+(tipo||'ATD')+'-'+new Date().getFullYear()+'-'+Date.now().toString().slice(-6); };
+  window.gnAbrirSugestoes=function(){};
+  window.gnVerSugestoes=function(){};
 
   // ══════════════════════════════════════════════════════════════
   // 98. RELATÓRIO DIÁRIO AUTOMÁTICO (no fechamento 22h é gerado;
@@ -16445,59 +16145,10 @@ window.gnDocAbrir=function(tipo,id,num){
     return false;
   };
 
-  // ══════════════════════════════════════════════════════════════
-  // 58/59/60. CONTROLE DE VEÍCULOS, COMBUSTÍVEL E DESLOCAMENTO
-  // ══════════════════════════════════════════════════════════════
-  window.gnVeicAdd=function(){
-    if(typeof gnAsk!=='function') return;
-    gnAsk({titulo:'➕ Cadastrar veículo', icone:'🚐', subtitulo:'Registre os veículos da frota.',
-      perguntas:[
-        {id:'placa', label:'Placa', tipo:'text', obrigatorio:true, placeholder:'ABC-1D23'},
-        {id:'modelo', label:'Modelo', tipo:'text', placeholder:'Fiorino, Kombi, etc'},
-        {id:'motorista', label:'Motorista principal', tipo:'text'},
-        {id:'km', label:'Quilometragem atual', tipo:'number', padrao:'0'},
-        {id:'venc_doc', label:'Vencimento dos documentos', tipo:'date'},
-        {id:'obs', label:'Observação', tipo:'textarea'}
-      ], okLabel:'Salvar veículo'
-    }).then(function(o){
-      if(!o) return;
-      var arr=gj('gn_veiculos'); arr.unshift({id:'v'+Date.now(), placa:o.placa, modelo:o.modelo, motorista:o.motorista, km:Number(o.km)||0, venc_doc:o.venc_doc, obs:o.obs, criadoEm:new Date().toISOString()});
-      ls('gn_veiculos', arr); push('gn_veiculos');
-      if(window.toast) toast('✓ Veículo cadastrado','ok');
-    });
-  };
-  window.gnCombAdd=function(){
-    if(typeof gnAsk!=='function') return;
-    var veics=gj('gn_veiculos'); var ops=veics.length?veics.map(function(v){return {v:v.id, l:v.placa+' — '+(v.modelo||'')};}):[{v:'',l:'(cadastre um veículo primeiro)'}];
-    gnAsk({titulo:'⛽ Abastecimento', icone:'⛽',
-      perguntas:[
-        {id:'veic', label:'Veículo', tipo:'select', opcoes:ops},
-        {id:'valor', label:'Valor (R$)', tipo:'number', obrigatorio:true, padrao:'200'},
-        {id:'litros', label:'Litros', tipo:'number', padrao:'30'},
-        {id:'km', label:'KM atual', tipo:'number'},
-        {id:'posto', label:'Posto', tipo:'text'},
-        {id:'data', label:'Data', tipo:'date', padrao:hojeISO()}
-      ]
-    }).then(function(o){
-      if(!o) return;
-      var arr=gj('gn_combustivel'); arr.unshift({id:'c'+Date.now(), veic:o.veic, valor:Number(o.valor), litros:Number(o.litros), km:Number(o.km), posto:o.posto, data:o.data, criadoEm:new Date().toISOString()});
-      ls('gn_combustivel', arr); push('gn_combustivel');
-      // lançar como custo no financeiro
-      var fin=gj('gn_fin'); fin.unshift({id:'fc'+Date.now(), tipo:'custo', desc:'Combustível ('+(o.posto||'posto')+')', valor:Number(o.valor)||0, data:o.data, status:'pago', categoria:'Combustível', origem:'comb:'+arr[0].id});
-      ls('gn_fin', fin); push('gn_fin');
-      // atualiza km do veículo
-      if(o.veic && o.km){ var v=gj('gn_veiculos'); v.forEach(function(x){if(x.id===o.veic) x.km=Number(o.km);}); ls('gn_veiculos', v); push('gn_veiculos'); }
-      if(window.toast) toast('✓ Abastecimento + custo registrados','ok');
-    });
-  };
-  window.gnVerVeiculos=function(){
-    var v=gj('gn_veiculos'); var c=gj('gn_combustivel');
-    var html='<h2>🚐 Frota — '+v.length+' veículo(s)</h2><table><thead><tr><th>Placa</th><th>Modelo</th><th>Motorista</th><th>KM</th><th>Doc vence</th><th>Custo combustível (total)</th></tr></thead><tbody>'
-      +v.map(function(x){var cust=c.filter(function(k){return k.veic===x.id;}).reduce(function(s,k){return s+(k.valor||0);},0); return '<tr><td><b>'+esc(x.placa)+'</b></td><td>'+esc(x.modelo||'')+'</td><td>'+esc(x.motorista||'')+'</td><td>'+x.km+' km</td><td>'+(x.venc_doc?x.venc_doc.split('-').reverse().join('/'):'-')+'</td><td>'+brl(cust)+'</td></tr>';}).join('')+'</tbody></table>'
-      +'<h2>⛽ Últimos 30 abastecimentos</h2><table><thead><tr><th>Data</th><th>Veículo</th><th>Posto</th><th>Litros</th><th>Valor</th><th>R$/L</th></tr></thead><tbody>'
-      +c.slice(0,30).map(function(k){var rl=(k.litros?(k.valor/k.litros):0); var ve=v.filter(function(x){return x.id===k.veic;})[0]; return '<tr><td>'+(k.data||'').split('-').reverse().join('/')+'</td><td>'+(ve?esc(ve.placa):'?')+'</td><td>'+esc(k.posto||'')+'</td><td>'+(k.litros||0)+'</td><td>'+brl(k.valor)+'</td><td>'+(rl?brl(rl):'-')+'</td></tr>';}).join('')+'</tbody></table>';
-    abrirHTML('Controle de Veículos — Gás Network', html);
-  };
+  // REMOVIDO: Controle de Veículos/Combustível (~55 linhas)
+  window.gnVeicAdd=function(){};
+  window.gnCombAdd=function(){};
+  window.gnVerVeiculos=function(){};
 
   // ══════════════════════════════════════════════════════════════
   // 53-57. EQUIPE: TÉCNICO, COMISSÃO, ADIANTAMENTO, FOLHA
@@ -16754,48 +16405,11 @@ window.gnDocAbrir=function(tipo,id,num){
     });
   };
 
-  // ══════════════════════════════════════════════════════════════
-  // 84. BLOQUEIO DE TELA POR INATIVIDADE
-  // ══════════════════════════════════════════════════════════════
-  var idleTimer; var IDLE_MS=15*60*1000; // 15 min
-  function resetIdle(){
-    clearTimeout(idleTimer);
-    var pin=localStorage.getItem('gn_pin'); if(!pin) return;
-    var bloq=localStorage.getItem('gn_idle_lock'); if(bloq!=='1') return;
-    idleTimer=setTimeout(function(){
-      var ov=document.createElement('div'); ov.id='gn-idle-lock';
-      ov.style.cssText='position:fixed;inset:0;background:rgba(8,12,24,.97);z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;';
-      ov.innerHTML='<div style="font-size:48px;margin-bottom:20px;">🔒</div><div style="font-size:22px;font-weight:800;margin-bottom:8px;">Aplicativo bloqueado</div><div style="color:#9fb0d0;margin-bottom:20px;">Inatividade — digite seu PIN</div><input id="gn-idle-pin" type="password" maxlength="4" style="font-size:24px;text-align:center;letter-spacing:8px;background:#0c1424;color:#fff;border:2px solid #7c5cff;border-radius:10px;padding:12px;width:200px;"><button onclick="gnDestravar()" style="margin-top:14px;background:#7c5cff;color:#fff;border:none;border-radius:10px;padding:12px 30px;cursor:pointer;font-weight:700;font-size:14px;">Desbloquear</button>';
-      document.body.appendChild(ov);
-      setTimeout(function(){$('gn-idle-pin').focus();},100);
-    }, IDLE_MS);
-  }
-  window.gnDestravar=function(){var p=localStorage.getItem('gn_pin')||''; var t=($('gn-idle-pin')||{}).value||''; if(t===p){var ov=$('gn-idle-lock'); if(ov)ov.remove(); resetIdle();}else alert('PIN incorreto');};
-  ['mousemove','keydown','touchstart','click'].forEach(function(ev){document.addEventListener(ev, resetIdle, true);});
-  setTimeout(resetIdle, 5000);
-  window.gnToggleIdleLock=function(){var c=localStorage.getItem('gn_idle_lock')==='1'; localStorage.setItem('gn_idle_lock', c?'0':'1'); if(window.toast)toast('Bloqueio por inatividade '+(c?'desativado':'ativado (15min)'),'ok'); resetIdle();};
-
-  // ══════════════════════════════════════════════════════════════
-  // 87. MASCARAMENTO DE DADOS SENSÍVEIS (modo apresentação)
-  // ══════════════════════════════════════════════════════════════
-  window.gnMascararDados=function(){
-    var on=document.body.classList.toggle('gn-masked');
-    if(!$('gn-mask-style')){
-      var s=document.createElement('style'); s.id='gn-mask-style';
-      s.textContent='body.gn-masked .gn-mask-cpf,body.gn-masked [data-mask="cpf"]{filter:blur(4px);}body.gn-masked input[type="tel"],body.gn-masked .cli-tel,body.gn-masked .cli-cpf,body.gn-masked .cli-cnpj{filter:blur(4px);}body.gn-masked #fin-cards>div>div:nth-child(2){filter:blur(5px);}';
-      document.head.appendChild(s);
-    }
-    if(window.toast) toast(on?'🙈 Dados sensíveis ocultos (modo apresentação)':'👀 Dados visíveis','ok');
-  };
-
-  // ══════════════════════════════════════════════════════════════
-  // 86. MODO DEMONSTRAÇÃO (gera dados fake temporários)
-  // ══════════════════════════════════════════════════════════════
-  window.gnModoDemo=function(){
-    if(!confirm('🎭 Ativar MODO DEMONSTRAÇÃO?\n\nSeus dados reais ficam preservados, mas o app mostrará dados FAKE em uma camada visual.\n\nÚtil pra apresentar pra alguém sem expor informações reais.\n\nAtivar?')) return;
-    gnMascararDados();
-    if(window.toast) toast('🎭 Modo demonstração ativo — clique de novo no botão pra sair','ok');
-  };
+  // REMOVIDO: Bloqueio inatividade + Mascaramento + Modo Demo (~35 linhas)
+  window.gnDestravar=function(){};
+  window.gnToggleIdleLock=function(){};
+  window.gnMascararDados=function(){};
+  window.gnModoDemo=function(){};
 
   // ══════════════════════════════════════════════════════════════
   // 99. RELATÓRIO SEMANAL AUTOMÁTICO (on-demand)
@@ -16821,21 +16435,8 @@ window.gnDocAbrir=function(tipo,id,num){
     abrirHTML('Relatório Semanal — Gás Network', html);
   };
 
-  // ══════════════════════════════════════════════════════════════
-  // 15. LIMPEZA DE CONTATOS VAZIOS
-  // ══════════════════════════════════════════════════════════════
-  window.gnLimparVazios=function(){
-    var arr=gj('gn_cli');
-    var vazios=arr.filter(function(c){return !(c.nome&&c.nome.trim()) || !((c.tel||c.whatsapp||'').toString().replace(/\D/g,'').length>=8);});
-    if(!vazios.length){ alert('✅ Nenhum cliente incompleto. Tudo bem cadastrado.'); return; }
-    if(!confirm('🧹 Foram encontrados '+vazios.length+' cliente(s) sem nome OU sem telefone válido.\n\nDeseja MOVER pra lixeira (pra revisar depois)?\n\nVocê pode restaurar pela tela Configurações → Lixeira.')) return;
-    if(!gnPedirPIN('limpar contatos vazios')){alert('PIN incorreto'); return;}
-    var ids={}; vazios.forEach(function(v){ids[v.id]=1; if(window.gnAddLixeira) gnAddLixeira('cli', v);});
-    var limpos=arr.filter(function(c){return !ids[c.id];});
-    ls('gn_cli', limpos); push('gn_cli');
-    alert('✅ '+vazios.length+' contato(s) movido(s) pra lixeira.');
-    if(window.renderCli) renderCli();
-  };
+  // REMOVIDO: Limpeza de contatos vazios (10 linhas)
+  window.gnLimparVazios=function(){};
 
   // ══════════════════════════════════════════════════════════════
   // 9. HISTÓRICO DE NAVEGAÇÃO (back stack)
