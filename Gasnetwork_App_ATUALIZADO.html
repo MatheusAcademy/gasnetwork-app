@@ -4240,7 +4240,7 @@ function gnCor(){ var c=gnCfg(); return c.cor||'#7c5cff'; }
 // Dados compartilhados por toda a equipe + auto-save de documentos no Drive.
 // ══════════════════════════════════════════════
 var GN_CLOUD2 = 'https://script.google.com/macros/s/AKfycbycnK4Fx0J4QphoLr-LQJPkh04RTy6zbBto-Sqlgr306GqjggZkKhyOsJXypeprS0Loww/exec';
-var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_age_done','gn_prod','gn_ferr','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user','gn_upload_hist','gn_drive_idx','gn_nome_ok','gn_notinha_done','gn_gar_retornos'];
+var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_age_done','gn_prod','gn_ferr','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user','gn_upload_hist','gn_drive_idx','gn_nome_ok','gn_notinha_done','gn_gar_retornos','gn_whatsapp_log','gn_whatsapp_contatos','gn_whatsapp_agendados','gn_whatsapp_last','gn_msg_hist','gn_cat_custom','gn_nps_done','gn_tomb_age','gn_lembr_avisados'];
 var _gnSynced = {};        // último valor conhecido por chave (string)
 var _gnSyncBusy = false;
 var _gnSyncOn = true;
@@ -13405,6 +13405,178 @@ window.gnDocAbrir=function(tipo,id,num){
   }
   setInterval(tagDocsBlocos, 3000);
 
+  // ══════════════════════════════════════════════════════════════
+  // ═══ MOBILE PACK — 40 melhorias (inclui anti-overflow) ═════════
+  // ══════════════════════════════════════════════════════════════
+  // CSS global para nunca sair da tela / ficar desproporcional
+  var glob=document.createElement('style');
+  glob.textContent=
+    'html,body{max-width:100vw;overflow-x:hidden;}'
+    +'*,*::before,*::after{box-sizing:border-box;max-width:100%;}'
+    +'img,video,canvas,iframe{max-width:100%;height:auto;}'
+    +'pre,code,p,div,td,th,span,label,h1,h2,h3,h4,a,b,strong{word-wrap:break-word;overflow-wrap:break-word;}'
+    +'table{max-width:100%;display:block;overflow-x:auto;}'
+    // textos longos com ellipsis quando precisar
+    +'.gn-ellipsis,[class*="ellipsis"]{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
+    // safe-area para iPhones com notch
+    +'body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);}'
+    +'#gn-botbar{padding-bottom:calc(6px + env(safe-area-inset-bottom))!important;}'
+    // fonts proporcionais (clamp: mínimo, ideal, máximo)
+    +'h1,.pgtitle{font-size:clamp(18px,4.5vw,28px)!important;line-height:1.25;}'
+    +'h2{font-size:clamp(16px,3.8vw,22px)!important;line-height:1.3;}'
+    +'h3{font-size:clamp(14px,3.2vw,18px)!important;line-height:1.35;}'
+    // botões em linha não saem da tela
+    +'[style*="display:flex"][style*="gap"]{flex-wrap:wrap;}'
+    // touch-action evita delay 300ms
+    +'button,a,input[type=button],input[type=submit]{touch-action:manipulation;-webkit-user-select:none;user-select:none;}'
+    // active feedback ao tocar
+    +'button:active,a:active{transform:scale(0.97);transition:transform .08s;}'
+    // remove blur dentro de inputs ao zoom iOS
+    +'input,select,textarea{font-family:inherit;}'
+    // container do app limita largura em telas gigantes
+    +'@media (min-width:1400px){#gn-side+*,main,.app-content{max-width:1320px;margin:0 auto;}}'
+    ;
+  document.head.appendChild(glob);
+  var mob=document.createElement('style');
+  mob.textContent=
+    '@media (max-width:820px){'
+    // #1 altura mínima de 40px só (sem min-width, sem padding forçado, sem font!important)
+    +'  button,a.button,.btn{min-height:40px;white-space:nowrap;}'
+    // #2 inputs 16px (anti-zoom iOS) — sem padding forçado pra não inchar
+    +'  input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px!important;}'
+    // #3 tap-highlight roxo
+    +'  *{-webkit-tap-highlight-color:rgba(124,92,255,.30);}'
+    // #4 modais full-screen
+    +'  #pd-modal>div,#pw-modal>div,#iaprop-modal>div,#env-modal>div,#gn-cli-balao>div,#gn-cli-balao-full>div,#gnrb-modal>div,#gn-ferr-qr-modal>div{max-width:100%!important;margin:0!important;border-radius:0!important;min-height:100vh;animation:gnSlideUp .25s ease-out;}'
+    +'  @keyframes gnSlideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}'
+    // #8 scroll com momentum
+    +'  *{ -webkit-overflow-scrolling:touch; }'
+    // #11 single column SÓ pra grids realmente grandes
+    +'  [style*="grid-template-columns:repeat(auto-fit,minmax(220px"],[style*="grid-template-columns:repeat(auto-fit,minmax(280px"]{grid-template-columns:1fr!important;}'
+    // grids de "ações rápidas" / cards menores: 2 colunas fixas (não estica nada)
+    +'  [style*="grid-template-columns:repeat(auto-fit,minmax(130px"],[style*="grid-template-columns:repeat(auto-fit,minmax(180px"],[style*="grid-template-columns:repeat(auto-fit,minmax(200px"]{grid-template-columns:repeat(2,1fr)!important;gap:8px!important;}'
+    // #13 inputs focus colorido
+    +'  input:focus,select:focus,textarea:focus{outline:none!important;border:2px solid #7c5cff!important;box-shadow:0 0 0 3px rgba(124,92,255,.25);}'
+    // #6 hambúrguer maior — não usa !important pra evitar conflito
+    +'  #gn-ham{width:48px;height:48px;font-size:22px;}'
+    // bottom-bar reserva espaço pro conteúdo
+    +'  body{padding-bottom:74px;}'
+    // headers menores no mobile
+    +'  .pgtitle{font-size:20px;}'
+    // botões de ação rápida (Ações rápidas no Início) com altura controlada e texto em 1 linha
+    +'  [id*="ini-card"] button, .gn-acoes button, [data-tab] button{min-height:46px;padding:8px 12px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;justify-content:center;gap:5px;}'
+    // FAB do canto (+ flutuante) — APENAS o flutuante (id-restritivo)
+    +'  #gn-fab,button.gn-fab,.gn-fab-btn{width:56px!important;height:56px!important;border-radius:50%!important;padding:0!important;font-size:24px!important;display:flex!important;align-items:center;justify-content:center;line-height:1!important;}'
+    +'}'
+    // bottom-bar sempre
+    +'#gn-botbar{position:fixed;bottom:0;left:0;right:0;background:rgba(15,22,38,.97);backdrop-filter:blur(12px);border-top:1px solid rgba(124,92,255,.4);display:none;justify-content:space-around;align-items:center;padding:6px 8px;z-index:1500;}'
+    +'@media (max-width:820px){#gn-botbar{display:flex;}}'
+    +'#gn-botbar button{flex:1;background:none;border:none;color:#9fb0d0;padding:8px 4px;font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:auto!important;}'
+    +'#gn-botbar button .ic{font-size:22px;line-height:1;}'
+    +'#gn-botbar button.gn-plus{background:linear-gradient(135deg,#7c5cff,#4338ca);color:#fff;border-radius:50%;width:54px;height:54px;margin-top:-22px;box-shadow:0 4px 14px rgba(124,92,255,.5);font-size:11px;}'
+    +'#gn-botbar button.gn-plus .ic{font-size:26px;}'
+    +'#gn-botbar button.active{color:#7c5cff;}'
+    // botão voltar ao topo
+    +'#gn-toptop{position:fixed;bottom:90px;right:14px;width:42px;height:42px;border-radius:50%;background:rgba(124,92,255,.85);color:#fff;border:none;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:1400;box-shadow:0 4px 12px rgba(0,0,0,.3);font-size:18px;}'
+    +'@media (max-width:820px){#gn-toptop{display:none;}#gn-toptop.show{display:flex;}}'
+    // toast no topo no mobile
+    +'@media (max-width:820px){.toast,#toast,[id^="toast"]{top:14px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%)!important;}}'
+    // animação de transição
+    +'[id^="pane-"]{animation:gnFadeIn .25s ease-out;}@keyframes gnFadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}';
+  document.head.appendChild(mob);
+
+  // ── #5 BOTTOM-BAR (5 atalhos: Início | Hoje | + | Renovação | Cliente) ──
+  function buildBotbar(){
+    if(document.getElementById('gn-botbar')) return;
+    var b=document.createElement('nav'); b.id='gn-botbar';
+    var items=[
+      {go:'inicio', ic:'🏠', txt:'Início'},
+      {go:'__ia', ic:'✦', txt:'IA'},
+      {go:'__orcamento', ic:'➕', txt:'Orçamento', plus:true},
+      {go:'age', ic:'📅', txt:'Agenda'}
+    ];
+    b.innerHTML=items.map(function(it){return '<button class="'+(it.plus?'gn-plus':'')+'" data-go="'+it.go+'"><span class="ic">'+it.ic+'</span><span>'+it.txt+'</span></button>';}).join('');
+    document.body.appendChild(b);
+    Array.prototype.forEach.call(b.querySelectorAll('button'), function(btn){
+      btn.onclick=function(){
+        var g=btn.getAttribute('data-go');
+        if(g==='__orcamento'){ try{if(window.pwOpen)pwOpen(); else if(typeof goTab==='function')goTab('novo');}catch(e){} if(window.navigator&&navigator.vibrate)navigator.vibrate(30); return; }
+        if(g==='__ia'){
+          // Abre um prompt rápido — usuário digita o que quer e a IA interpreta/responde
+          var q=prompt('✦ O que você quer fazer? (Ex.: "agenda do Bruno pra amanhã 14h", "quanto faturei essa semana?", "novo orçamento de instalação pra Maria")');
+          if(!q) return;
+          if(typeof window.gnAI==='function'){
+            (async function(){
+              try{ if(window.toast) toast('✦ IA pensando…','in');
+                var r=await window.gnAI('Você é o assistente da Gás Network. Responda em português, direto e objetivo, em no máximo 5 linhas. Se for ação (agendar, criar orçamento, cobrar), diga exatamente o passo prático no app.', String(q));
+                var txt=(r&&(r.resposta||r.text||r.message))||JSON.stringify(r);
+                alert('✦ '+String(txt).slice(0,1000));
+              }catch(e){ alert('✦ IA indisponível agora: '+(e&&e.message||e)); }
+            })();
+          } else { alert('✦ IA indisponível neste aparelho.'); }
+          if(window.navigator&&navigator.vibrate)navigator.vibrate(30);
+          return;
+        }
+        if(typeof goTab==='function') goTab(g);
+        Array.prototype.forEach.call(b.querySelectorAll('button'), function(x){x.classList.toggle('active', x.getAttribute('data-go')===g);});
+        if(window.navigator&&navigator.vibrate)navigator.vibrate(20);
+      };
+    });
+  }
+  setTimeout(buildBotbar, 800);
+
+  // ── #9 BOTÃO "VOLTAR AO TOPO" ──
+  function buildTopBtn(){
+    if(document.getElementById('gn-toptop')) return;
+    var t=document.createElement('button'); t.id='gn-toptop'; t.innerHTML='↑';
+    t.onclick=function(){window.scrollTo({top:0,behavior:'smooth'}); if(window.navigator&&navigator.vibrate)navigator.vibrate(15);};
+    document.body.appendChild(t);
+    window.addEventListener('scroll', function(){ t.classList.toggle('show', window.scrollY>400); });
+  }
+  setTimeout(buildTopBtn, 1000);
+
+  // ── #14 LONG-PRESS em cards abre menu de ações ──
+  document.addEventListener('touchstart', function(ev){
+    try{
+      var card=ev.target.closest('[data-id], [data-n], [data-cli]'); if(!card) return;
+      var t0=Date.now(); var x0=ev.touches[0].clientX, y0=ev.touches[0].clientY;
+      function move(e2){var x=e2.touches[0].clientX, y=e2.touches[0].clientY; if(Math.abs(x-x0)>10||Math.abs(y-y0)>10){ cancel(); }}
+      function up(){ var dur=Date.now()-t0; if(dur>=600){ /* long press */ if(window.navigator&&navigator.vibrate)navigator.vibrate([10,60,10]); var menu=['📋 Copiar','📲 Compartilhar','✕ Cancelar']; var pick=prompt(menu.join('\n')+'\n\nQue ação? (1, 2 ou 3)'); if(pick==='1'){try{navigator.clipboard.writeText(card.textContent.trim().slice(0,200));}catch(e){}} } cancel(); }
+      function cancel(){document.removeEventListener('touchmove',move);document.removeEventListener('touchend',up);}
+      document.addEventListener('touchmove', move, {passive:true});
+      document.addEventListener('touchend', up, {passive:true});
+    }catch(e){}
+  }, {passive:true});
+
+  // ── #19 SIDEBAR fecha ao toque fora + swipe left ──
+  document.addEventListener('touchstart', function(ev){
+    var side=document.getElementById('gn-side'); if(!side||!side.classList.contains('open')) return;
+    if(ev.target.closest('#gn-side, #gn-ham')) return;
+    side.classList.remove('open'); var ov=document.getElementById('gn-ov'); if(ov)ov.classList.remove('show');
+  }, {passive:true});
+
+  // ── #10 vibração tátil em ações chave ──
+  document.addEventListener('click', function(ev){
+    try{
+      var t=ev.target.closest('button,a'); if(!t || !window.navigator || !navigator.vibrate) return;
+      var txt=(t.textContent||'').toLowerCase();
+      if(/excluir|deletar|remover/.test(txt)) navigator.vibrate([20,40,20]);
+      else if(/salvar|confirmar|enviar|✓|gerar/.test(txt)) navigator.vibrate(15);
+    }catch(e){}
+  }, true);
+
+  // ── #6 BADGE de notificação no hambúrguer (se houver alertas) ──
+  setInterval(function(){
+    try{
+      var ham=document.getElementById('gn-ham'); if(!ham) return;
+      var avi=document.getElementById('notif-badge'); var n=avi?Number(avi.textContent||0)||0:0;
+      if(!n){var b=ham.querySelector('.gn-ham-badge'); if(b)b.remove(); return;}
+      var b=ham.querySelector('.gn-ham-badge');
+      if(!b){b=document.createElement('span'); b.className='gn-ham-badge'; b.style.cssText='position:absolute;top:-3px;right:-3px;background:#dc2626;color:#fff;border-radius:50%;min-width:18px;height:18px;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;'; ham.style.position='relative'; ham.appendChild(b);}
+      b.textContent=n;
+    }catch(e){}
+  }, 3000);
+
   // ── #38 QR CODE POR FERRAMENTA (via Google Charts URL, sem dep) ──
   window.ferrQR=function(id){
     var arr=gj('gn_ferr'); var f=arr.filter(function(x){return x.id===id;})[0]; if(!f){alert('Ferramenta não encontrada');return;}
@@ -13434,6 +13606,127 @@ window.gnDocAbrir=function(tipo,id,num){
     }catch(e){}
   }, 3000);
 
+})();
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// ═══ SUBMENU WHATSAPP — recebe logs das tarefas agendadas ══════
+// As 3 tarefas agendadas (6h/12h/18h) escrevem em gn_whatsapp_log
+// (mensagens analisadas), gn_whatsapp_contatos (contatos detectados)
+// e gn_whatsapp_agendados (agendamentos criados/cancelados).
+// Esse pane mostra tudo organizado em ordem cronológica.
+// ══════════════════════════════════════════════════════════════
+(function(){
+  function $(id){return document.getElementById(id);}
+  function gj(k){try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];}}
+  function escH(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function dFmt(s){try{var d=new Date(s);return d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return String(s||'');}}
+
+  // Cria o pane
+  function buildWaPane(){
+    if(document.getElementById('pane-whatsapp')) return;
+    var ref=document.getElementById('pane-cli')||document.getElementById('pane-cfg'); if(!ref||!ref.parentNode) return;
+    var p=document.createElement('div'); p.id='pane-whatsapp'; p.style.display='none';
+    p.innerHTML=
+      '<div class="eyebrow">Comercial / Memória</div>'
+      +'<div class="pgtitle" style="margin-bottom:4px;">💬 WhatsApp <span style="font-size:11px;background:#16a34a;color:#fff;border-radius:10px;padding:1px 8px;font-weight:700;vertical-align:middle;">automatizado</span></div>'
+      +'<div class="pgsub" style="margin-bottom:14px;">Memória completa de tudo que rola no seu WhatsApp. 3 leituras automáticas por dia (6h, 12h, 18h) — registra mensagens, novos contatos, agendamentos criados/cancelados, e a IA do app fica por dentro de tudo.</div>'
+      +'<div id="wa-status" style="margin-bottom:12px;"></div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">'
+        +'<button onclick="waRefresh()" style="background:#0e7490;color:#fff;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:700;">🔄 Atualizar</button>'
+        +'<button onclick="waVerLog()" style="background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:700;">📜 Log bruto</button>'
+        +'<button onclick="window.open(\'https://web.whatsapp.com\',\'_blank\')" style="background:#25d366;color:#fff;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:700;">📲 Abrir WhatsApp Web</button>'
+      +'</div>'
+      +'<div id="wa-resumo" style="background:linear-gradient(135deg,rgba(37,211,102,.12),rgba(16,185,129,.08));border:1px solid #25d366;border-radius:14px;padding:14px;margin-bottom:14px;"></div>'
+      +'<div style="font-weight:800;color:var(--gn-text);margin:18px 0 8px;font-size:15px;">📅 Agendamentos automáticos (últimos 30 dias)</div>'
+      +'<div id="wa-agendados"></div>'
+      +'<div style="font-weight:800;color:var(--gn-text);margin:18px 0 8px;font-size:15px;">👤 Contatos novos detectados</div>'
+      +'<div id="wa-contatos"></div>'
+      +'<div style="font-weight:800;color:var(--gn-text);margin:18px 0 8px;font-size:15px;">📝 Atividade recente (últimas 50 mensagens analisadas)</div>'
+      +'<div id="wa-mensagens"></div>';
+    ref.parentNode.insertBefore(p, ref.nextSibling);
+  }
+
+  window.waRefresh=function(){
+    var log=gj('gn_whatsapp_log'); var ag=gj('gn_whatsapp_agendados'); var ct=gj('gn_whatsapp_contatos');
+    var last=localStorage.getItem('gn_whatsapp_last')||'';
+    // Status
+    var s=$('wa-status'); if(s){
+      var prox=proximoRun();
+      s.innerHTML='<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:10px;padding:10px 13px;font-size:13px;color:var(--gn-text);">'
+        +(last?('✅ <b>Última leitura:</b> '+dFmt(last)):'⏳ Nenhuma leitura ainda. As tarefas rodam às 6h, 12h e 18h.')
+        +' · <span style="color:var(--gn-dim);">Próxima: '+prox+'</span></div>';
+    }
+    // Resumo
+    var r=$('wa-resumo'); if(r){
+      var hoje=new Date().toISOString().slice(0,10);
+      var hojeLog=log.filter(function(x){return String(x.data||'').slice(0,10)===hoje;});
+      var hojeAg=ag.filter(function(x){return String(x.criadoEm||'').slice(0,10)===hoje;});
+      var hojeCt=ct.filter(function(x){return String(x.criadoEm||'').slice(0,10)===hoje;});
+      r.innerHTML='<div style="font-weight:800;color:#25d366;font-size:14px;margin-bottom:5px;">📊 Hoje</div>'
+        +'<div style="display:flex;gap:12px;flex-wrap:wrap;color:var(--gn-text);font-size:13px;">'
+        +'<div>💬 <b>'+hojeLog.length+'</b> mensagens analisadas</div>'
+        +'<div>📅 <b>'+hojeAg.length+'</b> agendamentos automáticos</div>'
+        +'<div>👤 <b>'+hojeCt.length+'</b> contatos novos</div>'
+        +'</div>';
+    }
+    // Agendamentos
+    var a=$('wa-agendados'); if(a){
+      var lim=Date.now()-30*86400000;
+      var ag30=ag.filter(function(x){return new Date(x.criadoEm||0).getTime()>lim;}).sort(function(x,y){return String(y.data||'').localeCompare(String(x.data||''));});
+      if(!ag30.length){ a.innerHTML='<div style="color:var(--gn-dim);padding:12px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum agendamento automático ainda. Quando a IA detectar "agendar visita para X" nas conversas, vai aparecer aqui.</div>'; }
+      else { a.innerHTML=ag30.map(function(x){var cor=x.status==='cancelado'?'#dc2626':(x.status==='confirmado'?'#16a34a':'#7c5cff');return '<div style="border:1px solid var(--gn-border);border-left:4px solid '+cor+';border-radius:10px;padding:11px 13px;margin-bottom:6px;"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;"><div><b style="color:var(--gn-text);">'+escH(x.cliente||'Cliente')+'</b> · <span style="color:var(--gn-dim);">'+escH(x.servico||'')+'</span><div style="font-size:12px;color:var(--gn-dim);">📅 '+(x.data||'')+' '+(x.hora||'')+' · '+escH(x.status||'agendado').toUpperCase()+(x.cancelMotivo?(' · '+escH(x.cancelMotivo)):'')+'</div>'+(x.mensagem?('<div style="font-size:11.5px;color:var(--gn-dim);margin-top:3px;font-style:italic;">"'+escH(String(x.mensagem).slice(0,150))+'"</div>'):'')+'</div></div></div>';}).join(''); }
+    }
+    // Contatos
+    var c=$('wa-contatos'); if(c){
+      if(!ct.length){ c.innerHTML='<div style="color:var(--gn-dim);padding:12px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum contato novo detectado ainda.</div>'; }
+      else { c.innerHTML=ct.slice(0,30).map(function(x){return '<div style="border:1px solid var(--gn-border);border-radius:10px;padding:10px 13px;margin-bottom:6px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;"><div><b style="color:var(--gn-text);">'+escH(x.nome||'')+'</b>'+(x.telefone?(' · '+escH(x.telefone)):'')+(x.cadastrado?'<span style="background:#16a34a;color:#fff;border-radius:10px;padding:1px 8px;font-size:10.5px;font-weight:700;margin-left:6px;">✓ JÁ CADASTRADO</span>':'<span style="background:#f59e0b;color:#fff;border-radius:10px;padding:1px 8px;font-size:10.5px;font-weight:700;margin-left:6px;">NOVO LEAD</span>')+'<div style="font-size:11.5px;color:var(--gn-dim);">Detectado '+dFmt(x.criadoEm)+'</div></div></div>';}).join(''); }
+    }
+    // Mensagens (log)
+    var m=$('wa-mensagens'); if(m){
+      var msgs=log.slice(0,50);
+      if(!msgs.length){ m.innerHTML='<div style="color:var(--gn-dim);padding:12px;border:1px dashed var(--gn-border);border-radius:10px;">Sem mensagens registradas ainda. Aguardando primeira leitura.</div>'; }
+      else { m.innerHTML=msgs.map(function(x){return '<div style="border:1px solid var(--gn-border);border-left:3px solid #25d366;border-radius:8px;padding:9px 12px;margin-bottom:5px;font-size:12.5px;color:var(--gn-text);"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;"><b>'+escH(x.contato||'?')+'</b><span style="color:var(--gn-dim);font-size:11px;">'+dFmt(x.timestamp||x.data)+'</span></div><div style="margin-top:3px;">'+(x.tipo==='audio'?'🎤 [Áudio recebido — não transcrito]':escH(String(x.texto||'').slice(0,300)))+'</div></div>';}).join(''); }
+    }
+  };
+
+  function proximoRun(){
+    var now=new Date(); var h=now.getHours();
+    var alvos=[6,12,18]; var prox=null;
+    for(var i=0;i<alvos.length;i++){ if(alvos[i]>h){ prox=alvos[i]; break; } }
+    if(prox==null){ prox=6; return 'Amanhã 06:00'; }
+    return 'Hoje '+(prox<10?'0':'')+prox+':00';
+  }
+
+  window.waVerLog=function(){
+    var log=gj('gn_whatsapp_log');
+    var win=window.open('','_blank');
+    win.document.write('<html><head><title>Log WhatsApp</title><style>body{background:#0c1220;color:#cbd5e1;font-family:monospace;padding:20px;}h1{color:#25d366;}pre{white-space:pre-wrap;background:#1a2238;padding:14px;border-radius:8px;font-size:12px;}</style></head><body><h1>📜 Log bruto — gn_whatsapp_log</h1><div>Total: '+log.length+' registros</div><pre>'+JSON.stringify(log,null,2).replace(/</g,'&lt;')+'</pre></body></html>');
+  };
+
+  // adiciona no menu lateral, grupo "Comercial"
+  function addWaMenu(){
+    try{
+      var side=document.getElementById('gn-side'); if(!side||side.querySelector('[data-go="whatsapp"]')) return;
+      var grps=side.querySelectorAll('.gn-grp'); var com;
+      Array.prototype.forEach.call(grps,function(g){if(/Comercial/.test(g.textContent))com=g;});
+      if(!com) return;
+      var b=document.createElement('button'); b.className='gn-nav'; b.setAttribute('data-go','whatsapp');
+      b.innerHTML='<span class="gn-ic">💬</span><span>WhatsApp</span>';
+      b.onclick=function(){ if(typeof gnNav==='function') gnNav('whatsapp'); else window.goTab('whatsapp'); };
+      // insere depois do último item do grupo Comercial
+      var depois=com; var next=com.nextElementSibling; while(next && next.classList && next.classList.contains('gn-nav')){depois=next; next=next.nextElementSibling;}
+      depois.parentNode.insertBefore(b, depois.nextSibling);
+    }catch(e){}
+  }
+  setInterval(addWaMenu, 2000);
+  // hook goTab
+  if(typeof window.goTab==='function' && !window.goTab.__waWrap){
+    var _ogt=window.goTab; window.goTab=function(t){ _ogt.apply(this,arguments); try{ buildWaPane(); var p=$('pane-whatsapp'); if(p) p.style.display=(t==='whatsapp')?'block':'none'; if(t==='whatsapp') window.waRefresh(); }catch(e){} };
+    try{for(var k in _ogt) if(_ogt.hasOwnProperty(k)) window.goTab[k]=_ogt[k];}catch(e){}
+    window.goTab.__waWrap=true;
+  }
+  setTimeout(buildWaPane, 1500);
 })();
 </script>
 </body>
