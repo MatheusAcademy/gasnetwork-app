@@ -855,10 +855,10 @@ textarea.fi{resize:vertical;}
         <div class="div"></div>
         </div>
 
-        <!-- PREMISSAS DO CONTRATANTE -->
+        <!-- RESPONSABILIDADES DO CONTRATANTE -->
         <div id="sec-premissas">
-        <div class="sh"><div class="sl">Premissas do Contratante</div></div>
-        <textarea class="fi" id="f-premissas" rows="7" placeholder="O contratante deverá assegurar:&#10;&#10;• Liberação formal da área para execução dos serviços;&#10;• Confirmação do pagamento do sinal (50%) para início do projeto;&#10;• Disponibilidade de acesso à obra nos horários acordados;&#10;• Comunicação prévia caso haja restrições de horário ou particularidades do local;&#10;• Informar previamente sobre interferências existentes (rede elétrica, hidráulica, estrutural)."></textarea>
+        <div class="sh"><div class="sl">Responsabilidades do Contratante</div></div>
+        <textarea class="fi" id="f-premissas" rows="10" placeholder="Liberar formalmente a area para inicio e execucao dos servicos contratados;&#10;&#10;Efetuar o pagamento do sinal de 50% para autorizacao de inicio do projeto;&#10;&#10;Garantir acesso ao local da obra nos dias e horarios previamente acordados;&#10;&#10;Informar antecipadamente qualquer restricao de horario, regra do condominio, necessidade de autorizacao interna ou particularidade do local;&#10;&#10;Comunicar previamente a existencia de possiveis interferencias (rede eletrica, hidraulica, estrutural, tubulacoes embutidas, acabamentos sensiveis);&#10;&#10;Disponibilizar responsavel no local para acompanhamento, liberacao de acesso e validacao das etapas executadas, quando necessario;&#10;&#10;Providenciar autorizacoes junto ao condominio, administracao, sindico ou responsavel pelo imovel, quando aplicavel;&#10;&#10;Garantir que o ambiente esteja livre e acessivel para a execucao segura dos servicos."></textarea>
         <div class="sec-hint">Deixe vazio pra usar texto padrão. Se preencher, esse texto aparece no PDF.</div>
         <div class="div"></div>
         </div>
@@ -3205,23 +3205,62 @@ function gerarPDF(){
       var _blocos=[];
       var _add=function(t,x){ if(x!=null && String(x).trim()) _blocos.push({titulo:t, texto:String(x)}); };
       _add('Objeto da proposta', obj);
-      if(currentMode==='completo') _add('Escopo técnico (metodologia de execução)', escopo);
-      _add('Observações técnicas', obsTec);
-      if(currentMode==='completo'){ _add('Entregáveis', entregaveis); _add('Premissas do contratante', premissas); _add('Prazos de execução', prazosDet); }
+      if(currentMode==='completo') _add('Escopo tecnico (metodologia de execucao)', escopo);
+      _add('Observacoes tecnicas', obsTec);
+      if(currentMode==='completo'){
+        _add('Entregaveis', entregaveis);
+        // PREMISSAS / RESPONSABILIDADES DO CONTRATANTE — template inteligente
+        if(premissas && String(premissas).trim()){
+          _add('Responsabilidades do Contratante', String(premissas));
+        } else {
+          var _v=Number(total)||0; var _v1=_v/2;
+          var _brlP=function(n){return 'R$ '+(Number(n)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+          var _tplPrem='Liberar formalmente a area para inicio e execucao dos servicos contratados;\n\n'
+            +'Efetuar o pagamento do sinal de 50%'+(_v?(' ('+_brlP(_v1)+')'):'')+' para autorizacao de inicio do projeto;\n\n'
+            +'Garantir acesso ao local da obra nos dias e horarios previamente acordados;\n\n'
+            +'Informar antecipadamente qualquer restricao de horario, regra do condominio, necessidade de autorizacao interna ou particularidade do local;\n\n'
+            +'Comunicar previamente a existencia de possiveis interferencias, como rede eletrica, hidraulica, estrutural, tubulacoes embutidas, acabamentos sensiveis ou qualquer outro fator que possa interferir na execucao;\n\n'
+            +'Disponibilizar responsavel no local para acompanhamento, liberacao de acesso e validacao das etapas executadas, quando necessario;\n\n'
+            +'Providenciar autorizacoes junto ao condominio, administracao, sindico ou responsavel pelo imovel, quando aplicavel;\n\n'
+            +'Garantir que o ambiente esteja livre e acessivel para a execucao segura dos servicos.';
+          _add('Responsabilidades do Contratante', _tplPrem);
+        }
+      }
       var _inc=(document.getElementById('f-incluso')||{}).value||''; var _ninc=(document.getElementById('f-nao-incluso')||{}).value||'';
       var _bl=function(raw,fb){ if(!String(raw).trim()) return fb; return raw.split('\n').map(function(l){return l.trim().replace(/^[\*•\-]\s*/,'');}).filter(function(l){return l.length>1;}); };
       var _incI=_bl(_inc,['Mão de obra para execução dos serviços descritos','Materiais especificados no escopo desta proposta','Testes de funcionamento e verificação de estanqueidade','Emissão de nota fiscal de serviços']);
       var _ninI=_bl(_ninc,['Serviços não descritos expressamente nesta proposta','Obras civis, quebra ou recomposição de alvenaria','ART — mediante solicitação prévia com taxa adicional','Materiais e acessórios não listados no escopo']);
       _add('Escopo de fornecimento — Incluso', _incI.map(function(t){return '• '+t;}).join('\n'));
       _add('Não incluso', _ninI.map(function(t){return '• '+t;}).join('\n'));
-      // Condições da proposta: usa texto livre se preenchido, senão monta automático
+      // Condições da proposta: usa texto livre se preenchido, senão usa template inteligente
       var _condTextoLivre=(document.getElementById('f-condicoes-pgto')||{}).value||'';
       if(_condTextoLivre.trim()){
-        _add('Condições da proposta', _condTextoLivre);
+        _add('Condições de Pagamento', _condTextoLivre);
       } else {
-        var _cond=[]; if(pgto) _cond.push(pgto); if(prazo) _cond.push('Prazo de execução: '+prazo); if(validade) _cond.push('Validade da proposta: '+validade);
-        _add('Condições da proposta', _cond.join('\n'));
+        // Template padrão profissional sem emojis (Matheus 26/05/2026)
+        var _v=Number(total)||0;
+        var _v1=_v/2; var _v2=_v-_v1;
+        var _brl=function(n){return 'R$ '+(Number(n)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+        var _tplCond='O pagamento sera dividido em duas parcelas de 50%.\n\n'
+          +'A primeira parcela, no valor de '+_brl(_v1)+', sera paga na aprovacao da proposta, para inicio do projeto tecnico, emissao da ART e agendamento da obra.\n\n'
+          +'A segunda parcela, no valor de '+_brl(_v2)+', sera paga em ate 30 dias corridos apos o pagamento do sinal.\n\n'
+          +'Valor total da proposta: '+_brl(_v)+'.\n\n'
+          +'Formas de pagamento aceitas: PIX, transferencia bancaria ou deposito identificado.\n\n'
+          +'Em caso de atraso, podera haver multa de 2%, juros de 1% ao mes e correcao pelo IGP-M.\n\n'
+          +'Sera emitida Nota Fiscal conforme cada pagamento recebido.';
+        _add('Condicoes de Pagamento', _tplCond);
       }
+      // Prazo de Execucao — template inteligente
+      var _prazoLivre=(document.getElementById('f-prazos-det')||{}).value||'';
+      if(!_prazoLivre.trim()){
+        var _tplPrazo='Apos o pagamento do sinal, sera iniciado o projeto tecnico, incluindo planta da rede de gas, desenho isometrico e emissao da ART, com prazo de ate 10 dias uteis.\n\n'
+          +'Apos a entrega do projeto e da ART, sera realizado o agendamento da instalacao com o cliente.\n\n'
+          +'A execucao contempla os servicos descritos no escopo desta proposta, incluindo a instalacao da tubulacao, conexoes, fixacoes e pintura de identificacao quando aplicavel.\n\n'
+          +'Apos a instalacao, sera realizado o teste de estanqueidade e entregue a documentacao tecnica.';
+        _add('Prazo de Execucao', _tplPrazo);
+      }
+      // Validade — sempre aparece
+      _add('Validade da Proposta', 'A proposta e valida por '+(validade||'30 dias')+' corridos a partir da data de emissao.');
       var _infoPad='Esta proposta foi elaborada com base nas informações repassadas até o momento. Caso sejam identificadas necessidades técnicas adicionais no local, a proposta poderá ser reavaliada. A ART é fornecida mediante solicitação prévia. Os serviços seguem as normas ABNT NBR 15526, 13103, 15358 e IT-28/IT-29.';
       var _infoAdic = obsAdic? (obsAdic+'\n'+_infoPad) : _infoPad;
       var _opts={ titulo:(currentMode==='completo'?'PROPOSTA COMERCIAL':'ORÇAMENTO'), numero:docNum, data:dtStr,
