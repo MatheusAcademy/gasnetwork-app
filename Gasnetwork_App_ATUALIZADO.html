@@ -19259,5 +19259,148 @@ window.gnDocAbrir=function(tipo,id,num){
 
 })();
 </script>
+<script>
+// ══════════════════════════════════════════════════════════════════
+// ═══ FIX CRÍTICO PDFs — remove emojis corrompidos                 ═══
+// ═══ Sanitiza TUDO que vai pro jsPDF (text + splitTextToSize)    ═══
+// ═══ Aplica em todos os PDFs: orçamento, laudo, recibo, NS, ctr  ═══
+// ══════════════════════════════════════════════════════════════════
+(function(){
+  // ═══ Mapa de substituição de emojis comuns ═══
+  var EMOJI_MAP={
+    '📅':'', '🗓':'', '📆':'',
+    '🛡':'', '🛠':'', '🔧':'', '⚙':'', '⚒':'',
+    '📋':'', '📝':'', '📄':'', '📑':'', '📃':'',
+    '✅':'', '✔':'', '✓':'-', '✗':'X', '❌':'X',
+    '🔴':'', '🟢':'', '🟠':'', '🟡':'', '🔵':'', '🟣':'', '⚪':'', '⚫':'',
+    '🟥':'', '🟧':'', '🟨':'', '🟩':'', '🟦':'', '🟪':'',
+    '💰':'', '💸':'', '💵':'', '💳':'', '💼':'',
+    '🏠':'', '🏢':'', '🏭':'', '🏗':'',
+    '👤':'', '👥':'', '👋':'', '👀':'', '👍':'', '👎':'',
+    '⚡':'', '⭐':'*', '🌟':'*', '✨':'',
+    '🔥':'', '🔍':'', '🔎':'', '🔒':'', '🔓':'', '🔑':'',
+    '📞':'', '📱':'', '☎':'', '📲':'',
+    '📧':'', '✉':'', '📨':'',
+    '🎯':'', '🎉':'', '🚀':'', '⚠':'!', '⛔':'',
+    '🟦':'', '➜':'->', '→':'->', '←':'<-', '↩':'',
+    '•':'-', // bullet seguro
+    '·':'-',
+    '—':'-', '–':'-',
+    '"':'"', '"':'"', ''':"'", ''':"'",
+    '…':'...',
+    '€':'EUR', '£':'GBP',
+    '©':'(c)', '®':'(R)', '™':'(TM)',
+    '½':'1/2', '¼':'1/4', '¾':'3/4',
+    '°':'o', '±':'+/-'
+  };
+
+  // Remove emojis Unicode + caracteres especiais que viram "Ø=ÜÆ" no PDF
+  window.gnLimpaTxtPDF=function(s){
+    if(s==null) return '';
+    var t=String(s);
+    // 1. Aplica mapa de substituição
+    Object.keys(EMOJI_MAP).forEach(function(k){
+      try{ t=t.split(k).join(EMOJI_MAP[k]); }catch(e){}
+    });
+    // 2. Remove TODOS os emojis Unicode (faixas conhecidas)
+    t=t.replace(/[\u{1F000}-\u{1FFFF}]/gu,''); // Emoticons, Misc Symbols
+    t=t.replace(/[\u{2600}-\u{27BF}]/gu,'');   // Misc Symbols + Dingbats
+    t=t.replace(/[\u{2700}-\u{27BF}]/gu,'');   // Dingbats
+    t=t.replace(/[\u{FE00}-\u{FE0F}]/gu,'');   // Variation Selectors
+    t=t.replace(/[\u{1F100}-\u{1F1FF}]/gu,''); // Enclosed Alphanum
+    t=t.replace(/[\u{200B}-\u{200F}]/gu,'');   // Zero-width spaces
+    t=t.replace(/[\u{FFF0}-\u{FFFF}]/gu,'');   // Specials
+    // 3. Remove caracteres de controle (exceto \n, \r, \t)
+    t=t.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,'');
+    // 4. Substitui sequências de espaços duplos
+    t=t.replace(/  +/g,' ');
+    // 5. Remove espaços no início/fim de cada linha
+    t=t.split('\n').map(function(l){return l.replace(/^\s+|\s+$/g,'');}).join('\n');
+    // 6. Remove linhas vazias múltiplas (3+ quebras viram 2)
+    t=t.replace(/\n{3,}/g,'\n\n');
+    return t;
+  };
+
+  // ═══ Wrapper para sanitizar texto em qualquer doc jsPDF ═══
+  function sanitize(arg){
+    if(arg==null) return arg;
+    if(Array.isArray(arg)) return arg.map(sanitize);
+    if(typeof arg==='string') return gnLimpaTxtPDF(arg);
+    return arg;
+  }
+
+  // ═══ MONKEY-PATCH jsPDF assim que estiver disponível ═══
+  function patchJsPDF(){
+    try{
+      var JP=window.jspdf && window.jspdf.jsPDF;
+      if(!JP || !JP.API || JP.API.__gnSanitized) return;
+      var origText=JP.API.text;
+      JP.API.text=function(text){
+        try{
+          arguments[0]=sanitize(text);
+        }catch(e){}
+        return origText.apply(this, arguments);
+      };
+      var origSplit=JP.API.splitTextToSize;
+      if(origSplit){
+        JP.API.splitTextToSize=function(text){
+          try{ arguments[0]=sanitize(text); }catch(e){}
+          return origSplit.apply(this, arguments);
+        };
+      }
+      JP.API.__gnSanitized=true;
+      console.log('[gnPDF] jsPDF sanitizado com sucesso');
+    }catch(e){console.warn('[gnPDF] erro patch:', e);}
+  }
+
+  // Tenta agora e tenta de novo conforme o jsPDF carrega
+  patchJsPDF();
+  var t=0;
+  var iv=setInterval(function(){
+    patchJsPDF();
+    t++;
+    if(t>40) clearInterval(iv); // 40s
+  }, 1000);
+
+  // ═══ Wrap também o construtor de jsPDF caso seja chamado depois ═══
+  setTimeout(function(){
+    try{
+      if(window.jspdf && window.jspdf.jsPDF){
+        var orig=window.jspdf.jsPDF;
+        if(!orig.__gnWrap){
+          var W=function(){
+            var inst=new (Function.prototype.bind.apply(orig, [null].concat(Array.prototype.slice.call(arguments))))();
+            // já tá patchado em prototype, mas garantir
+            try{ inst.setCharSpace && inst.setCharSpace(0); }catch(e){}
+            try{ inst.setFont && inst.setFont('helvetica','normal'); }catch(e){}
+            return inst;
+          };
+          // não consigo substituir construtor real sem quebrar, deixar como está
+        }
+      }
+    }catch(e){}
+  }, 2000);
+
+  // ═══ Adicional: limpar incluso/não incluso padrão pra usar '-' em vez de '•' ═══
+  setTimeout(function(){
+    try{
+      var p=window.localStorage.getItem('gn_obs_padrao');
+      if(p){
+        var o=JSON.parse(p);
+        ['incluso','nao_incluso','obs_tecnicas'].forEach(function(k){
+          if(o[k]) o[k]=o[k].map(function(x){return String(x).replace(/^[•·]\s*/,'').trim();});
+        });
+        window.localStorage.setItem('gn_obs_padrao', JSON.stringify(o));
+      }
+    }catch(e){}
+  }, 1000);
+
+  // ═══ Aviso de fix aplicado ═══
+  setTimeout(function(){
+    try{ if(window.toast) toast('✓ PDFs corrigidos — emojis e símbolos quebrados removidos','ok'); }catch(e){}
+  }, 3500);
+
+})();
+</script>
 </body>
 </html>
