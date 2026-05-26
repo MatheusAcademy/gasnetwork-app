@@ -8526,21 +8526,12 @@ function renderInicio(){
   function fone(nome){ var cli=gj('gn_cli'); var low=(nome||'').toLowerCase(); for(var i=0;i<cli.length;i++){ if((cli[i].nome||'').toLowerCase()===low) return String(cli[i].whatsapp||cli[i].tel||'').replace(/\D/g,''); } return ''; }
   var DRILL=null, DSORT='data', DPER='tudo', DPER_DE='', DPER_ATE='', DSEL={};
   function isoOf(dt){ return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2); }
-  function inPer(dateStr){ if(DPER==='tudo') return true; if(!dateStr) return false; var t=today(); var now=new Date(); var d=String(dateStr).slice(0,10);
-    if(DPER==='hoje') return d===t;
-    if(DPER==='3dias'){ var s3=new Date(now); s3.setDate(s3.getDate()-2); return d>=isoOf(s3)&&d<=t; }
-    if(DPER==='semana'){ var s=new Date(now); s.setDate(s.getDate()-6); return d>=isoOf(s)&&d<=t; }
-    if(DPER==='mes') return d.slice(0,7)===t.slice(0,7);
-    if(DPER==='3meses'){ var sm=new Date(now); sm.setMonth(sm.getMonth()-3); return d>=isoOf(sm)&&d<=t; }
-    if(DPER==='ano') return d.slice(0,4)===t.slice(0,4);
-    if(DPER==='a2026') return d.slice(0,4)==='2026';
-    if(DPER==='a2025') return d.slice(0,4)==='2025';
-    if(DPER==='2anos') return (now.getFullYear()-(+d.slice(0,4)))<=1;
-    if(DPER==='3anos') return (now.getFullYear()-(+d.slice(0,4)))<=2;
-    if(DPER==='custom'){ var de=DPER_DE||'0000-00-00'; var ate=DPER_ATE||'9999-99-99'; return d>=de&&d<=ate; }
-    return true;
+  function inPer(dateStr){
+    if(DPER==='custom'){ if(!dateStr) return false; var d=String(dateStr).slice(0,10); var de=DPER_DE||'0000-00-00'; var ate=DPER_ATE||'9999-99-99'; return d>=de&&d<=ate; }
+    // Usa a MESMA função de período dos cards (finInPeriodo) → janela idêntica, valores batem 100%.
+    return (typeof finInPeriodo==='function') ? finInPeriodo(dateStr, DPER) : true;
   }
-  function perOpts(){ return [['tudo','Todo período'],['hoje','Hoje'],['3dias','Últimos 3 dias'],['semana','Últimos 7 dias'],['mes','Este mês'],['3meses','Últimos 3 meses'],['ano','Este ano'],['a2026','Ano de 2026'],['a2025','Ano de 2025'],['2anos','Últimos 2 anos'],['3anos','Últimos 3 anos'],['custom','Período personalizado…']].map(function(o){ return '<option value="'+o[0]+'"'+(DPER===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join(''); }
+  function perOpts(){ return [['tudo','Todo período'],['1d','Hoje'],['7d','Últimos 7 dias'],['30d','Últimos 30 dias'],['90d','Últimos 3 meses'],['365d','Último 1 ano'],['730d','Últimos 2 anos'],['custom','Período personalizado…']].map(function(o){ return '<option value="'+o[0]+'"'+(DPER===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join(''); }
   function customHTML(){ return DPER==='custom' ? ('<input type="date" value="'+(DPER_DE||'')+'" onchange="gnDrillCustom(this.value,null)" title="De" style="padding:7px;border:1px solid var(--gn-border);border-radius:8px;"><span style="color:var(--gn-dim);font-size:12px;">até</span><input type="date" value="'+(DPER_ATE||'')+'" onchange="gnDrillCustom(null,this.value)" title="Até" style="padding:7px;border:1px solid var(--gn-border);border-radius:8px;">') : ''; }
   window.gnDrillPer=function(v){ DPER=v; renderToolbar(); renderList(); };
   window.gnDrillCustom=function(de,ate){ if(de!=null) DPER_DE=de; if(ate!=null) DPER_ATE=ate; renderList(); };
@@ -8549,6 +8540,7 @@ function renderInicio(){
     areceber:{t:'🟢 A receber', note:'Valores a receber dentro do prazo. Toque em "✓ Recebi" quando o cliente pagar.'},
     atraso:{t:'🟠 Em atraso', note:'Quem está devendo (passou da data). Cobre no WhatsApp, marque como recebido, edite ou exclua.'},
     custos:{t:'🔴 Despesas / Custos', note:'Saídas de dinheiro.'},
+    custosbanco:{t:'🔴 Despesas (banco)', note:'Saídas que saíram de fato das contas (extratos C6/Asaas) no período — mesmo valor do card "Despesas (banco)".'},
     fatmanual:{t:'🟢 Faturamento manual (equipe)', note:'Recebimentos lançados manualmente pela equipe (inclui o histórico do Agenda Boa). É o que vocês reconhecem como recebido na hora.'},
     fatbanco:{t:'🔵 Faturamento real (banco)', note:'Entradas que caíram de fato na conta (extratos Asaas, C6...). Serve para comparar com o manual.'},
     svcexec:{t:'🩵 Faturamento (serviços executados)', note:'Soma das Ordens de Serviço concluídas/executadas no período (independente de já ter sido recebido). Mostra o quanto a equipe produziu de serviço no período.'},
@@ -8585,11 +8577,12 @@ function renderInicio(){
     if(DRILL==='areceber') return fin.filter(function(x){return x.tipo==='receita'&&x.status!=='pago'&&!(x.data&&x.data<t);});
     if(DRILL==='atraso') return fin.filter(function(x){return x.tipo==='receita'&&x.status!=='pago'&&x.data&&x.data<t;});
     if(DRILL==='custos') return fin.filter(function(x){return x.tipo==='custo';});
+    if(DRILL==='custosbanco') return fin.filter(function(x){return x.tipo==='custo'&&x.status==='pago'&&fonteFn(x)==='banco';});
     if(DRILL==='investido') return fin.filter(function(x){return x.tipo==='aplicacao'||x.tipo==='resgate';});
     if(DRILL==='interna') return fin.filter(function(x){return x.tipo==='interna';});
     if(DRILL==='fatura') return fin.filter(function(x){return x.tipo==='fatura';});
     if(DRILL==='saldo') return fin.filter(function(x){ var f=(typeof finFonte==='function')?finFonte(x):'manual'; return f==='banco'&&x.tipo!=='interna'; });
-    if(DRILL==='lucro') return fin.filter(function(x){return x.status==='pago'&&(x.tipo==='receita'||x.tipo==='custo');});
+    if(DRILL==='lucro') return fin.filter(function(x){return x.status==='pago'&&((x.tipo==='receita'&&fonteFn(x)!=='banco')||(x.tipo==='custo'&&fonteFn(x)==='banco'));});
     if(DRILL==='receita') return fin.filter(function(x){return x.tipo==='receita';});
     return [];
   }
@@ -8598,12 +8591,13 @@ function renderInicio(){
     if(DRILL==='clientes'){ tb.innerHTML='<input id="gn-drill-search" oninput="gnDrillList()" placeholder="🔍 Buscar..." style="width:100%;padding:8px;border:1px solid var(--gn-border);border-radius:8px;box-sizing:border-box;">'; return; }
     if(DRILL==='orcamentos'){ tb.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input id="gn-drill-search" oninput="gnDrillList()" placeholder="🔍 Buscar..." style="flex:1;min-width:150px;padding:8px;border:1px solid var(--gn-border);border-radius:8px;box-sizing:border-box;"><select onchange="gnDrillPer(this.value)" style="padding:8px;border:1px solid var(--gn-border);border-radius:8px;">'+perOpts()+'</select>'+customHTML()+'</div>'; return; }
     var podeReceber=(DRILL==='areceber'||DRILL==='atraso');
+    var ignorePerTb=(DRILL==='areceber'||DRILL==='atraso'||DRILL==='saldo'||DRILL==='investido');
+    var perCtl = ignorePerTb ? '<span style="font-size:11.5px;color:#9fb0d0;padding:6px 8px;border:1px dashed var(--gn-border);border-radius:8px;">📌 Todo o período</span>' : ('<select onchange="gnDrillPer(this.value)" title="Período" style="padding:8px;border:1px solid var(--gn-border);border-radius:8px;">'+perOpts()+'</select>'+customHTML());
     var bulk=podeReceber?'<button onclick="gnDrillReceberTodos()" style="background:#16a34a;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">✓ Receber todos</button>':'';
     var recSel=podeReceber?'<button onclick="gnDrillRecSel()" style="background:#16a34a;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;">✓ Receber selecionados</button>':'';
     tb.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
       +'<input id="gn-drill-search" oninput="gnDrillList()" placeholder="🔍 Buscar cliente/descrição..." style="flex:1;min-width:160px;padding:8px;border:1px solid var(--gn-border);border-radius:8px;box-sizing:border-box;">'
-      +'<select onchange="gnDrillPer(this.value)" title="Período" style="padding:8px;border:1px solid var(--gn-border);border-radius:8px;">'+perOpts()+'</select>'
-      +customHTML()
+      +perCtl
       +'<button onclick="gnDrillSort(\'data\')" style="background:'+(DSORT==='data'?'#4338ca':'#1f2937')+';color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;">↕ Data</button>'
       +'<button onclick="gnDrillSort(\'valor\')" style="background:'+(DSORT==='valor'?'#4338ca':'#1f2937')+';color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;">↕ Valor</button>'
       +bulk
@@ -8636,7 +8630,9 @@ function renderInicio(){
     if(DRILL==='clientes'){ var cl=gj('gn_cli').filter(function(c){ return !q||((c.nome||'')+' '+(c.cidade||'')+' '+(c.tel||'')).toLowerCase().indexOf(q)>=0; }); body.innerHTML=!cl.length?'<div style="color:var(--gn-dim);padding:12px;">Nenhum cliente.</div>':cl.slice(0,300).map(function(c){ var f=String(c.whatsapp||c.tel||'').replace(/\D/g,''); return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--gn-border);border-radius:9px;margin-bottom:6px;"><div><div style="font-weight:600;color:var(--gn-text);">'+esc(c.nome||"")+'</div><div style="font-size:12px;color:var(--gn-dim);">'+esc([c.cpf,c.cidade,c.tel].filter(Boolean).join(" · "))+'</div></div><div style="display:flex;gap:6px;white-space:nowrap;">'+(c.id?'<button onclick="gnDrillCli(\''+c.id+'\')" style="background:#0e7490;color:#fff;border:none;border-radius:6px;padding:5px 9px;cursor:pointer;font-size:12px;">📑 Ficha</button>':'')+(f?'<a href="https://wa.me/55'+f+'" target="_blank" style="background:#25d366;color:#fff;text-decoration:none;border-radius:6px;padding:5px 9px;font-size:12px;font-weight:600;">WhatsApp</a>':'')+'</div></div>'; }).join(''); return; }
     var list=baseList();
     if(q) list=list.filter(function(x){ return ((x.cliente||'')+' '+(x.desc||'')+' '+(x.categoria||'')).toLowerCase().indexOf(q)>=0; });
-    list=list.filter(function(x){ return inPer(x.data); });
+    // "A receber", "Em atraso", "Saldo (banco)" e "Aplicado" são valores em aberto/acumulados — o card os calcula sobre TODO o período, então o balão também não filtra por período (pra bater 100%).
+    var ignorePer=(DRILL==='areceber'||DRILL==='atraso'||DRILL==='saldo'||DRILL==='investido');
+    if(!ignorePer) list=list.filter(function(x){ return inPer(x.data); });
     if(DSORT==='valor') list=list.slice().sort(function(a,b){ return (Number(b.valor)||0)-(Number(a.valor)||0); });
     else list=list.slice().sort(function(a,b){ return String(b.data||'').localeCompare(String(a.data||'')); });
     if(!list.length){ window.__drillCur=[]; body.innerHTML='<div style="color:var(--gn-dim);padding:12px;">Nenhum lançamento aqui. 🎉</div>'; return; }
@@ -8645,7 +8641,17 @@ function renderInicio(){
     var catAgg={}; list.forEach(function(x){ var c=(x.categoria||'Sem categoria'); catAgg[c]=(catAgg[c]||0)+(Number(x.valor)||0); });
     var catKeys=Object.keys(catAgg).sort(function(a,b){ return catAgg[b]-catAgg[a]; });
     var catHTML = catKeys.length>1 ? ('<div style="font-size:12px;color:var(--gn-dim);margin:2px 0 6px;font-weight:700;">Por categoria:</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">'+catKeys.map(function(c){ return '<span style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:20px;padding:4px 11px;font-size:12px;color:var(--gn-text);">'+esc(c)+': <b>'+BRL(catAgg[c])+'</b></span>'; }).join('')+'</div>') : '';
-    var head='<div style="font-size:13px;color:var(--gn-dim);margin-bottom:8px;">Total: <b style="color:var(--gn-text);">'+BRL(tot)+'</b> · '+list.length+' lançamento(s)</div>'+catHTML;
+    var head;
+    var dC=(typeof finCalc==='function')?finCalc():{};
+    if(DRILL==='lucro'){
+      head='<div style="font-size:13px;color:var(--gn-dim);margin-bottom:8px;line-height:1.7;">Faturamento manual: <b style="color:#16a34a;">'+BRL(dC.recManual||0)+'</b> − Despesas (banco): <b style="color:#dc2626;">'+BRL(dC.custoBanco||0)+'</b> = <b>Lucro:</b> <b style="color:'+(((dC.lucro||0)>=0)?'#16a34a':'#dc2626')+';">'+BRL(dC.lucro||0)+'</b> · '+list.length+' lançamento(s)</div>'+catHTML;
+    } else if(DRILL==='saldo'){
+      head='<div style="font-size:13px;color:var(--gn-dim);margin-bottom:8px;line-height:1.7;"><b>Saldo estimado (banco):</b> <b style="color:'+(((dC.saldoBanco||0)>=0)?'#16a34a':'#dc2626')+';">'+BRL(dC.saldoBanco||0)+'</b> <span style="font-size:11.5px;">(saldo inicial '+BRL(dC.saldoIni||0)+' + entradas − saídas das contas)</span> · '+list.length+' movimento(s)</div>'+catHTML;
+    } else if(DRILL==='investido'){
+      head='<div style="font-size:13px;color:var(--gn-dim);margin-bottom:8px;line-height:1.7;"><b>Aplicado em caixa:</b> <b style="color:var(--gn-text);">'+BRL(dC.investido||0)+'</b> <span style="font-size:11.5px;">(aplicações − resgates)</span> · '+list.length+' movimento(s)</div>'+catHTML;
+    } else {
+      head='<div style="font-size:13px;color:var(--gn-dim);margin-bottom:8px;">Total: <b style="color:var(--gn-text);">'+BRL(tot)+'</b> · '+list.length+' lançamento(s)</div>'+catHTML;
+    }
     var rows=list.map(function(x){
       var b=''; var f=fone(x.cliente);
       if(x.tipo==='receita'){
@@ -8689,6 +8695,7 @@ function renderInicio(){
     if(/faturamento real/.test(t)) return 'fatbanco';
     if(/receita total|faturamento/.test(t)) return 'receita';
     if(/recebido/.test(t)) return 'recebido';
+    if(/despesa.*banco|despesas? \(banco\)/.test(t)) return 'custosbanco';
     if(/contas a pagar|despesa|custo/.test(t)) return 'custos';
     if(/or[çc]ad|or[çc]amento/.test(t)) return 'orcamentos';
     if(/lucro|resultado/.test(t)) return 'lucro';
@@ -14650,35 +14657,26 @@ window.gnDocAbrir=function(tipo,id,num){
   // O drill usa DPER (tudo/hoje/3dias/semana/mes/3meses/ano/a2026/2anos/3anos)
   // Solução: ao abrir o drill, copiar o filtro do fin-periodo (mesma janela exata)
   // ════════════════════════════════════════════════════════════
-  function fpToDays(p){
-    if(!p) return null;
-    if(p==='1d') return 1; if(p==='7d') return 7; if(p==='30d') return 30;
-    if(p==='90d') return 90; if(p==='365d') return 365; if(p==='730d') return 730;
-    return null;
-  }
-  // Override inPer do drill (via monkey-patch direto da função interna)
-  // Como inPer está em escopo fechado, criamos uma extensão GLOBAL: gnFinSyncDrill
+  // Sincroniza o período do balão (drill) com o seletor do painel.
+  // Agora os dois usam os MESMOS códigos (1d/7d/30d/90d/365d/730d/tudo/custom),
+  // então é cópia direta — acabou o mapeamento aproximado que causava a divergência.
   window.gnFinSyncDrill=function(){
     try{
       var fp=$('fin-periodo'); if(!fp) return;
-      var dias=fpToDays(fp.value);
-      // Atualizar o select do drill pra usar o mesmo filtro semanticamente
-      var drillSel=document.querySelector('#gn-drill-toolbar select');
-      if(!drillSel) return;
-      // Mapeamento aproximado pra o select existente do drill
-      var dpMap={1:'hoje',7:'semana',30:'mes',90:'3meses',365:'a'+(new Date().getFullYear()),730:'2anos'};
-      var target='tudo';
-      if(fp.value==='tudo') target='tudo';
-      else if(fp.value==='custom') target='custom';
-      else if(dpMap[dias]) target=dpMap[dias];
-      // Aplicar
-      if(drillSel.value!==target){
-        drillSel.value=target;
-        // disparar onchange
-        drillSel.dispatchEvent(new Event('change'));
-      }
+      var v=fp.value||'tudo';
+      if(v==='custom' && window.gnDrillCustom){ var de=($('fin-de')||{}).value||''; var ate=($('fin-ate')||{}).value||''; window.gnDrillCustom(de,ate); }
+      if(window.gnDrillPer) window.gnDrillPer(v);
     }catch(e){}
   };
+  // Bidirecional: mudar o período DENTRO do balão também atualiza os cards do painel.
+  if(typeof window.gnDrillPer==='function' && !window.gnDrillPer.__cardSync){
+    var _odp=window.gnDrillPer;
+    window.gnDrillPer=function(v){
+      _odp.apply(this, arguments);
+      try{ var fp=$('fin-periodo'); if(fp && v && v!=='custom' && fp.value!==v){ fp.value=v; var big=$('fin-per-big-sel'); if(big) big.value=v; if(typeof renderFin==='function') renderFin(); } }catch(e){}
+    };
+    window.gnDrillPer.__cardSync=true;
+  }
   // Hook gnDrill — após abrir, sincronizar com fin-periodo
   if(typeof window.gnDrill==='function' && !window.gnDrill.__syncWrap){
     var _od=window.gnDrill;
