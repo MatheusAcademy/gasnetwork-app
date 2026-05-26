@@ -18424,5 +18424,138 @@ window.gnDocAbrir=function(tipo,id,num){
 
 })();
 </script>
+<script>
+// ══════════════════════════════════════════════════════════════════
+// ═══ LIMPEZA FINAL: silenciar toasts boot, ajustar badges topo  ═══
+// ═══ Nome dinâmico (Matheus ou Mayara conforme aparelho)         ═══
+// ══════════════════════════════════════════════════════════════════
+(function(){
+  function $(id){return document.getElementById(id);}
+
+  // ══════════════════════════════════════════════════════════════
+  // 1) SUPRIMIR TOASTS de boot/carregamento (mantém os úteis)
+  // ══════════════════════════════════════════════════════════════
+  // Lista de termos que indicam toast informativo de boot — silenciar
+  var TERMOS_SILENCIAR=[
+    'melhorias carregadas','melhorias completas','melhorias ativas',
+    'Pacote','rodada 2 carregada','rodada','100/100','50+',
+    'Botões integrados','Pedidos agora atualizam',
+    'Tela inicial limpa','desconto no orçamento ativo',
+    'Permissões ajustadas','Folha de Pagamento ativada',
+    'pressione ?','pressione Ctrl+K','Veja em Configurações'
+  ];
+  if(typeof window.toast==='function' && !window.toast.__silWrap){
+    var origToast=window.toast;
+    window.toast=function(msg, tipo){
+      try{
+        var t=String(msg||'');
+        for(var i=0;i<TERMOS_SILENCIAR.length;i++){
+          if(t.indexOf(TERMOS_SILENCIAR[i])>=0) return; // ignora silenciosamente
+        }
+      }catch(e){}
+      return origToast.apply(this, arguments);
+    };
+    window.toast.__silWrap=true;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // 2) NOME DO USUÁRIO — detecta ou pergunta uma vez
+  // ══════════════════════════════════════════════════════════════
+  function getNomeUsuario(){
+    var n=localStorage.getItem('gn_user_name');
+    if(n) return n;
+    // tenta detectar pelo papel
+    var p=localStorage.getItem('gn_papel');
+    if(p==='assistente') return 'Mayara';
+    if(p==='admin') return 'Matheus';
+    return ''; // ainda não definido
+  }
+  window.gnSetNomeUsuario=function(){
+    if(typeof gnAsk!=='function'){
+      var n=prompt('Quem está usando este aparelho?', getNomeUsuario()||'Matheus');
+      if(n){
+        localStorage.setItem('gn_user_name', n);
+        var p=(/mayara|maiara/i.test(n)?'assistente':'admin');
+        localStorage.setItem('gn_papel', p);
+        location.reload();
+      }
+      return;
+    }
+    gnAsk({titulo:'👤 Quem está usando este aparelho?', icone:'👤', subtitulo:'App de uso interno — só você ou a Mayara. Esta escolha fica salva neste aparelho.',
+      perguntas:[
+        {id:'nome', label:'Quem é você?', tipo:'chips', padrao:getNomeUsuario()||'Matheus', opcoes:['Matheus','Mayara']}
+      ], okLabel:'Salvar'
+    }).then(function(o){
+      if(!o) return;
+      localStorage.setItem('gn_user_name', o.nome);
+      localStorage.setItem('gn_papel', o.nome==='Mayara'?'assistente':'admin');
+      updateBadge();
+    });
+  };
+
+  // 1ª vez: pergunta após 4s
+  setTimeout(function(){
+    if(!localStorage.getItem('gn_user_name')){
+      try{ if(typeof gnAsk==='function') gnSetNomeUsuario(); }catch(e){}
+    }
+  }, 4000);
+
+  // ══════════════════════════════════════════════════════════════
+  // 3) AJUSTAR/REMOVER BADGES DO TOPO
+  // ══════════════════════════════════════════════════════════════
+  var styleClean=document.createElement('style');
+  styleClean.textContent=
+    // Esconder saúde no MOBILE (continua no desktop, mas mini)
+    '@media(max-width:768px){.gn-health{display:none!important;}#gn-internal-banner{display:none!important;}}'
+    // Desktop: deixar bem discreto, sem MB
+    +'.gn-health{opacity:.55;font-size:10px!important;padding:2px 8px!important;}'
+    +'.gn-health:hover{opacity:1;}'
+    +'#gn-internal-banner{font-size:10px!important;padding:3px 9px!important;opacity:.65;}'
+    +'#gn-internal-banner:hover{opacity:1;}'
+    ;
+  document.head.appendChild(styleClean);
+
+  // Reescreve o texto do indicador de saúde sem MB (só status visual)
+  function updateHealthText(){
+    try{
+      var t=$('gn-h-txt'); if(!t) return;
+      var pend=Number(localStorage.getItem('gn_sync_pend')||'0');
+      if(pend>0) t.textContent=pend+' pend';
+      else if(!navigator.onLine) t.textContent='offline';
+      else t.textContent=''; // limpo
+    }catch(e){}
+  }
+  setInterval(updateHealthText, 4000);
+
+  // Reescreve o badge do canto sem "uso interno" (mais limpo)
+  function updateBadge(){
+    try{
+      var b=$('gn-internal-banner'); if(!b) return;
+      var nome=getNomeUsuario()||'Matheus';
+      b.innerHTML='🔐 '+nome;
+    }catch(e){}
+  }
+  setInterval(updateBadge, 4000); setTimeout(updateBadge, 1500);
+
+  // ══════════════════════════════════════════════════════════════
+  // 4) ATALHO pra mudar o nome — botão minúsculo na própria badge
+  // (já existe: clicar no badge abre gnSetPapel, mas agora chama gnSetNomeUsuario)
+  // ══════════════════════════════════════════════════════════════
+  setTimeout(function(){
+    try{
+      var b=$('gn-internal-banner'); if(b){ b.onclick=function(){gnSetNomeUsuario();}; b.title='Trocar usuário'; }
+      var h=document.querySelector('.gn-health'); if(h){ h.onclick=function(){if(window.gnAbrirSaude) gnAbrirSaude();}; h.title='Status do sistema'; }
+    }catch(e){}
+  }, 3000);
+
+  // ══════════════════════════════════════════════════════════════
+  // 5) Atualizar prompts agendados pra usar nome correto
+  // (no caso da Mayara abrir e o Claude rodar uma tarefa)
+  // ══════════════════════════════════════════════════════════════
+  // (apenas registra que existe, sem ação imediata)
+  window.gnUsuarioAtual=function(){return getNomeUsuario()||'Matheus';};
+
+})();
+</script>
 </body>
 </html>
