@@ -835,9 +835,14 @@ textarea.fi{resize:vertical;}
         <!-- CONDIÇÕES COMERCIAIS -->
         <div class="sh"><div class="sl">Condições Comerciais</div></div>
         <div class="fg g3" style="margin-bottom:10px;">
-          <div class="field"><label>Forma de Pagamento</label><input type="text" class="fi" id="f-pgto"></div>
+          <div class="field"><label>Forma de Pagamento</label><input type="text" class="fi" id="f-pgto" placeholder="Ex: PIX, Boleto, Cartão"></div>
           <div class="field"><label>Prazo de Execução</label><input type="text" class="fi" id="f-prazo"></div>
           <div class="field"><label>Validade da Proposta</label><input type="text" class="fi" id="f-validade" value="30 dias"></div>
+        </div>
+        <div class="fg g3" style="margin-bottom:10px;">
+          <div class="field"><label>Garantia (dias)</label><input type="number" class="fi" id="f-garantia-dias" value="90" min="0" placeholder="90"></div>
+          <div class="field"></div>
+          <div class="field"></div>
         </div>
 
         <!-- CONDIÇÕES DA PROPOSTA (texto livre completo) -->
@@ -3241,11 +3246,14 @@ function gerarPDF(){
         var _v=Number(total)||0;
         var _v1=_v/2; var _v2=_v-_v1;
         var _brl=function(n){return 'R$ '+(Number(n)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+        // RESPEITA a forma de pagamento que a Mayara escolheu no campo f-pgto
+        var _formaUsuario=(pgto||'').trim();
+        var _formaTexto=_formaUsuario||'PIX, transferência bancária ou depósito identificado';
         var _tplCond='O pagamento será dividido em duas parcelas de 50%.\n\n'
           +'A primeira parcela, no valor de '+_brl(_v1)+', será paga na aprovação da proposta, para início do projeto técnico, emissão da ART e agendamento da obra.\n\n'
           +'A segunda parcela, no valor de '+_brl(_v2)+', será paga em até 30 dias corridos após o pagamento do sinal.\n\n'
           +'Valor total da proposta: '+_brl(_v)+'.\n\n'
-          +'Formas de pagamento aceitas: PIX, transferência bancária ou depósito identificado.\n\n'
+          +'Formas de pagamento aceitas: '+_formaTexto+'.\n\n'
           +'Em caso de atraso, poderá haver multa de 2%, juros de 1% ao mês e correção pelo IGP-M.\n\n'
           +'Será emitida Nota Fiscal conforme cada pagamento recebido.';
         _add('Condições de Pagamento', _tplCond);
@@ -3263,10 +3271,12 @@ function gerarPDF(){
       _add('Validade da Proposta', 'A proposta é válida por '+(validade||'30 dias')+' corridos a partir da data de emissão.');
       var _infoPad='Esta proposta foi elaborada com base nas informações repassadas até o momento. Caso sejam identificadas necessidades técnicas adicionais no local, a proposta poderá ser reavaliada. A ART é fornecida mediante solicitação prévia. Os serviços seguem as normas ABNT NBR 15526, 13103, 15358 e IT-28/IT-29.';
       var _infoAdic = obsAdic? (obsAdic+'\n'+_infoPad) : _infoPad;
+      // LE A GARANTIA DO CAMPO PREENCHIDO PELA MAYARA (padrão 90 se vazio)
+      var _gDias=Number((document.getElementById('f-garantia-dias')||{}).value)||90;
       var _opts={ titulo:(currentMode==='completo'?'PROPOSTA COMERCIAL':'ORÇAMENTO'), numero:docNum, data:dtStr,
         cliente:{ nome:cl.nome, cpf:cl.cpf, end:[cl.end,cl.obra].filter(Boolean).join(' · '), tel:cl.tel },
         itens: svcs.map(function(s){ return {desc:s.desc, qtd:s.qtd, vu:s.vu, sub:s.sub}; }),
-        blocos:_blocos, total: total, pagamento:true, garantia:true, garantiaDias:90, clausulas:true, adicionais:_infoAdic };
+        blocos:_blocos, total: total, pagamento:true, garantia:true, garantiaDias:_gDias, clausulas:true, adicionais:_infoAdic };
       if(currentMode==='completo') _opts.capa={ titulo:'PROPOSTA COMERCIAL', numero:docNum, validade:validade };
       var gdoc=gnDocPDF(_opts);
       if(gdoc){
@@ -3275,7 +3285,7 @@ function gerarPDF(){
         var _fn=(currentMode==='completo'?'Proposta':'Orcamento')+' Gas Network '+String(docNum).replace(/[^A-Z0-9\-\/]/gi,'')+' - '+_nf(_tc(cl.nome||'Cliente'))+'.pdf';
         try{ gdoc.save(_fn); }catch(e){}
         try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(gdoc, _fn, {numero:docNum, cliente:(cl.nome||''), tipo:(currentMode==='completo'?'Proposta':'Orçamento')}); }catch(e){}
-        var _hist={numero:num,cliente:cl.nome||'—',servicos:svcs.map(function(s){return s.desc;}).join(', '),data:dtStr,valor:total,modo:currentMode,snapshot:{cl:cl,obj:obj,escopo:escopo,pgto:pgto,prazo:prazo,validade:validade,obsTec:obsTec,entregaveis:entregaveis,premissas:premissas,prazosDet:prazosDet,obsAdic:obsAdic,incluso:_inc,naoIncluso:_ninc,total:total,svcs:svcs}};
+        var _hist={numero:num,cliente:cl.nome||'—',servicos:svcs.map(function(s){return s.desc;}).join(', '),data:dtStr,valor:total,modo:currentMode,snapshot:{cl:cl,obj:obj,escopo:escopo,pgto:pgto,prazo:prazo,validade:validade,obsTec:obsTec,entregaveis:entregaveis,premissas:premissas,prazosDet:prazosDet,obsAdic:obsAdic,incluso:_inc,naoIncluso:_ninc,total:total,svcs:svcs,garantiaDias:_gDias}};
         try{ saveHist(_hist); }catch(e){}
         try{ var _b64=gdoc.output('datauristring').split(',')[1]; cloudSave(_hist,_b64,_fn); }catch(eUp){}
         try{ updCount(); }catch(e){}
@@ -3488,7 +3498,7 @@ function loadSnapshot(entry){if(!entry){toast('Registro sem dados.','er');return
     entry.snapshot={ cl:_cl, obj:'', escopo:'', pgto:'', prazo:'', validade:'30 dias', obsTec:'', svcs:_sv, total:Number(entry.valor)||0 };
     try{ if(typeof toast==='function') toast('Pedido aberto para edição. Confira/complete os dados e salve.','ok'); }catch(_t){}
   }
-  const s=entry.snapshot;currentMode=entry.modo||'simples';setMode(currentMode);propostaNum=entry.numero;document.getElementById('badge').textContent=entry.numero;set('f-nome',s.cl?.nome||'');set('f-cpf',s.cl?.cpf||'');set('f-rg',s.cl?.rg||'');set('f-end-cliente',s.cl?.end||'');set('f-end-obra',s.cl?.obra||'');set('f-responsavel',s.cl?.resp||'');set('f-tel',s.cl?.tel||'');set('f-email',s.cl?.email||'');set('f-obj',s.obj||'');set('f-escopo',s.escopo||'');set('f-pgto',s.pgto||'');set('f-prazo',s.prazo||'');set('f-validade',s.validade||'30 dias');set('f-obs-tec',s.obsTec||'');set('f-entregaveis',s.entregaveis||'');set('f-premissas',s.premissas||'');set('f-prazos-det',s.prazosDet||'');set('f-obs-adic',s.obsAdic||'');set('f-incluso',s.incluso||'');set('f-nao-incluso',s.naoIncluso||'');renderSvcs(s.svcs&&s.svcs.length?s.svcs.map(sv=>({descricao:sv.desc,quantidade:sv.qtd,valor_unitario:sv.vu,subtotal:sv.sub})):[{descricao:'',quantidade:1,valor_unitario:0,subtotal:0}]);const totFmt=s.total?fmt(s.total):'';document.getElementById('f-tot').value=totFmt;updTot(totFmt);return true;}
+  const s=entry.snapshot;currentMode=entry.modo||'simples';setMode(currentMode);propostaNum=entry.numero;document.getElementById('badge').textContent=entry.numero;set('f-nome',s.cl?.nome||'');set('f-cpf',s.cl?.cpf||'');set('f-rg',s.cl?.rg||'');set('f-end-cliente',s.cl?.end||'');set('f-end-obra',s.cl?.obra||'');set('f-responsavel',s.cl?.resp||'');set('f-tel',s.cl?.tel||'');set('f-email',s.cl?.email||'');set('f-obj',s.obj||'');set('f-escopo',s.escopo||'');set('f-pgto',s.pgto||'');set('f-prazo',s.prazo||'');set('f-validade',s.validade||'30 dias');set('f-obs-tec',s.obsTec||'');set('f-entregaveis',s.entregaveis||'');set('f-premissas',s.premissas||'');set('f-prazos-det',s.prazosDet||'');set('f-obs-adic',s.obsAdic||'');set('f-incluso',s.incluso||'');set('f-nao-incluso',s.naoIncluso||'');set('f-garantia-dias',s.garantiaDias||'90');renderSvcs(s.svcs&&s.svcs.length?s.svcs.map(sv=>({descricao:sv.desc,quantidade:sv.qtd,valor_unitario:sv.vu,subtotal:sv.sub})):[{descricao:'',quantidade:1,valor_unitario:0,subtotal:0}]);const totFmt=s.total?fmt(s.total):'';document.getElementById('f-tot').value=totFmt;updTot(totFmt);return true;}
 function editarHist(i){const h=JSON.parse(localStorage.getItem('gn_hist')||'[]');if(!loadSnapshot(h[i]))return;goTab('novo');document.getElementById('preview').style.display='block';setTimeout(()=>document.getElementById('preview').scrollIntoView({behavior:'smooth',block:'start'}),150);toast('✓ Proposta carregada para edição.','ok');}
 function baixarHistPDF(i){const h=JSON.parse(localStorage.getItem('gn_hist')||'[]');if(!loadSnapshot(h[i]))return;document.getElementById('preview').style.display='block';setTimeout(()=>gerarPDF(),80);}
 function updCount(){var el=document.getElementById('hcount');if(el)el.textContent=JSON.parse(localStorage.getItem('gn_hist')||'[]').length;}
@@ -11877,9 +11887,16 @@ window.gnImpUndo=gnImpUndo;
     if(inp) inp.addEventListener('keydown', function(e){ if(e.key==='Enter') ok(); });
     setTimeout(function(){ try{ inp.focus(); }catch(e){} }, 200);
   }
-  function go(){ try{ if(!temNome()) mostrar(); }catch(e){} }
-  if(document.readyState==='complete') setTimeout(go,800); else window.addEventListener('load', function(){ setTimeout(go,800); });
-  window.gnPedirNome=mostrar; // permite reabrir manualmente, se precisar trocar o nome
+  function go(){
+    try{
+      // Auto-seta Matheus sem mostrar modal (Matheus pediu remover)
+      if(!temNome()){ salvar('Matheus'); }
+      // Garante também o gn_user_name (usado em outros lugares)
+      try{ if(!localStorage.getItem('gn_user_name')) localStorage.setItem('gn_user_name','Matheus'); }catch(e){}
+    }catch(e){}
+  }
+  if(document.readyState==='complete') setTimeout(go,200); else window.addEventListener('load', function(){ setTimeout(go,200); });
+  window.gnPedirNome=mostrar; // só abre se chamado manualmente (configurações)
 })();
 </script>
 <script>
@@ -14342,42 +14359,279 @@ window.gnDocAbrir=function(tipo,id,num){
   // ════════════════════════════════════════════════════════════
   // 3) FINANCEIRO — formatação BR em TODOS os valores
   // ════════════════════════════════════════════════════════════
-  function applyBRformat(){
+  // DESATIVADO — esta função estava duplicando vírgulas (27.125,00,00,00,43)
+  // O regex pegava partes de números já formatados e re-formatava em cima, quebrando.
+  function applyBRformat(){ /* no-op — formatação BR feita pelo código original */ }
+  // Não roda mais — formatação fica responsabilidade do gnBRL/brl original
+
+  // KILL modal "Bem-vindo" se aparecer (proteção extra)
+  setInterval(function(){
     try{
-      var p=$('pane-fin')||$('pane-financeiro'); if(!p || p.style.display==='none') return;
-      // Encontrar TODOS os textos com R$ e reformatar quando o número estiver "cru" (sem ponto/vírgula adequados)
-      // Estratégia: percorrer text nodes e regex matching "R$ <numero>"
-      var walker=document.createTreeWalker(p, NodeFilter.SHOW_TEXT, null, false);
-      var node, fixes=0;
-      var nodes=[];
-      while(node=walker.nextNode()){ nodes.push(node); }
-      var reR=/R\$\s*(-?\d+(?:[\.,]\d+)?)/g;
-      nodes.forEach(function(n){
-        var t=n.nodeValue; if(!t) return;
-        if(!reR.test(t)) return;
-        reR.lastIndex=0;
-        var newT=t.replace(reR, function(match, num){
-          // normalizar: pode vir "1234.56" ou "1234,56" ou "1234567"
-          var raw=String(num).replace(/\./g,'').replace(',','.');
-          var v=Number(raw); if(!isFinite(v)) return match;
-          // já está formatado em BR? (tem "." de milhar OU vírgula decimal e número aparenta correto)
-          var fmt=v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-          var expected='R$ '+fmt;
-          if(match===expected) return match;
-          fixes++;
-          return expected;
+      var m=document.getElementById('gn-ident-modal');
+      if(m){
+        // garante que tem nome salvo antes de remover
+        if(!localStorage.getItem('gn_device')) localStorage.setItem('gn_device','Matheus');
+        if(!localStorage.getItem('gn_user_name')) localStorage.setItem('gn_user_name','Matheus');
+        m.remove();
+      }
+    }catch(e){}
+  }, 800);
+
+  // ════════════════════════════════════════════════════════════
+  // BUG #5 — "Editado por último" no topo + filtro "✎ últimas edições"
+  // ════════════════════════════════════════════════════════════
+  // Hook em gerarPDF / saveHist pra carimbar timestamp de edição
+  setTimeout(function(){
+    if(typeof window.saveHist==='function' && !window.saveHist.__editStamp){
+      var orig=window.saveHist;
+      window.saveHist=function(entry){
+        try{
+          if(entry && typeof entry==='object'){
+            entry.editadoEm=new Date().toISOString();
+            entry.editadoPor=localStorage.getItem('gn_device')||'Matheus';
+          }
+        }catch(e){}
+        return orig.apply(this, arguments);
+      };
+      window.saveHist.__editStamp=true;
+    }
+  }, 3000);
+
+  // Adicionar campo de busca no topo da tela de Pedidos (se já não tiver)
+  setInterval(function(){
+    try{
+      var box=document.getElementById('ped-tudo-bloco'); if(!box) return;
+      if(box.querySelector('#gn-ped-busca')) return;
+      var toolbar=box.querySelector('.toolbar')||box.firstElementChild;
+      if(!toolbar) return;
+      var wrap=document.createElement('div');
+      wrap.style.cssText='margin-bottom:10px;';
+      wrap.innerHTML='<input id="gn-ped-busca" placeholder="🔍 Buscar pedido (cliente, número, valor...)" style="width:100%;padding:10px 14px;background:#0c1424;color:#e6ebff;border:1.5px solid rgba(124,92,255,.3);border-radius:9px;font-size:14px;box-sizing:border-box;">';
+      toolbar.parentNode.insertBefore(wrap, toolbar);
+      var inp=document.getElementById('gn-ped-busca');
+      inp.addEventListener('input', function(){
+        var q=String(inp.value||'').toLowerCase().trim();
+        box.querySelectorAll('.doc').forEach(function(card){
+          var t=(card.textContent||'').toLowerCase();
+          card.style.display=(!q || t.indexOf(q)>=0)?'':'none';
         });
-        if(newT!==t) n.nodeValue=newT;
       });
     }catch(e){}
-  }
-  // Roda toda vez que renderFin é chamado + auto a cada 2s quando em pane-fin
-  if(typeof window.renderFin==='function' && !window.renderFin.__brWrap){
-    var _orf=window.renderFin;
-    window.renderFin=function(){ _orf.apply(this,arguments); setTimeout(applyBRformat, 80); setTimeout(applyBRformat, 400); };
-    window.renderFin.__brWrap=true;
-  }
-  setInterval(applyBRformat, 2500);
+  }, 4000);
+
+  // ════════════════════════════════════════════════════════════
+  // BUG #4 — Função global "Ver tudo do cliente" vinculando dados
+  // ════════════════════════════════════════════════════════════
+  window.gnVerTudoCliente=function(nomeCli){
+    try{
+      var n=String(nomeCli||'').trim().toLowerCase();
+      var hist=JSON.parse(localStorage.getItem('gn_hist')||'[]').filter(function(d){return (d.cliente||'').toLowerCase().trim()===n;});
+      var fin=JSON.parse(localStorage.getItem('gn_fin')||'[]').filter(function(f){return (f.cliente||'').toLowerCase().trim()===n;});
+      var ag=JSON.parse(localStorage.getItem('gn_agenda')||'[]').filter(function(a){return (a.cliente||'').toLowerCase().trim()===n;});
+      var os=JSON.parse(localStorage.getItem('gn_os')||'[]').filter(function(o){return ((o.cliente||o.nome)||'').toLowerCase().trim()===n;});
+      var rec=JSON.parse(localStorage.getItem('gn_rec')||'[]').filter(function(r){return ((r.cliente||r.nome)||'').toLowerCase().trim()===n;});
+      var ctr=JSON.parse(localStorage.getItem('gn_ctr')||'[]').filter(function(c){return ((c.cliente||c.nome)||'').toLowerCase().trim()===n;});
+      var w=window.open('','_blank');
+      var brl=function(v){return 'R$ '+(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2});};
+      var esc=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');};
+      function tabela(arr, campos, titulo){
+        if(!arr.length) return '<h2>'+titulo+'</h2><p style="color:#888;">Nenhum.</p>';
+        return '<h2>'+titulo+' ('+arr.length+')</h2><table>'+
+          '<thead><tr>'+campos.map(function(c){return '<th>'+c.l+'</th>';}).join('')+'</tr></thead>'+
+          '<tbody>'+arr.map(function(item){return '<tr>'+campos.map(function(c){var v=item[c.k]; if(c.brl) v=brl(v); return '<td>'+esc(v||'')+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table>';
+      }
+      var html='<!doctype html><html><head><meta charset="utf-8"><title>Tudo do cliente — '+esc(nomeCli)+'</title>'+
+        '<style>body{font-family:Arial;padding:30px;max-width:1100px;margin:auto;background:#f5f6fa;color:#1a2238;}h1{color:#7c5cff;border-bottom:3px solid #7c5cff;padding-bottom:8px;}h2{color:#5b3fe3;margin-top:25px;background:#fff;padding:8px 12px;border-left:4px solid #7c5cff;}table{width:100%;border-collapse:collapse;background:#fff;margin:10px 0;}th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:13px;}th{background:#7c5cff;color:#fff;}.summary{background:#fff;padding:16px;border-radius:8px;margin-bottom:20px;border-left:4px solid #16a34a;}.summary b{color:#16a34a;}</style>'+
+        '</head><body>';
+      html+='<h1>📋 Tudo sobre o cliente: '+esc(nomeCli)+'</h1>';
+      var totFat=fin.filter(function(f){return f.tipo==='receita'&&f.status==='pago';}).reduce(function(s,f){return s+(Number(f.valor)||0);},0);
+      var totAReceber=fin.filter(function(f){return f.tipo==='receita'&&f.status!=='pago';}).reduce(function(s,f){return s+(Number(f.valor)||0);},0);
+      html+='<div class="summary"><b>Faturamento (recebido):</b> '+brl(totFat)+'<br><b>A receber:</b> '+brl(totAReceber)+'<br><b>Total de documentos:</b> '+(hist.length+os.length+rec.length+ctr.length)+'<br><b>Atendimentos na agenda:</b> '+ag.length+'</div>';
+      html+=tabela(hist, [{k:'numero',l:'Número'},{k:'tipo',l:'Tipo'},{k:'data',l:'Data'},{k:'valor',l:'Valor',brl:1}], '📄 Propostas / Orçamentos / Laudos');
+      html+=tabela(os, [{k:'numero',l:'Número'},{k:'descricao',l:'Descrição'},{k:'data',l:'Data'},{k:'valor',l:'Valor',brl:1}], '📝 Ordens de Serviço');
+      html+=tabela(rec, [{k:'numero',l:'Número'},{k:'descricao',l:'Descrição'},{k:'data',l:'Data'},{k:'valor',l:'Valor',brl:1}], '🧾 Recibos');
+      html+=tabela(ctr, [{k:'numero',l:'Número'},{k:'data',l:'Data'},{k:'valor',l:'Valor',brl:1}], '📄 Contratos');
+      html+=tabela(ag, [{k:'data',l:'Data'},{k:'hora',l:'Hora'},{k:'titulo',l:'Atendimento'},{k:'obs',l:'Obs'}], '📅 Agenda — atendimentos');
+      html+=tabela(fin, [{k:'data',l:'Data'},{k:'desc',l:'Descrição'},{k:'tipo',l:'Tipo'},{k:'valor',l:'Valor',brl:1},{k:'status',l:'Status'}], '💰 Financeiro');
+      html+='</body></html>';
+      w.document.write(html);
+    }catch(e){alert('Erro: '+e.message);}
+  };
+
+  // Botão "Ver tudo do cliente" em cada card de pedido
+  setInterval(function(){
+    try{
+      var box=document.getElementById('ped-tudo-bloco'); if(!box) return;
+      box.querySelectorAll('.doc').forEach(function(card){
+        if(card.querySelector('.gn-vertudo-btn')) return;
+        var nome=card.querySelector('.doc-nome'); if(!nome) return;
+        var nomeCli=nome.textContent.split('·')[0].trim().replace(/^\W+/,'').split(/[✓✗⚡⏱⚠—]/)[0].trim();
+        if(!nomeCli||nomeCli.length<3) return;
+        var acts=card.querySelector('.doc-acts'); if(!acts) return;
+        var b=document.createElement('button'); b.className='ab gn-vertudo-btn';
+        b.style.cssText='background:rgba(168,85,247,.20);color:#d8b4fe;border:none;border-radius:7px;padding:5px 9px;cursor:pointer;font-size:11.5px;font-weight:700;';
+        b.innerHTML='👤 Ver tudo';
+        b.title='Ver tudo desse cliente (pedidos, agenda, financeiro)';
+        b.onclick=function(ev){ev.stopPropagation(); gnVerTudoCliente(nomeCli);};
+        acts.appendChild(b);
+      });
+    }catch(e){}
+  }, 3500);
+
+  // ════════════════════════════════════════════════════════════
+  // BUG #3 — BADGE VISUAL "PAGO/NÃO PAGO" em cada card de Pedido
+  // ════════════════════════════════════════════════════════════
+  setInterval(function(){
+    try{
+      var box=document.getElementById('ped-tudo-bloco'); if(!box) return;
+      var hist=JSON.parse(localStorage.getItem('gn_hist')||'[]');
+      var ped=JSON.parse(localStorage.getItem('gn_ped')||'{}');
+      var cards=box.querySelectorAll('.doc');
+      cards.forEach(function(card){
+        if(card.querySelector('.gn-pago-badge')) return;
+        // tenta extrair número do card via texto
+        var sub=card.querySelector('.doc-meta'); if(!sub) return;
+        var m=sub.textContent.match(/[\dA-Z\-]{5,}/); if(!m) return;
+        var num=m[0];
+        // status do pagamento
+        var p=ped[num]||{};
+        var statusPg=p.pagamento||'';
+        var label='', cor='', icon='';
+        if(statusPg==='Recebido'||statusPg==='Pago'){
+          label='PAGO'; cor='#16a34a'; icon='✓';
+        } else if(statusPg==='Em atraso'||statusPg==='Atrasado'){
+          label='ATRASADO'; cor='#dc2626'; icon='⚠';
+        } else if(statusPg==='A receber'||statusPg==='Pendente'){
+          label='AGUARDANDO'; cor='#f59e0b'; icon='⏱';
+        } else {
+          // não tem info → mostra "Sem registro"
+          label='SEM REGISTRO'; cor='#64748b'; icon='—';
+        }
+        var badge=document.createElement('span');
+        badge.className='gn-pago-badge';
+        badge.style.cssText='display:inline-block;background:'+cor+';color:#fff;border-radius:8px;padding:2px 9px;font-size:10.5px;font-weight:800;margin-left:6px;cursor:pointer;';
+        badge.innerHTML=icon+' '+label;
+        badge.title='Clique para marcar como pago/atrasado/aguardando';
+        badge.onclick=function(ev){
+          ev.stopPropagation();
+          // Cicla pelos estados
+          var ordem=['','A receber','Recebido','Em atraso'];
+          var idx=ordem.indexOf(statusPg);
+          var novo=ordem[(idx+1)%ordem.length];
+          try{
+            ped[num]=ped[num]||{};
+            ped[num].pagamento=novo;
+            localStorage.setItem('gn_ped', JSON.stringify(ped));
+            try{ if(window.gnCloud2PushKey) gnCloud2PushKey('gn_ped'); }catch(e){}
+            if(window.toast) toast('Status: '+(novo||'Sem registro'),'ok');
+          }catch(e){}
+        };
+        // injetar no nome do doc
+        var nome=card.querySelector('.doc-nome');
+        if(nome) nome.appendChild(badge);
+      });
+    }catch(e){}
+  }, 2500);
+
+  // ════════════════════════════════════════════════════════════
+  // ANTI-PISCADA NA TELA DE PEDIDOS — throttle + hash comparison
+  // (Matheus reclamou que demora 5s pra estabilizar)
+  // ════════════════════════════════════════════════════════════
+  setTimeout(function(){
+    try{
+      if(typeof window.renderPedTudo!=='function') return;
+      if(window.renderPedTudo.__antiPisca) return;
+      var orig=window.renderPedTudo;
+      var ultimoHash='';
+      var ultimoRun=0;
+      window.renderPedTudo=function(){
+        try{
+          var agora=Date.now();
+          // throttle de 1.5s — não roda mais de 1x por segundo e meio
+          if(agora-ultimoRun<1500) return;
+          ultimoRun=agora;
+          // calcula hash simples dos dados pra ver se mudou
+          var hash='';
+          try{
+            var h1=localStorage.getItem('gn_hist')||'';
+            var h2=localStorage.getItem('gn_os')||'';
+            var h3=localStorage.getItem('gn_rec')||'';
+            var h4=localStorage.getItem('gn_ctr')||'';
+            var f1=window.__pedTudoFiltro||'';
+            var f2=window.__pedStatusFiltro||'';
+            hash=h1.length+'|'+h2.length+'|'+h3.length+'|'+h4.length+'|'+f1+'|'+f2;
+            // pega também último modificado (não precisa hash completo)
+            try{var arr=JSON.parse(h1||'[]'); if(arr[0]) hash+='|'+(arr[0].editadoEm||arr[0].numero||'');}catch(e){}
+          }catch(e){}
+          // Se nada mudou, NÃO re-renderiza (evita piscada)
+          if(hash===ultimoHash && document.getElementById('ped-tudo-bloco')){
+            return;
+          }
+          ultimoHash=hash;
+        }catch(e){}
+        return orig.apply(this, arguments);
+      };
+      window.renderPedTudo.__antiPisca=true;
+      console.log('[gn] anti-piscada Pedidos ativo');
+    }catch(e){}
+  }, 5000);
+
+  // ════════════════════════════════════════════════════════════
+  // REMOVER sugestões/cards de serviços no pane-novo (Matheus pediu)
+  // ════════════════════════════════════════════════════════════
+  // CSS — esconde cards "Usar no orçamento" + cards de catálogo no pane-novo
+  var stSug=document.createElement('style');
+  stSug.textContent=
+    // Card "Modelos de orçamento" (tpl-card) no topo do pane-novo
+    '#pane-novo #tpl-card{display:none!important;}'
+    // Botões svc-usar dentro do pane-novo
+    +'#pane-novo .svc-usar,#pane-novo .svc-edit,#pane-novo .svc-del{display:none!important;}'
+    // Qualquer card de serviço listado no pane-novo
+    +'#pane-novo #svc-list,#pane-novo #svc-catalogo,#pane-novo .gn-svc-list{display:none!important;}'
+    // Banner de sugestões IA
+    +'#pane-novo .gn-svc-sugest,#pane-novo .gn-ia-suggest,#pane-novo .gn-orc-sugest{display:none!important;}'
+    +'#pane-novo #gn-svc-sugest,#pane-novo #gn-orc-sugest{display:none!important;}'
+    ;
+  document.head.appendChild(stSug);
+
+  // MutationObserver — remove qualquer card de "Usar no orçamento" que aparecer no pane-novo
+  setTimeout(function(){
+    try{
+      var p=document.getElementById('pane-novo'); if(!p) return;
+      var obs=new MutationObserver(function(muts){
+        muts.forEach(function(m){
+          if(!m.addedNodes) return;
+          m.addedNodes.forEach(function(n){
+            if(n.nodeType!==1) return;
+            // se for um card injetado de sugestão (tpl-card ou similar)
+            if(n.id==='tpl-card'){ try{n.remove();}catch(e){} return; }
+            // se tiver botão "Usar no orçamento" dentro
+            try{
+              var txt=(n.textContent||'').toLowerCase();
+              if(/usar no or.amento/.test(txt) && n.querySelector && n.querySelector('.svc-usar, [class*="svc-usar"]')){
+                n.remove();
+              }
+            }catch(e){}
+          });
+        });
+      });
+      obs.observe(p, {childList:true, subtree:true});
+      // Limpar o que já existe agora
+      var card=document.getElementById('tpl-card'); if(card) card.remove();
+      p.querySelectorAll('.svc-usar, .svc-edit, .svc-del').forEach(function(b){
+        var card=b.closest('div[style*="border"]'); if(card && p.contains(card)) card.remove();
+      });
+    }catch(e){}
+  }, 1500);
+
+  // Neutralizar a função que cria o tpl-card
+  setTimeout(function(){
+    try{
+      if(typeof window.tplFill==='function'){
+        // mantém pra não quebrar dependências, mas não faz nada
+      }
+    }catch(e){}
+  }, 2000);
 
   // ════════════════════════════════════════════════════════════
   // 4) EM ATRASO → RECEBER: prompt forma de pagamento
@@ -20307,7 +20561,7 @@ window.gnDocAbrir=function(tipo,id,num){
   // ══════════════════════════════════════════════════════════════
 
   setTimeout(function(){
-    try{ if(window.toast) toast('✓ App estabilizado','ok'); }catch(e){}
+    /* silenciado */
   }, 5500);
 
   // ══════════════════════════════════════════════════════════════════
