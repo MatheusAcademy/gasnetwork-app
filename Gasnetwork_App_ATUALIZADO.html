@@ -4240,7 +4240,7 @@ function gnCor(){ var c=gnCfg(); return c.cor||'#7c5cff'; }
 // Dados compartilhados por toda a equipe + auto-save de documentos no Drive.
 // ══════════════════════════════════════════════
 var GN_CLOUD2 = 'https://script.google.com/macros/s/AKfycbycnK4Fx0J4QphoLr-LQJPkh04RTy6zbBto-Sqlgr306GqjggZkKhyOsJXypeprS0Loww/exec';
-var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_age_done','gn_prod','gn_ferr','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user','gn_upload_hist','gn_drive_idx','gn_nome_ok','gn_notinha_done','gn_gar_retornos','gn_whatsapp_log','gn_whatsapp_contatos','gn_whatsapp_agendados','gn_whatsapp_last','gn_msg_hist','gn_cat_custom','gn_nps_done','gn_tomb_age','gn_lembr_avisados'];
+var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_age_done','gn_prod','gn_ferr','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user','gn_upload_hist','gn_drive_idx','gn_nome_ok','gn_notinha_done','gn_gar_retornos','gn_whatsapp_log','gn_whatsapp_contatos','gn_whatsapp_agendados','gn_whatsapp_last','gn_whatsapp_chatfp','gn_msg_hist','gn_urgencias','gn_resumo_diario','gn_ia_recomendacoes','gn_resp_prontas','gn_cat_custom','gn_nps_done','gn_tomb_age','gn_lembr_avisados'];
 var _gnSynced = {};        // último valor conhecido por chave (string)
 var _gnSyncBusy = false;
 var _gnSyncOn = true;
@@ -13727,6 +13727,106 @@ window.gnDocAbrir=function(tipo,id,num){
     window.goTab.__waWrap=true;
   }
   setTimeout(buildWaPane, 1500);
+})();
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// ═══ PACOTE 7+8 — Urgências, Resumo, Recomendações IA, Timeline ══
+// ══════════════════════════════════════════════════════════════
+(function(){
+  function $(id){return document.getElementById(id);}
+  function gj(k){try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];}}
+  function go(k){try{return JSON.parse(localStorage.getItem(k)||'{}');}catch(e){return {};}}
+  function escH(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();}
+
+  // ── #1 URGÊNCIAS — banner vermelho pulsante no topo do Início ──
+  var stAnim=document.createElement('style');
+  stAnim.textContent='@keyframes gnPulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.7);}50%{box-shadow:0 0 0 10px rgba(220,38,38,0);}}'
+    +'.gn-urg-pulse{animation:gnPulse 1.5s infinite;}';
+  document.head.appendChild(stAnim);
+  function renderUrgencias(){
+    try{
+      var p=$('pane-inicio'); if(!p) return;
+      var urg=gj('gn_urgencias').filter(function(u){return !u.resolvido;});
+      var box=$('gn-urg-banner');
+      if(!urg.length){ if(box) box.remove(); return; }
+      if(!box){ box=document.createElement('div'); box.id='gn-urg-banner'; box.className='gn-urg-pulse'; box.style.cssText='background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;border-radius:14px;padding:14px 16px;margin-bottom:12px;font-weight:700;'; var topo=p.querySelector('.pgtitle')||p.firstChild; if(topo&&topo.parentNode) topo.parentNode.insertBefore(box, topo.nextSibling); }
+      box.innerHTML='<div style="font-size:15px;margin-bottom:6px;">🚨 '+urg.length+' URGÊNCIA(S) do WhatsApp</div>'
+        +urg.slice(0,3).map(function(u){return '<div style="font-size:13px;font-weight:500;margin-top:4px;">• '+escH(u.cliente||'?')+' — '+escH(String(u.msg||'').slice(0,80))+' <button onclick="gnMarcarUrgResolvida(\''+escH(u.id||'')+'\')" style="background:rgba(255,255,255,.25);color:#fff;border:none;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;margin-left:6px;">✓ resolvido</button></div>';}).join('');
+    }catch(e){}
+  }
+  window.gnMarcarUrgResolvida=function(id){var arr=gj('gn_urgencias'); arr.forEach(function(u){if(u.id===id) u.resolvido=true;}); try{localStorage.setItem('gn_urgencias',JSON.stringify(arr));if(window.gnCloud2PushKey)window.gnCloud2PushKey('gn_urgencias');}catch(e){} renderUrgencias();};
+  setInterval(renderUrgencias, 5000); setTimeout(renderUrgencias, 1500);
+
+  // ── #2 RESUMO EXECUTIVO 7h ────────────────────────────────────
+  function renderResumo(){
+    try{
+      var p=$('pane-inicio'); if(!p) return;
+      var r=go('gn_resumo_diario'); if(!r||!r.texto) return;
+      var hoje=new Date().toISOString().slice(0,10);
+      if(String(r.data||'').slice(0,10)!==hoje) return; // só mostra resumo de hoje
+      var box=$('gn-resumo-bloco');
+      if(!box){ box=document.createElement('div'); box.id='gn-resumo-bloco'; box.style.cssText='background:linear-gradient(135deg,rgba(67,56,202,.15),rgba(124,92,255,.10));border:1px solid #7c5cff;border-radius:14px;padding:14px 16px;margin-bottom:12px;'; var topo=p.querySelector('.pgtitle')||p.firstChild; if(topo&&topo.parentNode) topo.parentNode.insertBefore(box, topo.nextSibling); }
+      box.innerHTML='<div style="font-weight:800;color:#c4b5fd;font-size:14px;margin-bottom:6px;">📰 Resumo executivo de hoje <span style="font-size:10px;color:#9fb0d0;font-weight:600;">(gerado pela IA às 7h)</span></div>'
+        +'<div style="white-space:pre-wrap;color:var(--gn-text);font-size:13px;line-height:1.55;">'+escH(r.texto)+'</div>';
+    }catch(e){}
+  }
+  setInterval(renderResumo, 8000); setTimeout(renderResumo, 2000);
+
+  // ── #IA RECOMENDAÇÕES dentro do Cérebro ──────────────────────
+  function renderRecomendacoes(){
+    try{
+      var cer=$('gn-cerebro'); if(!cer) return;
+      var rec=go('gn_ia_recomendacoes'); var lista=Array.isArray(rec)?rec:(rec&&rec.recomendacoes?rec.recomendacoes:[]);
+      if(!lista.length) return;
+      var box=cer.querySelector('.gn-ia-rec');
+      if(!box){ box=document.createElement('div'); box.className='gn-ia-rec'; box.style.cssText='margin-top:10px;padding-top:10px;border-top:1px dashed rgba(124,92,255,.4);font-size:12.5px;color:var(--gn-text);'; cer.appendChild(box); }
+      box.innerHTML='<div style="font-weight:800;color:#c4b5fd;margin-bottom:4px;">🤖 IA recomenda agora:</div>'
+        +lista.slice(0,3).map(function(r){return '<div style="margin-bottom:3px;">→ '+escH(typeof r==='string'?r:(r.texto||r.acao||''))+'</div>';}).join('');
+    }catch(e){}
+  }
+  setInterval(renderRecomendacoes, 6000);
+
+  // ── #7 TIMELINE WHATSAPP NA FICHA DO CLIENTE ──────────────────
+  // Plugar no cliFichaFull já existente: depois que o modal abre, injeta um bloco
+  // "💬 Timeline WhatsApp" com todas as mensagens daquele cliente em ordem cronológica.
+  if(typeof window.cliFichaFull==='function' && !window.cliFichaFull.__waTimeline){
+    var _ocf=window.cliFichaFull;
+    window.cliFichaFull=function(id){
+      _ocf.apply(this,arguments);
+      try{
+        setTimeout(function(){
+          var m=document.getElementById('gn-cli-balao-full'); if(!m) return;
+          var arr=gj('gn_cli'); var c=arr.filter(function(x){return x&&x.id===id;})[0]; if(!c) return;
+          if(m.querySelector('#gn-cli-wa-timeline')) return;
+          var nomeN=norm(c.nome);
+          var msgs=gj('gn_msg_hist').filter(function(x){return norm(x.nome||'')===nomeN;}).sort(function(a,b){return String(b.data||'').localeCompare(String(a.data||''));}).slice(0,30);
+          if(!msgs.length) return;
+          var html='<div id="gn-cli-wa-timeline" style="background:rgba(37,211,102,.08);border:1px solid #25d366;border-radius:12px;padding:13px;margin-bottom:12px;">'
+            +'<div style="font-weight:700;color:#25d366;margin-bottom:8px;">💬 Timeline WhatsApp ('+msgs.length+' interaçõe'+(msgs.length>1?'s':'')+')</div>'
+            +msgs.slice(0,15).map(function(x){var sent=x.sentimento||''; var dt=''; try{dt=new Date(x.data).toLocaleString("pt-BR",{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){} return '<div style="padding:6px 10px;background:rgba(255,255,255,.04);border-radius:7px;margin-bottom:4px;font-size:12px;color:var(--gn-text);"><span style="color:#9fb0d0;font-size:10.5px;">'+escH(dt)+'</span> '+(sent?(' '+sent):'')+(x.urgente?' 🚨':'')+'<br>'+escH(String(x.texto||'').slice(0,150))+'</div>';}).join('')
+            +(msgs.length>15?('<div style="font-size:11px;color:#9fb0d0;margin-top:4px;text-align:center;">+'+(msgs.length-15)+' anteriores</div>'):'')
+            +'</div>';
+          var content=m.querySelector('div[style*="padding:22px"]')||m.firstElementChild;
+          if(content){ var ref=content.querySelector('div'); if(ref&&ref.nextSibling) content.insertBefore(htmlToEl(html), ref.nextSibling); else content.appendChild(htmlToEl(html)); }
+        }, 200);
+      }catch(e){}
+    };
+    window.cliFichaFull.__waTimeline=true;
+  }
+  function htmlToEl(html){ var t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; }
+
+  // ── #9 RESPOSTAS PRONTAS — base + sugestão na ficha do cliente ──
+  var RESP_DEFAULT={
+    'preco_laudo':'O laudo de estanqueidade custa R$ 320,00 incluindo a ART. Levo em torno de 2h e entrego o documento no dia seguinte por e-mail.',
+    'garantia':'Nossa garantia varia por serviço: instalação 90 dias, aplicação de resina 1 ano, troca de mangueira 5 anos. Laudo é válido por 12 meses.',
+    'condominio':'Sim, atendemos condomínios. Posso passar um orçamento para vistoria das áreas comuns + emissão de laudo. Quantos pontos de gás aproximadamente?',
+    'agendar':'Posso passar essa semana ou na próxima. Qual o melhor dia e horário pra você?',
+    'pagamento':'Aceitamos PIX (5% desc), dinheiro, cartão débito/crédito (até 10x) e boleto.'
+  };
+  try{ if(!localStorage.getItem('gn_resp_prontas')) localStorage.setItem('gn_resp_prontas',JSON.stringify(RESP_DEFAULT)); }catch(e){}
+
 })();
 </script>
 </body>
