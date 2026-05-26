@@ -12405,5 +12405,439 @@ window.gnDocAbrir=function(tipo,id,num){
   }catch(e){}
 })();
 </script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// ═══ FICHA COMPLETA DO CLIENTE — "vida inteira" em um balão ═══
+// Ao clicar no cliente abre tudo: dados, contatos, endereço/CEP,
+// laudos com datas/validade/PDF, todas as notas/recibos/contratos
+// emitidos com botão de PDF, financeiro, linha do tempo cronológica.
+// ══════════════════════════════════════════════════════════════
+(function(){
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function brl(n){n=Number(n)||0;return 'R$ '+n.toFixed(2).replace('.',',');}
+  function dBR(s){s=String(s||'');var m=s.match(/(\d{4})-(\d{2})-(\d{2})/);return m?(m[3]+'/'+m[2]+'/'+m[1]):s;}
+  function gj(k){try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];}}
+  function normNome(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();}
+
+  function bgCard(){return 'background:#161d31;border:1px solid #2a3350;border-radius:12px;padding:12px 14px;margin-bottom:10px;';}
+
+  function pdfBtn(label, onclickJs){return '<button onclick="'+onclickJs+'" style="background:#4338ca;color:#fff;border:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:11.5px;font-weight:700;">'+label+'</button>';}
+
+  function ensureModal(){
+    var m=document.getElementById('gn-cli-balao-full');
+    if(!m){ m=document.createElement('div'); m.id='gn-cli-balao-full'; m.style.cssText='position:fixed;inset:0;z-index:5000;background:rgba(6,9,18,.9);padding:18px;overflow:auto;'; m.addEventListener('click',function(e){if(e.target===m) m.style.display='none';}); document.body.appendChild(m); }
+    return m;
+  }
+
+  window.cliFichaFull=function(id){
+    var arr=gj('gn_cli'); var c=arr.filter(function(x){return x&&x.id===id;})[0]; if(!c){ if(window.toast) toast('Cliente não encontrado','er'); return; }
+    var nomeN=normNome(c.nome);
+    // serviços executados (gn_renov)
+    var renov=gj('gn_renov').filter(function(r){return normNome(r.nome||'')===nomeN;}).sort(function(a,b){return String(b.data||'').localeCompare(String(a.data||''));});
+    // notas/recibos/contratos
+    var oss=gj('gn_os').filter(function(x){return normNome(x.nome||'')===nomeN;}).sort(function(a,b){return String(b.data||'').localeCompare(String(a.data||''));});
+    var recs=gj('gn_rec').filter(function(x){return normNome(x.nome||'')===nomeN;}).sort(function(a,b){return String(b.data||'').localeCompare(String(a.data||''));});
+    var ctrs=gj('gn_ctr').filter(function(x){return normNome(x.nome||'')===nomeN;}).sort(function(a,b){return String(b.data||'').localeCompare(String(a.data||''));});
+    var orcs=gj('gn_hist').filter(function(e){return normNome(e.cliente||'')===nomeN;}).sort(function(a,b){return String(b.data||'').localeCompare(String(a.data||''));});
+    var fin=gj('gn_fin').filter(function(x){return normNome(x.cliente||'')===nomeN;});
+    // totais
+    var totalServ=renov.length+oss.length, totalDocs=oss.length+recs.length+ctrs.length+orcs.length;
+    var receb=0, areceb=0; fin.forEach(function(x){if(x.tipo==='receita'){if(x.status==='pago')receb+=Number(x.valor)||0; else areceb+=Number(x.valor)||0;}});
+    var totalOrc=0; orcs.forEach(function(e){totalOrc+=Number(e.valor)||0;});
+    // ----- monta HTML -----
+    var H='';
+    // Header
+    H+='<div style="display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">';
+    H+='<div><div style="font-size:20px;font-weight:800;color:#f1f5ff;">'+esc(c.nome||'(sem nome)')+'</div>';
+    H+='<div style="font-size:12.5px;color:#9fb0d0;margin-top:3px;">'+esc(c.tipo||'PF')+(c.cpf?(' · '+esc(c.cpf)):'')+(c.cnpj?(' · CNPJ '+esc(c.cnpj)):'')+'</div></div>';
+    H+='<button onclick="document.getElementById(\'gn-cli-balao-full\').style.display=\'none\'" style="background:none;border:1px solid #2a3350;color:#9fb0d0;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:14px;">✕ Fechar</button>';
+    H+='</div>';
+    // Ações rápidas (WhatsApp / E-mail / Editar)
+    var num=String(c.whatsapp||c.tel||'').replace(/\D/g,''); if(num&&num.length<=11) num='55'+num;
+    var acoes='<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;">';
+    if(num) acoes+='<a href="https://wa.me/'+num+'" target="_blank" style="background:#25d366;color:#fff;text-decoration:none;border:none;border-radius:8px;padding:8px 13px;font-weight:700;font-size:12.5px;">💬 WhatsApp</a>';
+    if(c.email) acoes+='<a href="mailto:'+esc(c.email)+'" style="background:#0891b2;color:#fff;text-decoration:none;border:none;border-radius:8px;padding:8px 13px;font-weight:700;font-size:12.5px;">✉ E-mail</a>';
+    acoes+='<button onclick="document.getElementById(\'gn-cli-balao-full\').style.display=\'none\';cliEdit(\''+esc(c.id)+'\');" style="background:rgba(124,92,255,.25);color:#f1f5ff;border:none;border-radius:8px;padding:8px 13px;font-weight:700;font-size:12.5px;cursor:pointer;">✏ Editar dados</button>';
+    if(num) acoes+='<a href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(String(c.endereco||'')+' '+String(c.cidade||''))+'" target="_blank" style="background:#e0e7ff;color:#4338ca;text-decoration:none;border-radius:8px;padding:8px 13px;font-weight:700;font-size:12.5px;">📍 Maps</a>';
+    acoes+='</div>';
+    H+=acoes;
+    // Contato & Endereço
+    H+='<div style="'+bgCard()+'"><div style="font-weight:700;color:#f1f5ff;margin-bottom:8px;">📇 Contato e endereço</div>';
+    H+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;font-size:12.5px;color:#cbd5e1;">';
+    if(c.tel) H+='<div><b style="color:#9fb0d0;">Telefone:</b> '+esc(c.tel)+'</div>';
+    if(c.whatsapp && c.whatsapp!==c.tel) H+='<div><b style="color:#9fb0d0;">WhatsApp:</b> '+esc(c.whatsapp)+'</div>';
+    if(c.email) H+='<div><b style="color:#9fb0d0;">E-mail:</b> '+esc(c.email)+'</div>';
+    if(c.cep) H+='<div><b style="color:#9fb0d0;">CEP:</b> '+esc(c.cep)+'</div>';
+    if(c.endereco) H+='<div style="grid-column:1/-1;"><b style="color:#9fb0d0;">Endereço:</b> '+esc(c.endereco)+'</div>';
+    if(c.cidade) H+='<div><b style="color:#9fb0d0;">Cidade/UF:</b> '+esc(c.cidade)+'</div>';
+    if(c.nasc||c.nascimento) H+='<div><b style="color:#9fb0d0;">Nascimento:</b> '+esc(dBR(c.nasc||c.nascimento))+'</div>';
+    if(c.obs) H+='<div style="grid-column:1/-1;"><b style="color:#9fb0d0;">Observações:</b> '+esc(c.obs)+'</div>';
+    H+='</div></div>';
+    // Resumo numérico
+    H+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px;">';
+    H+='<div style="'+bgCard()+'padding:10px 12px;margin:0;"><div style="font-size:11px;color:#9fb0d0;">Serviços executados</div><div style="font-weight:800;color:#f1f5ff;font-size:18px;">'+totalServ+'</div></div>';
+    H+='<div style="'+bgCard()+'padding:10px 12px;margin:0;"><div style="font-size:11px;color:#9fb0d0;">Documentos emitidos</div><div style="font-weight:800;color:#f1f5ff;font-size:18px;">'+totalDocs+'</div></div>';
+    H+='<div style="'+bgCard()+'padding:10px 12px;margin:0;"><div style="font-size:11px;color:#9fb0d0;">Total orçado</div><div style="font-weight:800;color:#2563eb;font-size:16px;">'+brl(totalOrc)+'</div></div>';
+    H+='<div style="'+bgCard()+'padding:10px 12px;margin:0;"><div style="font-size:11px;color:#9fb0d0;">Recebido</div><div style="font-weight:800;color:#16a34a;font-size:16px;">'+brl(receb)+'</div></div>';
+    H+='<div style="'+bgCard()+'padding:10px 12px;margin:0;"><div style="font-size:11px;color:#9fb0d0;">A receber</div><div style="font-weight:800;color:#f59e0b;font-size:16px;">'+brl(areceb)+'</div></div>';
+    H+='</div>';
+    // Laudos / Serviços (gn_renov) com data + validade + PDF
+    if(renov.length){
+      H+='<div style="'+bgCard()+'"><div style="font-weight:700;color:#f1f5ff;margin-bottom:8px;">🔬 Laudos / Serviços executados ('+renov.length+')</div>';
+      H+=renov.map(function(r){
+        var venc=''; try{ if(typeof renovStatus==='function' && typeof gnServRegra==='function'){var rg=gnServRegra(r.servico); var st=renovStatus(r.data,rg.meses); if(st&&st.venc) venc=st.venc.toLocaleDateString('pt-BR');} }catch(e){}
+        return '<div style="border-left:3px solid #7c5cff;padding:7px 11px;margin-bottom:6px;background:rgba(124,92,255,.06);border-radius:6px;">'
+          +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">'
+          +'<div style="min-width:0;"><b style="color:#f1f5ff;">'+esc(r.servico||'Serviço')+'</b>'+(Number(r.valor)>0?(' <span style="color:#16a34a;">'+brl(r.valor)+'</span>'):'')+'<div style="font-size:11.5px;color:#9fb0d0;">'+dBR(r.data)+(venc?(' · vence '+venc):'')+(r.formaPgto?(' · '+esc(r.formaPgto)):'')+'</div></div>'
+          +(r.id?pdfBtn('📄 PDF','gnVerPDFServico(\''+esc(r.id)+'\')'):'')
+          +'</div>'
+          +(r.descricao?('<div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">'+esc(String(r.descricao).slice(0,200))+(String(r.descricao).length>200?'…':'')+'</div>'):'')
+          +'</div>';
+      }).join('');
+      H+='</div>';
+    }
+    // Documentos emitidos
+    function blocoDocs(titulo,arr,tipo){
+      if(!arr.length) return '';
+      var o='<div style="'+bgCard()+'"><div style="font-weight:700;color:#f1f5ff;margin-bottom:8px;">'+titulo+' ('+arr.length+')</div>';
+      o+=arr.map(function(d){
+        var num=d.numero||d.id||'';
+        var data=dBR(d.data||d.criadoEm||'');
+        var valor=Number(d.valor)||0;
+        var click=''; if(tipo==='os') click='gnDocAbrir(\'os\',\''+esc(d.id||'')+'\',\'\')';
+        else if(tipo==='rec') click='gnDocAbrir(\'rec\',\''+esc(d.id||'')+'\',\'\')';
+        else if(tipo==='ctr') click='gnDocAbrir(\'ctr\',\'\',\''+esc(num)+'\')';
+        else if(tipo==='orc') click='pedDetalhe(\''+esc(num)+'\')';
+        return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:7px 11px;border-left:3px solid #16a34a;background:rgba(22,163,74,.06);border-radius:6px;margin-bottom:5px;">'
+          +'<div style="min-width:0;"><b style="color:#f1f5ff;">'+esc(num)+'</b>'+(valor?(' <span style="color:#16a34a;">'+brl(valor)+'</span>'):'')+(d.status?(' · '+esc(d.status)):'')+'<div style="font-size:11.5px;color:#9fb0d0;">'+data+'</div></div>'
+          +'<div style="display:flex;gap:5px;">'+(click?pdfBtn('Abrir / Editar', click):'')+'</div>'
+          +'</div>';
+      }).join('');
+      return o+'</div>';
+    }
+    H+=blocoDocs('📋 Orçamentos / Pedidos', orcs, 'orc');
+    H+=blocoDocs('📝 Notas de Serviço', oss, 'os');
+    H+=blocoDocs('🧾 Recibos', recs, 'rec');
+    H+=blocoDocs('📄 Contratos', ctrs, 'ctr');
+    // Financeiro detalhado (últimos 10 lançamentos)
+    if(fin.length){
+      var f10=fin.slice().sort(function(a,b){return String(b.data||'').localeCompare(String(a.data||''));}).slice(0,10);
+      H+='<div style="'+bgCard()+'"><div style="font-weight:700;color:#f1f5ff;margin-bottom:8px;">💰 Financeiro — últimos 10 lançamentos (de '+fin.length+')</div>';
+      H+=f10.map(function(x){return '<div style="display:flex;justify-content:space-between;padding:5px 11px;border-left:3px solid '+(x.tipo==='receita'?'#16a34a':'#dc2626')+';background:rgba(255,255,255,.03);border-radius:5px;margin-bottom:4px;font-size:12.5px;color:#cbd5e1;"><span>'+esc(x.desc||'')+' · '+dBR(x.data)+'</span><span style="color:'+(x.tipo==='receita'?'#16a34a':'#fb7185')+';font-weight:700;">'+(x.tipo==='receita'?'+':'-')+brl(x.valor)+' · '+esc(x.status||'')+'</span></div>';}).join('');
+      H+='</div>';
+    }
+    if(!renov.length && !oss.length && !recs.length && !ctrs.length && !orcs.length && !fin.length){
+      H+='<div style="color:#9fb0d0;padding:14px;text-align:center;background:rgba(255,255,255,.03);border:1px dashed #2a3350;border-radius:10px;">Nenhum serviço, documento ou movimentação registrada para este cliente ainda.</div>';
+    }
+    // monta modal
+    var m=ensureModal();
+    m.innerHTML='<div style="max-width:780px;margin:24px auto;background:#0f1626;border:1px solid #2a3350;border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.7);padding:22px;">'+H+'</div>';
+    m.style.display='block';
+  };
+
+  // Faz cada card de cliente na lista abrir a ficha completa ao clicar (entrega rápida).
+  function attachCli(){
+    try{
+      var list=document.getElementById('cli-list'); if(!list) return;
+      var btns=list.querySelectorAll('button.cli-ficha');
+      Array.prototype.forEach.call(btns, function(b){
+        if(b.__rewired) return; b.__rewired=true;
+        var id=b.getAttribute('data-id');
+        var card=b.closest('div[style*="border:1px solid"]');
+        if(card){ card.style.cursor='pointer'; card.addEventListener('click', function(ev){
+          // só abre se o clique não foi em outro botão (Usar/WhatsApp/Editar/Excluir)
+          if(ev.target.closest('button') && !ev.target.classList.contains('cli-ficha')) return;
+          window.cliFichaFull(id);
+        }); }
+        b.onclick=function(ev){ ev.stopPropagation(); window.cliFichaFull(id); };
+      });
+    }catch(e){}
+  }
+  // Roda quando a lista de clientes renderiza
+  var _origRender=window.renderCli;
+  window.renderCli=function(){ try{ if(_origRender) _origRender.apply(this,arguments); }catch(e){} setTimeout(attachCli, 50); };
+  setInterval(attachCli, 2500); // segurança
+})();
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// ═══ PACOTE 2 — 12 melhorias acumuladas ════════════════════════
+// #3 filtro nome reforçado, #7 pedidos R$0 escondidos, #20 botões
+// cinzas s/ contato, #21 status renovação, #26 lembrete pré-visita,
+// #28 calendário colorido, #29 filtro banco, #33 garantias ativas,
+// #39 painel Cérebro, #40 indicador sync, #9 dedup, #10 renov/cliente.
+// ══════════════════════════════════════════════════════════════
+(function(){
+  function $(id){return document.getElementById(id);}
+  function digits(s){return String(s||'').replace(/\D/g,'');}
+  function escH(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function brl(n){n=Number(n)||0;return 'R$ '+n.toFixed(2).replace('.',',');}
+  function dBR(s){s=String(s||'');var m=s.match(/(\d{4})-(\d{2})-(\d{2})/);return m?(m[3]+'/'+m[2]+'/'+m[1]):s;}
+  function gj(k){try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];}}
+  function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();}
+
+  // ── #3 FILTRO DE NOME REFORÇADO ────────────────────────────────
+  // Pega datas isoladas, ISO timestamps, "2 Flexível", "150cm", etc.
+  if(typeof window.gnNomeRuim==='function'){
+    var _origRuim=window.gnNomeRuim;
+    window.gnNomeRuim=function(nome){
+      try{ if(_origRuim(nome)) return true; }catch(e){}
+      var s=String(nome||'').trim();
+      if(!s) return true;
+      if(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(s)) return true;             // 10/31/23
+      if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return true;          // ISO timestamp
+      if(/^\d+\s+(flex[ií]vel|mangueira|metros?|cm|kg|un)\b/i.test(s)) return true; // "2 Flexível", "150cm"
+      if(/^\d{5,}$/.test(s)) return true;                                  // só números longos
+      return false;
+    };
+  }
+
+  // ── #7 ESCONDE R$ 0,00 NAS LISTAS DE PEDIDOS ───────────────────
+  // Inserção via CSS: linhas com "R$ 0,00" ficam com classe especial
+  var st=document.createElement('style');
+  st.textContent='.gn-zero-hide{display:none!important;}';
+  document.head.appendChild(st);
+  setInterval(function(){
+    try{
+      Array.prototype.forEach.call(document.querySelectorAll('[style*="color:#16a34a"]'),function(el){
+        if(/^R\$\s?0,00$/.test(String(el.textContent||'').trim())){ el.style.display='none'; }
+      });
+    }catch(e){}
+  }, 3000);
+
+  // ── #20 BOTÕES WhatsApp/E-mail CINZAS QUANDO SEM CONTATO ───────
+  setInterval(function(){
+    try{
+      var cli=gj('gn_cli'); var byNome={}; cli.forEach(function(c){if(c&&c.nome)byNome[norm(c.nome)]=c;});
+      Array.prototype.forEach.call(document.querySelectorAll('button,a'),function(b){
+        var txt=(b.textContent||'').trim();
+        if(/^(WhatsApp|Contatei|💬|📲)/.test(txt) || /WhatsApp/i.test(txt)){
+          // tenta achar o nome no item pai
+          var card=b.closest('div'); if(!card) return;
+          var nm=(card.textContent||'').slice(0,80);
+          var match=Object.keys(byNome).find(function(k){return nm.toLowerCase().indexOf(k)>=0;});
+          var c=match?byNome[match]:null;
+          var temContato=c && ((digits(c.tel).length>=8)||(digits(c.whatsapp).length>=8)||/@/.test(c.email||''));
+          if(c && !temContato && !b.__semContato){ b.__semContato=true; b.style.opacity='.4'; b.style.cursor='not-allowed'; b.title='Sem contato cadastrado — clique em Editar e adicione telefone ou e-mail.'; }
+        }
+      });
+    }catch(e){}
+  }, 4000);
+
+  // ── #40 INDICADOR "SINCRONIZADO HÁ X SEGUNDOS" ─────────────────
+  window.__gnLastSync=Date.now();
+  // intercepta gnSyncNow pra atualizar timestamp
+  if(typeof window.gnSyncNow==='function'){
+    var _origSync=window.gnSyncNow; window.gnSyncNow=function(){ window.__gnLastSync=Date.now(); return _origSync.apply(this,arguments); };
+  }
+  setInterval(function(){
+    try{
+      var b=$('gn-sync-badge'); if(!b) return;
+      var s=Math.round((Date.now()-window.__gnLastSync)/1000);
+      var label = s<10 ? 'Sincronizado agora' : (s<60 ? 'Sincronizado há '+s+'s' : 'Sincronizado há '+Math.floor(s/60)+'min');
+      b.textContent='✓ '+label; b.style.background='#16a34a'; b.style.color='#fff';
+    }catch(e){}
+  }, 2000);
+
+  // ── #21 STATUS DA RENOVAÇÃO (Não contatado / Enviado / Aceitou / Recusou / Agendado) ──
+  // Já existe statusR no objeto renov; vamos adicionar dropdown visível ao lado de cada linha.
+  function attachRenovStatus(){
+    try{
+      var list=document.getElementById('renov-list'); if(!list) return;
+      Array.prototype.forEach.call(list.querySelectorAll('div[style*="border-left:4px solid"]'),function(card){
+        if(card.__statusAdded) return;
+        // tenta achar o id do laudo (links com data-id ou via texto)
+        var btn=card.querySelector('button[data-id]'); var id=btn?btn.getAttribute('data-id'):null;
+        if(!id){ card.__statusAdded=true; return; }
+        var ren=gj('gn_renov'); var r=ren.filter(function(x){return x.id===id;})[0];
+        var curSt=(r&&r.statusR)||'';
+        var opts=[['','Não contatado'],['enviado','Mensagem enviada'],['respondeu','Respondeu'],['aceitou','Aceitou'],['recusou','Recusou'],['agendou','Agendado'],['fechou','Concluído']];
+        var sel=document.createElement('select');
+        sel.style.cssText='padding:4px 8px;border:1px solid var(--gn-border);border-radius:7px;font-size:11.5px;margin-left:6px;background:var(--gn-card);color:var(--gn-text);';
+        opts.forEach(function(o){var op=document.createElement('option');op.value=o[0];op.textContent=o[1];if(o[0]===curSt)op.selected=true;sel.appendChild(op);});
+        sel.onchange=function(){ try{var a=gj('gn_renov');for(var i=0;i<a.length;i++)if(a[i].id===id){a[i].statusR=sel.value;break;}localStorage.setItem('gn_renov',JSON.stringify(a));if(window.gnCloud2PushKey)window.gnCloud2PushKey('gn_renov');if(window.toast)toast('Status atualizado: '+sel.options[sel.selectedIndex].text,'ok');}catch(e){} };
+        // adiciona na barra de ações (pega o div de botões)
+        var actions=card.querySelector('div[style*="display:flex"][style*="gap"]');
+        if(actions){ actions.appendChild(sel); card.__statusAdded=true; }
+      });
+    }catch(e){}
+  }
+  setInterval(attachRenovStatus, 3000);
+
+  // ── #26 LEMBRETE PRÉ-VISITA (1h antes do compromisso) ──────────
+  function checkLembretesAgenda(){
+    try{
+      var a=gj('gn_agenda'); var avisados=gj('gn_lembr_avisados'); if(!Array.isArray(avisados))avisados=[];
+      var agora=new Date(); var lim=new Date(agora.getTime()+60*60*1000);
+      a.forEach(function(c){
+        if(!c||!c.data||!c.hora) return; var dt=new Date(c.data+'T'+c.hora+':00'); if(isNaN(dt)) return;
+        if(dt>agora && dt<=lim && avisados.indexOf(c.id)<0){
+          var msg='⏰ Daqui 1h: '+(c.titulo||c.cliente||'compromisso')+' às '+c.hora+(c.cliente?(' — '+c.cliente):'')+(c.obs?(' · '+c.obs.slice(0,40)):'');
+          if(window.toast) toast(msg,'ok');
+          try{ if('Notification' in window && Notification.permission==='granted'){ new Notification('Gás Network', {body:msg}); } }catch(e){}
+          avisados.push(c.id); try{localStorage.setItem('gn_lembr_avisados',JSON.stringify(avisados.slice(-50)));}catch(e){}
+        }
+      });
+    }catch(e){}
+  }
+  setInterval(checkLembretesAgenda, 60000); // a cada 1 minuto
+  setTimeout(checkLembretesAgenda, 5000);
+  try{ if('Notification' in window && Notification.permission==='default') Notification.requestPermission(); }catch(e){}
+
+  // ── #28 CALENDÁRIO COLORIDO POR TIPO (estilo aplicado às céls) ─
+  var st2=document.createElement('style');
+  st2.textContent='.age-tipo-visita{border-left:3px solid #06b6d4;} .age-tipo-execucao{border-left:3px solid #16a34a;} .age-tipo-renovacao{border-left:3px solid #f59e0b;} .age-tipo-pessoal{border-left:3px solid #64748b;}';
+  document.head.appendChild(st2);
+
+  // ── #29 FILTRO POR BANCO (C6 vs Asaas) sempre visível no Financeiro ──
+  function injectBancoFiltro(){
+    try{
+      var p=document.getElementById('pane-fin'); if(!p||p.querySelector('#fin-banco-sel')) return;
+      var per=p.querySelector('select#fin-periodo')||p.querySelector('select');
+      if(!per) return;
+      var sel=document.createElement('select'); sel.id='fin-banco-sel';
+      sel.style.cssText='padding:8px;border:1px solid var(--gn-border);border-radius:8px;margin-left:8px;background:var(--gn-card);color:var(--gn-text);';
+      sel.innerHTML='<option value="">Todos os bancos</option><option value="c6">C6 Bank</option><option value="asaas">Asaas</option>';
+      sel.onchange=function(){ window.__finBancoFiltro=sel.value; try{ if(window.renderFin) renderFin(); }catch(e){} };
+      per.parentNode.insertBefore(sel, per.nextSibling);
+    }catch(e){}
+  }
+  setInterval(injectBancoFiltro, 3000);
+
+  // ── #33 NOVA ABA "GARANTIAS ATIVAS" no menu Gestão ─────────────
+  function buildGarPane(){
+    if(document.getElementById('pane-garativa')) return;
+    var ref=document.getElementById('pane-gar')||document.getElementById('pane-cfg'); if(!ref||!ref.parentNode) return;
+    var p=document.createElement('div'); p.id='pane-garativa'; p.style.display='none';
+    p.innerHTML='<div class="eyebrow">Gestão</div><div class="pgtitle" style="margin-bottom:4px;">🛡️ Clientes sob garantia ativa</div>'
+      +'<div class="pgsub" style="margin-bottom:14px;">Todos os serviços que ainda estão dentro do prazo de garantia (90 dias / 1 ano / 5 anos conforme o tipo). Ordenados por vencimento mais próximo.</div>'
+      +'<div id="garativa-list"></div>';
+    ref.parentNode.insertBefore(p, ref.nextSibling);
+  }
+  function renderGarAtiva(){
+    buildGarPane();
+    var list=document.getElementById('garativa-list'); if(!list) return;
+    var ren=gj('gn_renov'); var hoje=new Date();
+    var ativos=[];
+    ren.forEach(function(r){
+      try{ if(!r.data||!/\d{4}-\d{2}-\d{2}/.test(r.data)) return;
+        var rg=(typeof gnServRegra==='function')?gnServRegra(r.servico):{meses:r.validadeMeses||12,lembrete:false};
+        var meses=rg.meses||12; var dt=new Date(r.data+'T00:00:00'); if(isNaN(dt)) return;
+        var venc=new Date(dt); venc.setMonth(venc.getMonth()+meses);
+        var dias=Math.ceil((venc-hoje)/86400000);
+        if(dias>=0 && dias<=meses*30) ativos.push({r:r, venc:venc, dias:dias});
+      }catch(e){}
+    });
+    ativos.sort(function(a,b){return a.dias-b.dias;});
+    if(!ativos.length){ list.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum cliente sob garantia ativa no momento. ✅</div>'; return; }
+    list.innerHTML='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;"><b style="color:var(--gn-text);">'+ativos.length+'</b> serviço(s) com garantia ativa.</div>'
+      +ativos.slice(0,200).map(function(o){var cor=o.dias<=30?'#dc2626':(o.dias<=90?'#f59e0b':'#16a34a');return '<div style="border:1px solid var(--gn-border);border-left:4px solid '+cor+';border-radius:10px;padding:10px 13px;margin-bottom:6px;">'
+      +'<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;"><div><b style="color:var(--gn-text);">'+escH(o.r.nome||'')+'</b> · <span style="color:var(--gn-dim);font-size:12.5px;">'+escH(o.r.servico||'')+'</span><div style="font-size:11.5px;color:var(--gn-dim);">Executado em '+dBR(o.r.data)+' · vence em '+o.venc.toLocaleDateString('pt-BR')+' · <b style="color:'+cor+';">'+o.dias+' dia(s)</b></div></div></div></div>';}).join('');
+  }
+  window.renderGarAtiva=renderGarAtiva;
+  // adiciona ao menu lateral (grupo Gestão)
+  function addGarMenu(){
+    try{
+      var side=document.getElementById('gn-side'); if(!side||side.querySelector('[data-go="garativa"]')) return;
+      var grps=side.querySelectorAll('.gn-grp');
+      var ges; Array.prototype.forEach.call(grps,function(g){if(/Gest/.test(g.textContent))ges=g;});
+      if(!ges) return;
+      var b=document.createElement('button'); b.className='gn-nav'; b.setAttribute('data-go','garativa');
+      b.innerHTML='<span class="gn-ic">🛡️</span><span>Garantias ativas</span>';
+      b.onclick=function(){ if(typeof gnNav==='function') gnNav('garativa'); else { window.goTab('garativa'); } };
+      // insere depois do "Garantias" original
+      var depois=ges; var next=ges.nextElementSibling; while(next && next.classList && next.classList.contains('gn-nav')){ depois=next; next=next.nextElementSibling; }
+      depois.parentNode.insertBefore(b, depois.nextSibling);
+    }catch(e){}
+  }
+  setInterval(addGarMenu, 2000);
+  // hook do goTab pra mostrar a pane
+  if(typeof window.goTab==='function' && !window.goTab.__garWrap){
+    var _ogt=window.goTab; window.goTab=function(t){ _ogt.apply(this,arguments); try{ var p=document.getElementById('pane-garativa'); if(p) p.style.display=(t==='garativa')?'block':'none'; if(t==='garativa') renderGarAtiva(); }catch(e){} };
+    try{for(var k in _ogt) if(_ogt.hasOwnProperty(k)) window.goTab[k]=_ogt[k];}catch(e){}
+    window.goTab.__garWrap=true;
+  }
+
+  // ── #39 PAINEL "CÉREBRO" no Início ─────────────────────────────
+  function renderCerebro(){
+    try{
+      var p=document.getElementById('pane-inicio'); if(!p) return;
+      var cer=document.getElementById('gn-cerebro');
+      if(!cer){ cer=document.createElement('div'); cer.id='gn-cerebro'; cer.style.cssText='background:linear-gradient(135deg,rgba(124,92,255,.15),rgba(67,56,202,.10));border:1px solid #7c5cff;border-radius:14px;padding:14px 16px;margin-bottom:14px;'; var topo=p.querySelector('.pgtitle')||p.firstChild; if(topo&&topo.nextSibling) p.insertBefore(cer, topo.nextSibling); else p.appendChild(cer); }
+      // contagens
+      var renov=gj('gn_renov').filter(function(r){return /laudo|estanqueidade|teste/i.test(String(r.servico||''));});
+      var vencidos=renov.filter(function(r){try{var rg=gnServRegra(r.servico); var s=renovStatus(r.data,rg.meses); return s.status==='vencido';}catch(e){return false;}}).length;
+      var hojeISO=new Date().toISOString().slice(0,10);
+      var visitasHoje=gj('gn_agenda').filter(function(a){return String(a.data||'').slice(0,10)===hojeISO;}).length;
+      var fin=gj('gn_fin'); var atraso=fin.filter(function(x){return x.tipo==='receita' && x.status==='pendente' && x.data && new Date(x.data)<new Date(Date.now()-30*86400000);}).length;
+      var compras=gj('gn_compras').filter(function(c){return c.status==='Necessário comprar';}).length;
+      cer.innerHTML='<div style="font-weight:800;color:var(--gn-text);font-size:15px;margin-bottom:8px;">🧠 Cérebro de hoje</div>'
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+        +(vencidos?('<button onclick="goTab(\'renov\')" style="background:rgba(220,38,38,.15);border:1px solid #dc2626;color:#fb7185;border-radius:9px;padding:8px 12px;cursor:pointer;font-size:12.5px;font-weight:700;">📨 '+vencidos+' laudo(s) vencido(s)</button>'):'')
+        +(visitasHoje?('<button onclick="goTab(\'age\')" style="background:rgba(6,182,212,.15);border:1px solid #06b6d4;color:#67e8f9;border-radius:9px;padding:8px 12px;cursor:pointer;font-size:12.5px;font-weight:700;">📅 '+visitasHoje+' visita(s) hoje</button>'):'')
+        +(atraso?('<button onclick="goTab(\'cob\')" style="background:rgba(245,158,11,.15);border:1px solid #f59e0b;color:#fcd34d;border-radius:9px;padding:8px 12px;cursor:pointer;font-size:12.5px;font-weight:700;">💰 '+atraso+' em atraso (>30d)</button>'):'')
+        +(compras?('<button onclick="goTab(\'compras\')" style="background:rgba(124,92,255,.15);border:1px solid #7c5cff;color:#c4b5fd;border-radius:9px;padding:8px 12px;cursor:pointer;font-size:12.5px;font-weight:700;">🛒 '+compras+' a comprar</button>'):'')
+        +(!(vencidos+visitasHoje+atraso+compras)?'<span style="color:#16a34a;font-weight:700;font-size:13px;">✅ Nada urgente. Aproveite!</span>':'')+'</div>';
+    }catch(e){}
+  }
+  setInterval(renderCerebro, 5000);
+  setTimeout(renderCerebro, 1500);
+
+  // ── #9 DEDUP DE CLIENTES (botão na aba Clientes) ───────────────
+  window.cliDedupAuto=function(){
+    if(!confirm('Mesclar clientes duplicados (mesmo CPF, telefone OU e-mail). Os dados são mesclados — não se perde nada.')) return;
+    var arr=gj('gn_cli'); var by={cpf:{},tel:{},email:{}}; var mantidos=[]; var merged=0;
+    arr.forEach(function(c){if(!c||!c.nome)return; var cpf=digits(c.cpf), tel=digits(c.tel||c.whatsapp).slice(-8), email=String(c.email||'').toLowerCase().trim();
+      var existing=null;
+      if(cpf.length===11 && by.cpf[cpf]) existing=by.cpf[cpf];
+      else if(tel.length>=8 && by.tel[tel]) existing=by.tel[tel];
+      else if(email && by.email[email]) existing=by.email[email];
+      if(existing){ // mescla
+        ['cpf','cnpj','cep','tel','whatsapp','email','endereco','cidade','obs'].forEach(function(k){if(!existing[k]&&c[k])existing[k]=c[k];});
+        merged++;
+      } else { mantidos.push(c); if(cpf.length===11) by.cpf[cpf]=c; if(tel.length>=8) by.tel[tel]=c; if(email) by.email[email]=c; }
+    });
+    try{localStorage.setItem('gn_cli',JSON.stringify(mantidos));}catch(e){}
+    try{if(window.gnCloud2PushKey)window.gnCloud2PushKey('gn_cli');}catch(e){}
+    if(window.toast)toast('✓ Dedup concluído: '+merged+' duplicados mesclados. Sobraram '+mantidos.length+' clientes.','ok');
+    try{if(window.renderCli)renderCli();}catch(e){}
+  };
+  // adiciona botão na aba Clientes
+  setInterval(function(){
+    try{var p=document.getElementById('pane-cli'); if(!p||p.querySelector('#cli-dedup-btn')) return;
+      var bar=p.querySelector('button[onclick="cliExport()"]'); if(!bar) return;
+      var b=document.createElement('button'); b.id='cli-dedup-btn'; b.textContent='🔁 Mesclar duplicados';
+      b.style.cssText='background:#7c5cff;color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:600;';
+      b.onclick=window.cliDedupAuto;
+      bar.parentNode.insertBefore(b, bar.nextSibling);
+    }catch(e){}
+  }, 3000);
+
+  // ── #10 VISÃO "POR CLIENTE" na Renovação (botão de troca) ──────
+  window.__renovPorCliente=false;
+  window.renovToggleAgrup=function(){ window.__renovPorCliente=!window.__renovPorCliente; try{if(window.renderRenov)renderRenov();}catch(e){} };
+  setInterval(function(){
+    try{var p=document.getElementById('pane-renov'); if(!p||p.querySelector('#renov-agrup-btn')) return;
+      var topo=p.querySelector('.pgtitle'); if(!topo) return;
+      var b=document.createElement('button'); b.id='renov-agrup-btn'; b.style.cssText='background:rgba(124,92,255,.15);border:1px solid #7c5cff;color:var(--gn-text);border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:600;font-size:12.5px;margin-left:10px;';
+      b.textContent='👥 Agrupar por cliente';
+      b.onclick=function(){ window.renovToggleAgrup(); b.textContent=window.__renovPorCliente?'📋 Ver por serviço':'👥 Agrupar por cliente'; };
+      topo.appendChild(b);
+    }catch(e){}
+  }, 3000);
+  // pós-render: se estiver agrupado, re-organiza visual
+  setInterval(function(){
+    if(!window.__renovPorCliente) return;
+    try{var list=document.getElementById('renov-list'); if(!list||list.__agrupado) return;
+      var ren=gj('gn_renov').filter(function(r){return /laudo|estanqueidade|teste/i.test(String(r.servico||''));});
+      var by={}; ren.forEach(function(r){var k=norm(r.nome||''); (by[k]=by[k]||[]).push(r);});
+      var keys=Object.keys(by).sort();
+      list.innerHTML='<div style="font-size:12.5px;color:var(--gn-dim);margin-bottom:8px;">👥 <b>'+keys.length+'</b> cliente(s) — visão agrupada</div>'+keys.map(function(k){var arr=by[k]; var ult=arr.sort(function(a,b){return String(b.data||'').localeCompare(String(a.data||''));})[0]; return '<div style="border:1px solid var(--gn-border);border-radius:10px;padding:10px 13px;margin-bottom:6px;"><b style="color:var(--gn-text);">'+escH(arr[0].nome||k)+'</b> · <span style="color:var(--gn-dim);font-size:12.5px;">'+arr.length+' laudo(s) · último em '+dBR(ult.data)+'</span></div>';}).join('');
+      list.__agrupado=true;
+    }catch(e){}
+  }, 2500);
+
+})();
+</script>
 </body>
 </html>
