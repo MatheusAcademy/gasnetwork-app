@@ -15712,8 +15712,10 @@ window.gnDocAbrir=function(tipo,id,num){
     }catch(e){console.error(e);}
   }
   window.renderPedTudo=renderPedTudoV2;
-  // re-render imediato
-  setTimeout(renderPedTudoV2, 1000);
+  // re-render imediato — DESATIVADO: o renderizador final (V3, override mais abaixo)
+  // é quem desenha a tela. Chamar o V2 aqui pintava o layout antigo ~1s e depois
+  // era trocado pelo V3, causando a "troca depois de ~2s". Deixa só o V3 desenhar.
+  // setTimeout(renderPedTudoV2, 1000);
 
   // ── 3) AÇÕES: abrir/editar e DUPLICAR ──
   window.gnPedAbrirEditar=function(tipo, id, num){
@@ -15766,7 +15768,7 @@ window.gnDocAbrir=function(tipo,id,num){
       }
       if(ok){
         if(window.toast) toast('✓ Duplicado: '+novoNum+' — abra pra editar','ok');
-        setTimeout(renderPedTudoV2, 100);
+        setTimeout(function(){ if(window.renderPedTudo) renderPedTudo(); }, 100);
         // abre o duplicado pra edição
         setTimeout(function(){ gnPedAbrirEditar(tipo, tipo+'-'+(Date.now()-1), novoNum); }, 400);
       } else {
@@ -16774,7 +16776,10 @@ window.gnDocAbrir=function(tipo,id,num){
       });
     }catch(e){}
   }
-  setInterval(enrichPedidos, 2500);
+  // DESATIVADO: o renderizador final (V3) já desenha badges de status e os botões
+  // (✓/✗ Status, 💸 Custo, 📲 Link, 📜 Versões) direto no card. Este enricher era
+  // do layout antigo e entrava ~2,5s depois, mudando a tela. Não roda mais.
+  // setInterval(enrichPedidos, 2500);
 
   // ══════════════════════════════════════════════════════════════
   // 2) FILTRO ADICIONAL DE STATUS COMERCIAL no bloco pedidos
@@ -16796,7 +16801,9 @@ window.gnDocAbrir=function(tipo,id,num){
       chipsArea.parentNode.insertBefore(sf, chipsArea.nextSibling);
     }catch(e){}
   }
-  setInterval(addStatusFilter, 3000);
+  // DESATIVADO: o renderizador final (V3) já mostra os filtros de status comercial.
+  // Este injetava uma 2ª linha de filtros ~3s depois, mudando a tela. Não roda mais.
+  // setInterval(addStatusFilter, 3000);
 
   window.gnFiltrarPedStatus=function(){
     var f=window.__pedStatusFiltro||'';
@@ -17866,7 +17873,9 @@ window.gnDocAbrir=function(tipo,id,num){
         +'<button onclick="if(window.gnRelConversao)gnRelConversao()" style="background:#7c5cff;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:11.5px;font-weight:700;">📊 Relatório completo</button>';
     }catch(e){}
   }
-  setInterval(renderFunilEmPedidos, 8000); setTimeout(renderFunilEmPedidos, 2500);
+  // DESATIVADO: o renderizador final (V3) já mostra o funil no topo da lista.
+  // Este criava um 2º banner de funil duplicado ~2,5s depois. Não roda mais.
+  // setInterval(renderFunilEmPedidos, 8000); setTimeout(renderFunilEmPedidos, 2500);
 
   setTimeout(function(){
     try{ if(window.toast) toast('✓ Tela inicial limpa + desconto no orçamento ativo','ok'); }catch(e){}
