@@ -13267,6 +13267,75 @@ window.gnDocAbrir=function(tipo,id,num){
     window.prodSaveForm.__fwrap=true;
   }
 
+  // ── #65 PEDIDOS — bloco unificado de TODOS os documentos no topo ──
+  // Mostra orçamentos + laudos + NS + recibos + contratos misturados,
+  // ordenados por data, cada um com badge do tipo. Independente do
+  // restante da tela de Pedidos (que continua mostrando os orçamentos).
+  function renderPedTudo(){
+    try{
+      var p=$('pane-ped'); if(!p) return;
+      var box=$('ped-tudo-bloco');
+      if(!box){ box=document.createElement('div'); box.id='ped-tudo-bloco'; box.style.cssText='margin:14px 0 16px;'; var tit=p.querySelector('.pgtitle'); var anchor=tit?tit.nextSibling:p.firstChild; if(anchor&&anchor.parentNode) anchor.parentNode.insertBefore(box, anchor); else p.appendChild(box); }
+      // Coleta tudo
+      var all=[];
+      gj('gn_hist').forEach(function(e){
+        var t=String(e.tipoDoc||e.servicos||'').toLowerCase();
+        var tipo=/laudo|estanqueidade/.test(t)?'laudo':(/recibo/.test(t)?'rec':(/contrato/.test(t)?'ctr':(/nota/.test(t)?'os':'orc')));
+        all.push({tipo:tipo, num:e.numero||'', nome:e.cliente||'', data:e.data||e.criadoEm||'', valor:Number(e.valor)||0, src:'hist', raw:e});
+      });
+      gj('gn_os').forEach(function(d){ all.push({tipo:'os', id:d.id, num:d.numero||'', nome:d.nome||'', data:d.data||d.criadoEm||'', valor:Number(d.valor)||0, src:'os', raw:d}); });
+      gj('gn_rec').forEach(function(d){ all.push({tipo:'rec', id:d.id, num:d.numero||'', nome:d.nome||'', data:d.data||d.criadoEm||'', valor:Number(d.valor)||0, src:'rec', raw:d}); });
+      gj('gn_ctr').forEach(function(d){ all.push({tipo:'ctr', id:d.id, num:d.numero||'', nome:d.nome||d.cliente||'', data:d.data||d.criadoEm||'', valor:Number(d.valor)||0, src:'ctr', raw:d}); });
+      gj('gn_renov').forEach(function(r){ if(!/laudo|estanqueidade|teste/i.test(String(r.servico||''))) return; all.push({tipo:'laudo', id:r.id, num:r.id||'', nome:r.nome||'', data:r.data||'', valor:Number(r.valor)||0, src:'renov', raw:r}); });
+      // Normaliza data ISO
+      all.forEach(function(o){ var s=String(o.data||''); var m=s.match(/(\d{2})\/(\d{2})\/(\d{4})/); if(m) o.dataISO=m[3]+'-'+m[2]+'-'+m[1]; else o.dataISO=(s.match(/\d{4}-\d{2}-\d{2}/)||[''])[0]; });
+      all.sort(function(a,b){return String(b.dataISO||'').localeCompare(String(a.dataISO||''));});
+      // contagens
+      var cnt={orc:0,laudo:0,os:0,rec:0,ctr:0}; all.forEach(function(o){cnt[o.tipo]=(cnt[o.tipo]||0)+1;});
+      // filtro local
+      var filtroAtual=window.__pedTudoFiltro||'';
+      function chip(f,label,cor){var on=(filtroAtual===f); return '<button onclick="window.__pedTudoFiltro=\''+f+'\';renderPedTudo();" style="border:1px solid '+(cor||'var(--gn-border)')+';background:'+(on?cor:'transparent')+';color:'+(on?'#fff':(cor||'var(--gn-text)'))+';border-radius:18px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap;">'+label+'</button>';}
+      var chips='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">'
+        +chip('','📦 Todos: '+all.length,'#4338ca')
+        +chip('orc','📋 Orçamentos: '+cnt.orc,'#7c5cff')
+        +chip('laudo','🔬 Laudos: '+cnt.laudo,'#a855f7')
+        +chip('os','📝 NS: '+cnt.os,'#16a34a')
+        +chip('rec','🧾 Recibos: '+cnt.rec,'#0891b2')
+        +chip('ctr','📄 Contratos: '+cnt.ctr,'#f59e0b')
+        +'</div>';
+      var lista=filtroAtual?all.filter(function(o){return o.tipo===filtroAtual;}):all;
+      lista=lista.slice(0,200); // limite de exibição
+      var corT={orc:'#7c5cff',laudo:'#a855f7',os:'#16a34a',rec:'#0891b2',ctr:'#f59e0b'};
+      var labelT={orc:'Orçamento',laudo:'Laudo',os:'Nota de Serviço',rec:'Recibo',ctr:'Contrato'};
+      var rows=lista.map(function(o){
+        var cor=corT[o.tipo]||'#666'; var lbl=labelT[o.tipo]||'Doc';
+        var arg="'"+o.tipo+"','"+escH(o.id||'')+"','"+escH(o.num||'')+"'";
+        return '<div style="border:1px solid var(--gn-border);border-left:4px solid '+cor+';border-radius:10px;padding:10px 13px;margin-bottom:6px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;cursor:pointer;" onclick="(function(){try{if(\''+o.tipo+'\'===\'orc\'||\''+o.tipo+'\'===\'laudo\'){pedDetalhe(\''+escH(o.num)+'\');}else{gnDocAbrir('+arg+');}}catch(e){}})()">'
+          +'<div style="min-width:0;flex:1;"><div style="font-weight:700;color:var(--gn-text);">'+escH(o.nome||'(sem cliente)')+(o.valor>0?(' · <span style="color:#16a34a;">'+brl(o.valor)+'</span>'):'')+'</div>'
+          +'<div style="font-size:12px;color:var(--gn-dim);"><span style="background:'+cor+';color:#fff;border-radius:10px;padding:1px 8px;font-weight:700;font-size:10.5px;">'+lbl+'</span> · '+escH(o.num||'')+(o.dataISO?(' · '+dBR(o.dataISO)):'')+'</div></div>'
+          +'<button onclick="event.stopPropagation();(function(){try{if(\''+o.tipo+'\'===\'orc\'||\''+o.tipo+'\'===\'laudo\'){pedDetalhe(\''+escH(o.num)+'\');}else{gnDocAbrir('+arg+');}}catch(e){}})()" style="background:rgba(124,92,255,.2);color:var(--gn-text);border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap;">Abrir / Editar</button>'
+          +'</div>';
+      }).join('');
+      box.innerHTML='<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:14px;">'
+        +'<div style="font-weight:800;color:var(--gn-text);font-size:15px;margin-bottom:8px;">📦 Todos os documentos emitidos <span style="color:var(--gn-dim);font-weight:600;font-size:12px;">(mais recentes primeiro · top 200)</span></div>'
+        +chips+(rows||'<div style="color:var(--gn-dim);padding:10px;">Nenhum documento no filtro atual.</div>')+'</div>';
+    }catch(e){}
+  }
+  window.renderPedTudo=renderPedTudo;
+  // intercepta renderPed pra rodar o bloco também
+  if(typeof window.renderPed==='function' && !window.renderPed.__tudoWrap){
+    var _orp=window.renderPed;
+    window.renderPed=function(){ try{ _orp.apply(this,arguments); }catch(e){} setTimeout(renderPedTudo, 80); };
+    window.renderPed.__tudoWrap=true;
+  }
+  // roda quando a aba ped abre
+  if(typeof window.goTab==='function' && !window.goTab.__pedTudoWrap){
+    var _ogt2=window.goTab; window.goTab=function(t){ _ogt2.apply(this,arguments); if(t==='ped') setTimeout(renderPedTudo, 200); };
+    try{for(var k in _ogt2) if(_ogt2.hasOwnProperty(k)) window.goTab[k]=_ogt2[k];}catch(e){}
+    window.goTab.__pedTudoWrap=true;
+  }
+  setInterval(function(){ var p=$('pane-ped'); if(p && p.style.display!=='none' && !$('ped-tudo-bloco')) renderPedTudo(); }, 5000);
+
   // ── #38 QR CODE POR FERRAMENTA (via Google Charts URL, sem dep) ──
   window.ferrQR=function(id){
     var arr=gj('gn_ferr'); var f=arr.filter(function(x){return x.id===id;})[0]; if(!f){alert('Ferramenta não encontrada');return;}
