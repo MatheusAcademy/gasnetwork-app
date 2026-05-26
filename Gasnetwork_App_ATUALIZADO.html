@@ -19566,5 +19566,60 @@ window.gnDocAbrir=function(tipo,id,num){
 
 })();
 </script>
+<script>
+// ══════════════════════════════════════════════════════════════════
+// ═══ FIX: PERSISTÊNCIA DE ABA — F5 volta pra mesma tela          ═══
+// ══════════════════════════════════════════════════════════════════
+(function(){
+  // Hook em goTab pra salvar a aba ativa
+  function hookGoTab(){
+    if(typeof window.goTab!=='function' || window.goTab.__persistWrap) return;
+    var orig=window.goTab;
+    window.goTab=function(t){
+      var r=orig.apply(this, arguments);
+      try{
+        if(t && typeof t==='string'){
+          localStorage.setItem('gn_last_tab', t);
+        }
+      }catch(e){}
+      return r;
+    };
+    try{for(var k in orig) if(orig.hasOwnProperty(k)) window.goTab[k]=orig[k];}catch(e){}
+    window.goTab.__persistWrap=true;
+  }
+
+  // Tentar hookear logo + de novo conforme o app carrega
+  hookGoTab();
+  var tH=0; var ivH=setInterval(function(){ hookGoTab(); tH++; if(tH>15) clearInterval(ivH); }, 500);
+
+  // Restaurar a aba última ao carregar (apenas se não for inicio)
+  setTimeout(function(){
+    try{
+      var ultima=localStorage.getItem('gn_last_tab');
+      if(ultima && ultima!=='inicio' && typeof window.goTab==='function'){
+        window.goTab(ultima);
+      }
+    }catch(e){}
+  }, 1500);
+
+  // Também atualiza quando clica nos botões do menu lateral
+  setTimeout(function(){
+    try{
+      var side=document.getElementById('gn-side');
+      if(side && !side.__persistWrap){
+        side.addEventListener('click', function(ev){
+          var btn=ev.target.closest('[data-go]');
+          if(btn){
+            var t=btn.getAttribute('data-go');
+            if(t) localStorage.setItem('gn_last_tab', t);
+          }
+        }, true);
+        side.__persistWrap=true;
+      }
+    }catch(e){}
+  }, 2000);
+
+})();
+</script>
 </body>
 </html>
