@@ -13981,5 +13981,409 @@ window.gnDocAbrir=function(tipo,id,num){
   }
 })();
 </script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// ═══ PACOTE FINAL — 8 leituras/dia + Compras avançada +
+// ═══ Financeiro BR + Em atraso prompt + WA auto-refresh
+// ══════════════════════════════════════════════════════════════
+(function(){
+  function $(id){return document.getElementById(id);}
+  function gj(k){try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];}}
+  function go(k){try{return JSON.parse(localStorage.getItem(k)||'{}');}catch(e){return {};}}
+  function escH(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function brBR(n){ n=Number(n); if(!isFinite(n)) return 'R$ 0,00'; return n.toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function nBR(n){ n=Number(n); if(!isFinite(n)) return '0,00'; return n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+  // ════════════════════════════════════════════════════════════
+  // 1) WHATSAPP — atualizar para 8 leituras + auto-refresh
+  // ════════════════════════════════════════════════════════════
+  var WA_HORARIOS=[0,3,6,10,12,15,18,22];
+
+  // Hook waRefresh já existente: substituir texto "3 leituras" por "8 leituras"
+  // e ajustar proximoRun
+  function proxRun8(){
+    var now=new Date(); var h=now.getHours(); var m=now.getMinutes();
+    var prox=null;
+    for(var i=0;i<WA_HORARIOS.length;i++){
+      var alvo=WA_HORARIOS[i];
+      if(alvo>h || (alvo===h && m<5)){ prox=alvo; break; }
+    }
+    if(prox==null){ return 'Amanhã 00:00'; }
+    return 'Hoje '+(prox<10?'0':'')+prox+':00';
+  }
+
+  function patchWaStatus(){
+    try{
+      var p=$('pane-whatsapp'); if(!p) return;
+      // Atualiza subtítulo
+      var pgsub=p.querySelector('.pgsub');
+      if(pgsub && pgsub.textContent.indexOf('8 leituras')<0){
+        pgsub.innerHTML='Memória completa de tudo que rola no seu WhatsApp. <b>8 leituras automáticas por dia</b> (00h · 03h · 06h · 10h · 12h · 15h · 18h · 22h) — registra mensagens, novos contatos (auto-cadastra na Agenda Google), agendamentos criados/cancelados, documentos e áudios. Atualização automática a cada 10s.';
+      }
+      // Atualiza próximo horário no status (substitui o cálculo antigo)
+      var st=$('wa-status');
+      if(st){
+        var last=localStorage.getItem('gn_whatsapp_last')||'';
+        try{
+          var d=last?new Date(last).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+          st.innerHTML='<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:10px;padding:10px 13px;font-size:13px;color:var(--gn-text);">'
+            +(last?('✅ <b>Última leitura:</b> '+escH(d)):'⏳ Nenhuma leitura ainda. As tarefas rodam às 00·03·06·10·12·15·18·22h.')
+            +' · <span style="color:var(--gn-dim);">Próxima: '+proxRun8()+'</span>'
+            +' · <span style="background:#16a34a;color:#fff;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;">🔄 auto-update</span>'
+            +'</div>';
+        }catch(e){}
+      }
+    }catch(e){}
+  }
+
+  // Auto-refresh a cada 10s SEMPRE que o pane estiver visível
+  var __waAutoTimer=null;
+  function ensureWaAutoRefresh(){
+    if(__waAutoTimer) return;
+    __waAutoTimer=setInterval(function(){
+      try{
+        var p=$('pane-whatsapp');
+        if(p && p.style.display!=='none' && typeof window.waRefresh==='function'){
+          window.waRefresh();
+          patchWaStatus();
+        }
+      }catch(e){}
+    }, 10000);
+  }
+  ensureWaAutoRefresh();
+  setInterval(patchWaStatus, 4000);
+
+  // Também invalida automatica em mudança de localStorage (multi-tab e tarefas agendadas)
+  window.addEventListener('storage', function(ev){
+    if(!ev || !ev.key) return;
+    if(/^gn_whatsapp_|^gn_msg_hist$|^gn_memoria$|^gn_aprendizado$|^gn_urgencias$|^gn_resumo_diario$|^gn_ia_recomendacoes$/.test(ev.key)){
+      try{
+        var p=$('pane-whatsapp');
+        if(p && p.style.display!=='none' && typeof window.waRefresh==='function'){ window.waRefresh(); patchWaStatus(); }
+      }catch(e){}
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════
+  // 2) COMPRAS AVANÇADA — tipo, colunas, PDF, drag-drop
+  // ════════════════════════════════════════════════════════════
+  var COMPRAS_TIPOS=['Material','Ferramenta','EPI','Veículo','Escritório','Outro'];
+  var COMPRAS_TIPO_COR={'Material':'#0e7490','Ferramenta':'#7c5cff','EPI':'#dc2626','Veículo':'#f59e0b','Escritório':'#16a34a','Outro':'#64748b'};
+  var COMPRAS_TIPO_ICON={'Material':'🔧','Ferramenta':'🛠️','EPI':'🦺','Veículo':'🚐','Escritório':'📎','Outro':'📦'};
+
+  function compEnsureTipo(arr){
+    var changed=false;
+    arr.forEach(function(x){
+      if(!x.tipo){
+        var m=String(x.material||'').toLowerCase();
+        if(/(chave|alicate|furadeira|broca|serra|martelo|esmerilhadeira|maçarico|macarico|maleta|estoj|trena|nível|nivel|torquímetro|torquimetro|manômetro|manometro)/.test(m)) x.tipo='Ferramenta';
+        else if(/(epi|luva|óculos|oculos|capacete|bota|máscara|mascara|protetor|sapato)/.test(m)) x.tipo='EPI';
+        else if(/(óleo|oleo|pneu|filtro|gasolina|combustível|combustivel|ipva|seguro|carro|kombi|caminhão|caminhao)/.test(m)) x.tipo='Veículo';
+        else if(/(papel|caneta|impressora|toner|envelope|grampead|escrit)/.test(m)) x.tipo='Escritório';
+        else x.tipo='Material';
+        changed=true;
+      }
+      if(!x.ordem) x.ordem=Date.now()+Math.random();
+    });
+    if(changed){ try{ localStorage.setItem('gn_compras', JSON.stringify(arr)); }catch(e){} }
+    return arr;
+  }
+
+  // Filtro estado
+  window.__compFiltro={tipo:'todos', status:'todos'};
+  window.compSetFiltro=function(k,v){ window.__compFiltro[k]=v; window.renderCompras(); };
+
+  // Override renderCompras (sem quebrar a base)
+  if(typeof window.renderCompras==='function' && !window.renderCompras.__v2){
+    window.renderCompras=function(){
+      var box=$('compras-list'); if(!box) return;
+      var arr=compEnsureTipo(gj('gn_compras'));
+      // injetar barra de filtros + botões topo (uma vez)
+      var bar=$('compras-bar-v2');
+      if(!bar){
+        bar=document.createElement('div'); bar.id='compras-bar-v2';
+        bar.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;padding:11px 13px;background:var(--gn-card);border:1px solid var(--gn-border);border-radius:11px;';
+        bar.innerHTML=
+          '<div style="font-weight:700;color:var(--gn-text);font-size:13px;">Tipo:</div>'
+          +'<div id="comp-tipo-chips" style="display:flex;gap:5px;flex-wrap:wrap;"></div>'
+          +'<div style="flex:1;"></div>'
+          +'<button onclick="compExportPDF()" style="background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:8px 13px;cursor:pointer;font-weight:700;font-size:12.5px;">📄 Exportar PDF</button>'
+          +'<button onclick="compReordenarPrio()" title="Limpar prioridade manual e reordenar por status+tipo" style="background:rgba(124,92,255,.18);color:var(--gn-text);border:none;border-radius:8px;padding:8px 13px;cursor:pointer;font-weight:600;font-size:12.5px;">↺ Reordenar</button>';
+        box.parentNode.insertBefore(bar, box);
+      }
+      // chips tipo
+      var chipBox=$('comp-tipo-chips');
+      if(chipBox){
+        var tipos=['todos'].concat(COMPRAS_TIPOS);
+        chipBox.innerHTML=tipos.map(function(t){
+          var on=window.__compFiltro.tipo===t;
+          var n = t==='todos'?arr.length:arr.filter(function(x){return x.tipo===t;}).length;
+          var bg=on?(t==='todos'?'#0e7490':(COMPRAS_TIPO_COR[t]||'#64748b')):'transparent';
+          var ic=t==='todos'?'📋':(COMPRAS_TIPO_ICON[t]||'📦');
+          return '<button onclick="compSetFiltro(\'tipo\',\''+t+'\')" style="border:1px solid '+(on?bg:'var(--gn-border)')+';background:'+bg+';color:'+(on?'#fff':'var(--gn-text)')+';border-radius:18px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:700;">'+ic+' '+t+' <span style="opacity:.8;">('+n+')</span></button>';
+        }).join('');
+      }
+      // filtrar
+      var fil=arr;
+      if(window.__compFiltro.tipo && window.__compFiltro.tipo!=='todos') fil=fil.filter(function(x){return x.tipo===window.__compFiltro.tipo;});
+      // ordenar por: ordem manual (drag) + status (pendentes em cima)
+      var ordSt={'Necessário comprar':0,'Cotando':1,'Comprado':2,'Recebido':3,'Cancelado':4};
+      fil.sort(function(a,b){
+        var sA=ordSt[a.status]||9, sB=ordSt[b.status]||9;
+        if(sA!==sB) return sA-sB;
+        return (a.ordem||0)-(b.ordem||0);
+      });
+      if(!fil.length){
+        box.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum item nesse filtro.</div>';
+        return;
+      }
+      // grid de COLUNAS por status
+      var STATUSES=['Necessário comprar','Cotando','Comprado','Recebido'];
+      var cols=STATUSES.map(function(s){return {status:s,items:fil.filter(function(x){return x.status===s;})};});
+      var COMPRAS_ST_COR={'Necessário comprar':'#f59e0b','Cotando':'#0891b2','Comprado':'#7c5cff','Recebido':'#16a34a','Cancelado':'#64748b'};
+      var html='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;">';
+      cols.forEach(function(c){
+        var cor=COMPRAS_ST_COR[c.status]||'#64748b';
+        html+='<div data-status="'+escH(c.status)+'" class="comp-col" ondragover="event.preventDefault();this.style.background=\'rgba(124,92,255,.08)\';" ondragleave="this.style.background=\'\';" ondrop="compDropCol(event, this.dataset.status)" style="background:var(--gn-card);border:1px solid var(--gn-border);border-top:3px solid '+cor+';border-radius:11px;padding:10px;min-height:120px;">'
+          +'<div style="font-weight:800;color:'+cor+';margin-bottom:8px;font-size:13px;">'+escH(c.status)+' <span style="background:'+cor+';color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;margin-left:4px;">'+c.items.length+'</span></div>';
+        if(!c.items.length){ html+='<div style="color:var(--gn-dim);font-size:12px;padding:10px;text-align:center;border:1px dashed var(--gn-border);border-radius:8px;">vazio — arraste itens aqui</div>'; }
+        c.items.forEach(function(x){
+          var tipoCor=COMPRAS_TIPO_COR[x.tipo]||'#64748b';
+          var tipoIc=COMPRAS_TIPO_ICON[x.tipo]||'📦';
+          html+='<div draggable="true" ondragstart="compDragStart(event,\''+x.id+'\')" data-id="'+x.id+'" class="comp-card" style="background:var(--gn-surface2);border:1px solid var(--gn-border);border-left:3px solid '+tipoCor+';border-radius:8px;padding:8px 10px;margin-bottom:5px;cursor:grab;font-size:12.5px;">'
+            +'<div style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start;">'
+              +'<div style="min-width:0;flex:1;">'
+                +'<div style="font-weight:700;color:var(--gn-text);">'+tipoIc+' '+escH(x.material||'')+'</div>'
+                +'<div style="font-size:11px;color:var(--gn-dim);">Qtd: <b style="color:var(--gn-text);">'+escH(x.qtd||'1')+'</b>'
+                  +(x.forn?(' · '+escH(x.forn)):'')
+                  +(x.valor?(' · '+escH(x.valor)):'')
+                  +'</div>'
+                +'<div style="font-size:10px;color:'+tipoCor+';font-weight:700;margin-top:2px;">'+escH(x.tipo||'Material')+'</div>'
+              +'</div>'
+              +'<div style="display:flex;flex-direction:column;gap:3px;flex:none;">'
+                +'<button onclick="compChangeTipo(\''+x.id+'\')" title="Mudar tipo" style="background:rgba(124,92,255,.18);color:var(--gn-text);border:none;border-radius:5px;padding:2px 6px;cursor:pointer;font-size:10px;">tipo</button>'
+                +'<button onclick="comprasEditQtd(\''+x.id+'\')" title="Editar qtd" style="background:rgba(124,92,255,.18);color:var(--gn-text);border:none;border-radius:5px;padding:2px 6px;cursor:pointer;font-size:10px;">qtd</button>'
+                +'<button onclick="comprasDel(\''+x.id+'\')" title="Excluir" style="background:#fdecec;color:#dc2626;border:none;border-radius:5px;padding:2px 6px;cursor:pointer;font-size:10px;">✕</button>'
+              +'</div>'
+            +'</div>'
+          +'</div>';
+        });
+        html+='</div>';
+      });
+      html+='</div>';
+      box.innerHTML=html;
+    };
+    window.renderCompras.__v2=true;
+  }
+
+  // Drag & drop entre colunas + reordenar dentro
+  window.compDragStart=function(ev, id){ try{ ev.dataTransfer.setData('text/plain', id); ev.dataTransfer.effectAllowed='move'; }catch(e){} };
+  window.compDropCol=function(ev, status){
+    ev.preventDefault();
+    try{
+      var id=ev.dataTransfer.getData('text/plain'); if(!id) return;
+      var arr=gj('gn_compras');
+      var x=arr.filter(function(y){return y.id===id;})[0]; if(!x) return;
+      x.status=status; x.ordem=Date.now();
+      localStorage.setItem('gn_compras', JSON.stringify(arr));
+      try{ if(window.gnCloud2PushKey) gnCloud2PushKey('gn_compras'); }catch(e){}
+      var col=ev.currentTarget; if(col) col.style.background='';
+      window.renderCompras();
+      if(window.toast) toast('✓ Movido para '+status,'ok');
+    }catch(e){}
+  };
+  window.compChangeTipo=function(id){
+    var arr=gj('gn_compras'); var x=arr.filter(function(y){return y.id===id;})[0]; if(!x) return;
+    var opts=COMPRAS_TIPOS.join(' / ');
+    var n=prompt('Tipo? ('+opts+')', x.tipo||'Material'); if(!n) return;
+    x.tipo=n.trim();
+    localStorage.setItem('gn_compras', JSON.stringify(arr));
+    try{ if(window.gnCloud2PushKey) gnCloud2PushKey('gn_compras'); }catch(e){}
+    window.renderCompras();
+  };
+  window.compReordenarPrio=function(){
+    var arr=gj('gn_compras');
+    arr.forEach(function(x,i){ x.ordem=i; });
+    localStorage.setItem('gn_compras', JSON.stringify(arr));
+    try{ if(window.gnCloud2PushKey) gnCloud2PushKey('gn_compras'); }catch(e){}
+    window.renderCompras();
+    if(window.toast) toast('↺ Ordem reiniciada','ok');
+  };
+
+  // PDF de compras
+  window.compExportPDF=function(){
+    try{
+      if(typeof window.jspdf==='undefined' && typeof window.jsPDF==='undefined'){
+        if(window.toast) toast('jsPDF não carregado. Tentando via PDF do navegador...','er');
+        compExportHTMLPrint();
+        return;
+      }
+      var JS=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF;
+      var doc=new JS({orientation:'portrait', unit:'mm', format:'a4'});
+      var arr=compEnsureTipo(gj('gn_compras'));
+      if(window.__compFiltro.tipo && window.__compFiltro.tipo!=='todos') arr=arr.filter(function(x){return x.tipo===window.__compFiltro.tipo;});
+      var hoje=new Date().toLocaleString('pt-BR');
+      doc.setFontSize(16); doc.setFont(undefined,'bold'); doc.text('Gás Network — Lista de Compras', 14, 16);
+      doc.setFontSize(10); doc.setFont(undefined,'normal'); doc.text('Gerado em '+hoje+' · Filtro: '+(window.__compFiltro.tipo||'todos')+' · '+arr.length+' item(ns)', 14, 22);
+      var y=32;
+      var STATUSES=['Necessário comprar','Cotando','Comprado','Recebido','Cancelado'];
+      STATUSES.forEach(function(s){
+        var its=arr.filter(function(x){return x.status===s;});
+        if(!its.length) return;
+        if(y>270){ doc.addPage(); y=20; }
+        doc.setFontSize(12); doc.setFont(undefined,'bold'); doc.text(s+' ('+its.length+')', 14, y); y+=6;
+        doc.setFontSize(9); doc.setFont(undefined,'normal');
+        its.forEach(function(x){
+          if(y>278){ doc.addPage(); y=20; }
+          var ln='• ['+(x.tipo||'?')+'] '+(x.material||'')+'  · qtd: '+(x.qtd||'1')+(x.forn?('  · '+x.forn):'')+(x.valor?('  · '+x.valor):'');
+          var sp=doc.splitTextToSize(ln, 180);
+          doc.text(sp, 14, y); y+=(sp.length*4)+1;
+        });
+        y+=3;
+      });
+      var fn='Compras_GasNetwork_'+new Date().toISOString().slice(0,10)+'.pdf';
+      doc.save(fn);
+      if(window.toast) toast('✓ PDF gerado','ok');
+    }catch(e){ console.error(e); compExportHTMLPrint(); }
+  };
+  function compExportHTMLPrint(){
+    var arr=compEnsureTipo(gj('gn_compras'));
+    if(window.__compFiltro.tipo && window.__compFiltro.tipo!=='todos') arr=arr.filter(function(x){return x.tipo===window.__compFiltro.tipo;});
+    var w=window.open('','_blank');
+    var rows=arr.map(function(x){return '<tr><td>'+escH(x.tipo||'')+'</td><td>'+escH(x.material||'')+'</td><td>'+escH(x.qtd||'1')+'</td><td>'+escH(x.forn||'')+'</td><td>'+escH(x.valor||'')+'</td><td>'+escH(x.status||'')+'</td></tr>';}).join('');
+    w.document.write('<html><head><title>Compras Gás Network</title><style>body{font-family:Arial,sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;font-size:12px;}th,td{border:1px solid #999;padding:6px;text-align:left;}th{background:#7c5cff;color:#fff;}h1{color:#0e7490;}</style></head><body><h1>Gás Network — Lista de Compras</h1><div>Gerado em '+new Date().toLocaleString('pt-BR')+' · '+arr.length+' item(ns)</div><table><thead><tr><th>Tipo</th><th>Material</th><th>Qtd</th><th>Fornecedor</th><th>Valor</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table><div style="margin-top:18px;"><button onclick="window.print()">🖨 Imprimir / Salvar PDF</button></div></body></html>');
+  }
+
+  // Adicionar campo Tipo no formulário de compras (uma vez)
+  function patchCompForm(){
+    var f=$('cp-mat'); if(!f) return;
+    if(document.getElementById('cp-tipo')) return;
+    var wrap=f.closest('div[style*="grid-template-columns"]'); if(!wrap) return;
+    var d=document.createElement('div');
+    d.innerHTML='<label style="font-size:12px;color:var(--gn-dim);">Tipo</label><select id="cp-tipo" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;">'
+      +COMPRAS_TIPOS.map(function(t){return '<option value="'+t+'">'+(COMPRAS_TIPO_ICON[t]||'')+' '+t+'</option>';}).join('')+'</select>';
+    wrap.appendChild(d.firstElementChild.parentNode===d?d.children[0]:d);
+    // simplificando: appendChild manual
+    while(d.firstChild) wrap.appendChild(d.firstChild);
+  }
+  setInterval(patchCompForm, 3000); setTimeout(patchCompForm, 1000);
+
+  // Hook comprasAdd pra salvar tipo
+  if(typeof window.comprasAdd==='function' && !window.comprasAdd.__v2){
+    var _oadd=window.comprasAdd;
+    window.comprasAdd=function(){
+      _oadd.apply(this, arguments);
+      try{
+        var tipoSel=$('cp-tipo'); if(!tipoSel) return;
+        var arr=gj('gn_compras');
+        if(arr[0]){ arr[0].tipo=tipoSel.value||'Material'; arr[0].ordem=Date.now();
+          localStorage.setItem('gn_compras', JSON.stringify(arr));
+          try{ if(window.gnCloud2PushKey) gnCloud2PushKey('gn_compras'); }catch(e){}
+          window.renderCompras();
+        }
+      }catch(e){}
+    };
+    window.comprasAdd.__v2=true;
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // 3) FINANCEIRO — formatação BR em TODOS os valores
+  // ════════════════════════════════════════════════════════════
+  function applyBRformat(){
+    try{
+      var p=$('pane-fin')||$('pane-financeiro'); if(!p || p.style.display==='none') return;
+      // Encontrar TODOS os textos com R$ e reformatar quando o número estiver "cru" (sem ponto/vírgula adequados)
+      // Estratégia: percorrer text nodes e regex matching "R$ <numero>"
+      var walker=document.createTreeWalker(p, NodeFilter.SHOW_TEXT, null, false);
+      var node, fixes=0;
+      var nodes=[];
+      while(node=walker.nextNode()){ nodes.push(node); }
+      var reR=/R\$\s*(-?\d+(?:[\.,]\d+)?)/g;
+      nodes.forEach(function(n){
+        var t=n.nodeValue; if(!t) return;
+        if(!reR.test(t)) return;
+        reR.lastIndex=0;
+        var newT=t.replace(reR, function(match, num){
+          // normalizar: pode vir "1234.56" ou "1234,56" ou "1234567"
+          var raw=String(num).replace(/\./g,'').replace(',','.');
+          var v=Number(raw); if(!isFinite(v)) return match;
+          // já está formatado em BR? (tem "." de milhar OU vírgula decimal e número aparenta correto)
+          var fmt=v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+          var expected='R$ '+fmt;
+          if(match===expected) return match;
+          fixes++;
+          return expected;
+        });
+        if(newT!==t) n.nodeValue=newT;
+      });
+    }catch(e){}
+  }
+  // Roda toda vez que renderFin é chamado + auto a cada 2s quando em pane-fin
+  if(typeof window.renderFin==='function' && !window.renderFin.__brWrap){
+    var _orf=window.renderFin;
+    window.renderFin=function(){ _orf.apply(this,arguments); setTimeout(applyBRformat, 80); setTimeout(applyBRformat, 400); };
+    window.renderFin.__brWrap=true;
+  }
+  setInterval(applyBRformat, 2500);
+
+  // ════════════════════════════════════════════════════════════
+  // 4) EM ATRASO → RECEBER: prompt forma de pagamento
+  // ════════════════════════════════════════════════════════════
+  // Quando finTogglePago é chamado para um lançamento em atraso → perguntar Pix/Dinheiro/Cartão (x vezes)
+  // Salva em x.forma_pgto e categoria adicional
+  if(typeof window.finTogglePago==='function' && !window.finTogglePago.__askForma){
+    var _otp=window.finTogglePago;
+    window.finTogglePago=function(id){
+      try{
+        var arr=(typeof finData==='function')?finData():[];
+        var x=arr.filter(function(y){return y.id===id;})[0];
+        var hoje=(typeof finHoje==='function')?finHoje():new Date().toISOString().slice(0,10);
+        var emAtraso=x && x.tipo==='receita' && x.status!=='pago' && x.data && x.data<hoje;
+        if(emAtraso){
+          var f=prompt('Como você recebeu de '+(x.cliente||'cliente')+' R$ '+nBR(x.valor)+'?\n\nDigite:\n  pix\n  dinheiro\n  cartao\n  boleto\n  transferencia', 'pix');
+          if(f===null) return; // cancelou
+          f=String(f||'').toLowerCase().trim();
+          var vezes=1;
+          if(f.indexOf('cart')>=0 || f==='cartao' || f==='cartão' || f==='credito' || f==='crédito'){
+            var vv=prompt('Em quantas vezes? (1 a 12)', '1');
+            if(vv===null) return;
+            vezes=Math.max(1, Math.min(12, parseInt(vv,10)||1));
+          }
+          var label = f.indexOf('pix')>=0?'Pix' : (f.indexOf('dinh')>=0?'Dinheiro' : (f.indexOf('cart')>=0?('Cartão '+vezes+'x') : (f.indexOf('bol')>=0?'Boleto' : (f.indexOf('tra')>=0||f.indexOf('ted')>=0?'Transferência':'Pix'))));
+          x.forma_pgto = label;
+          x.pago_em = new Date().toISOString();
+          x.atraso_recebido = true;
+          // categoria descritiva opcional
+          if(!x.categoria || x.categoria==='Recebimento') x.categoria='Recebimento ('+label+')';
+          // delegar ao original (vai marcar status=pago e salvar)
+          try{
+            if(typeof finSaveAll==='function') finSaveAll(arr);
+            if(typeof finCloudPush==='function') finCloudPush(x);
+          }catch(e){}
+        }
+      }catch(e){}
+      _otp.apply(this, arguments);
+      try{ if(window.toast) toast('✓ Pagamento registrado'+ (window.__lastForma?(' ('+window.__lastForma+')'):''),'ok'); }catch(e){}
+    };
+    window.finTogglePago.__askForma=true;
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // 5) NOTIFICAÇÕES quando algo do WhatsApp atualiza
+  // ════════════════════════════════════════════════════════════
+  var __waLastCount=0;
+  setInterval(function(){
+    try{
+      var log=gj('gn_whatsapp_log'); var n=log.length;
+      if(__waLastCount && n>__waLastCount){
+        var d=n-__waLastCount;
+        if(window.toast && document.visibilityState==='visible') toast('💬 '+d+' nova(s) mensagem(ns) do WhatsApp','ok');
+      }
+      __waLastCount=n;
+    }catch(e){}
+  }, 12000);
+
+})();
+</script>
 </body>
 </html>
