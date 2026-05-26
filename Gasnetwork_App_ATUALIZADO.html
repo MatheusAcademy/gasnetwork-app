@@ -19694,31 +19694,8 @@ window.gnDocAbrir=function(tipo,id,num){
   var ttU=0;
   var ivU=setInterval(function(){ patchJsPDFUltra(); ttU++; if(ttU>30) clearInterval(ivU); }, 800);
 
-  // INTERCEPTAR gnDocPDF — sanitizar TODOS os campos do objeto opts
-  function sanitizeObj(o){
-    if(o==null) return o;
-    if(typeof o==='string') return window.gnSanitizaUltra(o);
-    if(Array.isArray(o)) return o.map(sanitizeObj);
-    if(typeof o==='object'){
-      var n={};
-      Object.keys(o).forEach(function(k){ n[k]=sanitizeObj(o[k]); });
-      return n;
-    }
-    return o;
-  }
-  function patchGnDocPDF(){
-    if(typeof window.gnDocPDF!=='function' || window.gnDocPDF.__ultraSan) return;
-    var orig=window.gnDocPDF;
-    window.gnDocPDF=function(opts){
-      try{ opts=sanitizeObj(opts); }catch(e){}
-      return orig.call(this, opts);
-    };
-    window.gnDocPDF.__ultraSan=true;
-    console.log('[gnPDF ULTRA] gnDocPDF sanitizado');
-  }
-  setTimeout(patchGnDocPDF, 1500);
-  setTimeout(patchGnDocPDF, 3000);
-  setTimeout(patchGnDocPDF, 6000);
+  // REMOVIDO: wrap do gnDocPDF estava causando "Cannot read properties of undefined (reading 'apply')"
+  // A sanitização do jsPDF.text já resolve emojis nos PDFs gerados.
 
   // FUNÇÃO PARA LIMPAR DADOS ANTIGOS DO gn_hist (acessível via Configurações)
   window.gnLimparEmojisHist=function(){
@@ -20404,8 +20381,181 @@ window.gnDocAbrir=function(tipo,id,num){
       try{ history.replaceState(null, '', '#'+t); }catch(e){}
     };
   }
+})();
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════════
+// ═══ PREVIEW LATERAL DO PDF EM TEMPO REAL                        ═══
+// ═══ Coluna direita mostra como vai sair o PDF enquanto digita   ═══
+// ══════════════════════════════════════════════════════════════════
+(function(){
+  function $(id){return document.getElementById(id);}
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function brl(n){n=Number(n)||0;return 'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 
-  // Também atualiza quando clica nos botões do menu lateral
+  // CSS do layout lado-a-lado + preview
+  var st=document.createElement('style');
+  st.textContent=
+    // Container muda pra grid quando tem preview
+    '#pane-novo.gn-with-preview .preview{display:grid;grid-template-columns:1fr 480px;gap:14px;align-items:start;}'
+    +'#pane-novo.gn-with-preview .preview > .card{margin:0;}'
+    +'#gn-pdf-preview{position:sticky;top:60px;background:#fff;color:#1a2238;border-radius:10px;padding:18px 22px;max-height:calc(100vh - 80px);overflow-y:auto;font-family:Georgia,serif;font-size:11px;line-height:1.45;box-shadow:0 6px 24px rgba(0,0,0,.4);}'
+    +'#gn-pdf-preview .pv-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1a2238;padding-bottom:10px;margin-bottom:14px;}'
+    +'#gn-pdf-preview .pv-logo{font-family:Arial;font-size:16px;font-weight:800;color:#1a2238;}'
+    +'#gn-pdf-preview .pv-logo small{display:block;font-size:9px;font-weight:400;color:#666;}'
+    +'#gn-pdf-preview .pv-num{font-size:10px;color:#555;text-align:right;}'
+    +'#gn-pdf-preview h1{font-size:14px;text-align:center;margin:8px 0 14px;letter-spacing:1px;color:#1a2238;font-family:Arial;}'
+    +'#gn-pdf-preview h2{font-size:11.5px;color:#1a2238;border-bottom:1px solid #1a2238;padding-bottom:3px;margin:14px 0 6px;font-family:Arial;}'
+    +'#gn-pdf-preview .pv-cli td{padding:3px 4px;font-size:10.5px;}'
+    +'#gn-pdf-preview .pv-cli td:first-child{font-weight:700;width:30%;}'
+    +'#gn-pdf-preview .pv-svc{width:100%;border-collapse:collapse;font-size:10px;margin:6px 0;}'
+    +'#gn-pdf-preview .pv-svc th{background:#1a2238;color:#fff;padding:5px;text-align:left;font-family:Arial;}'
+    +'#gn-pdf-preview .pv-svc td{border-bottom:1px solid #ddd;padding:5px;}'
+    +'#gn-pdf-preview .pv-svc td:nth-child(2),#gn-pdf-preview .pv-svc td:nth-child(3),#gn-pdf-preview .pv-svc td:nth-child(4){text-align:right;}'
+    +'#gn-pdf-preview .pv-tot{background:#1a2238;color:#fff;padding:10px;text-align:right;font-size:14px;font-weight:700;font-family:Arial;border-radius:5px;margin-top:8px;}'
+    +'#gn-pdf-preview .pv-bloco{margin:8px 0;white-space:pre-wrap;font-size:10.5px;color:#333;}'
+    +'#gn-pdf-preview .pv-foot{margin-top:14px;padding-top:8px;border-top:1px solid #ccc;font-size:9px;color:#888;text-align:center;}'
+    +'#gn-pdf-preview-toggle{position:sticky;top:8px;z-index:60;background:#7c5cff;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-weight:700;font-size:12px;float:right;margin-bottom:10px;}'
+    +'@media(max-width:1200px){'
+      +'#pane-novo.gn-with-preview .preview{grid-template-columns:1fr;}'
+      +'#gn-pdf-preview{position:relative;top:0;max-height:600px;}'
+    +'}'
+    ;
+  document.head.appendChild(st);
+
+  // Cria o container preview
+  function ensurePreview(){
+    try{
+      var pane=$('pane-novo'); if(!pane) return;
+      var prev=pane.querySelector('.preview'); if(!prev) return;
+      if($('gn-pdf-preview')) return;
+      // Toggle button
+      if(!$('gn-pdf-preview-toggle')){
+        var tg=document.createElement('button'); tg.id='gn-pdf-preview-toggle';
+        tg.innerHTML='👁 Esconder preview';
+        tg.onclick=function(){
+          var p=$('gn-pdf-preview');
+          if(!p) return;
+          if(p.style.display==='none'){p.style.display='block'; tg.innerHTML='👁 Esconder preview'; pane.classList.add('gn-with-preview');}
+          else {p.style.display='none'; tg.innerHTML='👁 Mostrar preview'; pane.classList.remove('gn-with-preview');}
+        };
+        prev.appendChild(tg);
+      }
+      // Wrapper grid
+      pane.classList.add('gn-with-preview');
+      var pv=document.createElement('div'); pv.id='gn-pdf-preview';
+      pv.innerHTML='<div style="color:#999;padding:20px;text-align:center;">Preview do PDF aparece aqui em tempo real</div>';
+      prev.appendChild(pv);
+      atualizaPreview();
+    }catch(e){}
+  }
+  setInterval(ensurePreview, 3000); setTimeout(ensurePreview, 2200);
+
+  // Função que monta o preview a partir do formulário
+  function atualizaPreview(){
+    try{
+      var pv=$('gn-pdf-preview'); if(!pv) return;
+      var pane=$('pane-novo'); if(!pane || pane.style.display==='none') return;
+
+      var num=($('badge')||{}).textContent||'—';
+      var data=new Date().toLocaleDateString('pt-BR');
+      var nome=($('f-nome')||{}).value||'(cliente)';
+      var cpf=($('f-cpf')||{}).value||'';
+      var end=($('f-end-cliente')||{}).value||'';
+      var obra=($('f-end-obra')||{}).value||'';
+      var tel=($('f-tel')||{}).value||'';
+      var email=($('f-email')||{}).value||'';
+      var obj=($('f-obj')||{}).value||'';
+      var escopo=($('f-escopo')||{}).value||'';
+      var obsTec=($('f-obs-tec')||{}).value||'';
+      var entreg=($('f-entregaveis')||{}).value||'';
+      var prem=($('f-premissas')||{}).value||'';
+      var pgto=($('f-pgto')||{}).value||'';
+      var prazo=($('f-prazo')||{}).value||'';
+      var validade=($('f-validade')||{}).value||'30 dias';
+      var obsAdic=($('f-obs-adic')||{}).value||'';
+      var tot=Number(String(($('f-tot')||{}).value||'').replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.'))||0;
+      if(!tot){
+        var disp=($('tot-disp')||{}).textContent||'';
+        tot=Number(String(disp).replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.'))||0;
+      }
+
+      // Serviços
+      var svcs=[];
+      document.querySelectorAll('#svc-list .rs, #svc-list > div').forEach(function(r){
+        var d=r.querySelector('.sv-desc,input[placeholder*="erviço"],input[type="text"]');
+        var q=r.querySelector('.sv-qtd,input[placeholder*="qtd"]');
+        var v=r.querySelector('.sv-vu');
+        var s=r.querySelector('.sv-sub');
+        if(d && d.value && d.value.trim()){
+          svcs.push({desc:d.value, qtd:Number((q||{}).value)||1, vu:Number(String((v||{}).value||'').replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.'))||0, sub:Number(String((s||{}).value||'').replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.'))||0});
+        }
+      });
+
+      // Desconto
+      var descInfo='';
+      try{
+        var dInfo=$('f-desconto-info');
+        if(dInfo && dInfo.value){
+          var d=JSON.parse(dInfo.value);
+          if(d.desconto>0) descInfo='<div style="margin-top:5px;font-size:10px;">Desconto: '+brl(d.desconto)+(d.tipo==='pct'?(' ('+d.qtd+'%)'):'')+'</div>';
+        }
+      }catch(e){}
+
+      pv.innerHTML=
+        '<div class="pv-head">'
+          +'<div class="pv-logo">Gás Network<small>Engenharia • CNPJ 46.701.957/0001-66</small></div>'
+          +'<div class="pv-num"><b>Nº '+esc(num)+'</b><br>'+esc(data)+'</div>'
+        +'</div>'
+        +'<h1>PROPOSTA COMERCIAL</h1>'
+        +'<h2>Dados do cliente</h2>'
+        +'<table class="pv-cli">'
+          +(nome?('<tr><td>Cliente:</td><td>'+esc(nome)+'</td></tr>'):'')
+          +(cpf?('<tr><td>CPF/CNPJ:</td><td>'+esc(cpf)+'</td></tr>'):'')
+          +(end?('<tr><td>Endereço:</td><td>'+esc(end)+'</td></tr>'):'')
+          +(obra?('<tr><td>Obra:</td><td>'+esc(obra)+'</td></tr>'):'')
+          +(tel?('<tr><td>Telefone:</td><td>'+esc(tel)+'</td></tr>'):'')
+          +(email?('<tr><td>E-mail:</td><td>'+esc(email)+'</td></tr>'):'')
+        +'</table>'
+        +(obj?('<h2>Objeto da proposta</h2><div class="pv-bloco">'+esc(obj)+'</div>'):'')
+        +(escopo?('<h2>Escopo técnico</h2><div class="pv-bloco">'+esc(escopo)+'</div>'):'')
+        +(svcs.length?('<h2>Serviços e valores</h2><table class="pv-svc"><thead><tr><th>Descrição</th><th>Qtd</th><th>Unit.</th><th>Subtotal</th></tr></thead><tbody>'
+          +svcs.map(function(s){return '<tr><td>'+esc(s.desc)+'</td><td>'+s.qtd+'</td><td>'+brl(s.vu)+'</td><td>'+brl(s.sub)+'</td></tr>';}).join('')
+          +'</tbody></table>'):'')
+        +(obsTec?('<h2>Observações técnicas</h2><div class="pv-bloco">'+esc(obsTec)+'</div>'):'')
+        +(entreg?('<h2>Entregáveis</h2><div class="pv-bloco">'+esc(entreg)+'</div>'):'')
+        +(prem?('<h2>Premissas do contratante</h2><div class="pv-bloco">'+esc(prem)+'</div>'):'')
+        +'<h2>Condições comerciais</h2>'
+        +'<table class="pv-cli">'
+          +(pgto?('<tr><td>Pagamento:</td><td>'+esc(pgto)+'</td></tr>'):'')
+          +(prazo?('<tr><td>Prazo:</td><td>'+esc(prazo)+'</td></tr>'):'')
+          +(validade?('<tr><td>Validade:</td><td>'+esc(validade)+'</td></tr>'):'')
+        +'</table>'
+        +'<div class="pv-tot">VALOR TOTAL: '+brl(tot)+descInfo+'</div>'
+        +(obsAdic?('<h2>Informações adicionais</h2><div class="pv-bloco">'+esc(obsAdic)+'</div>'):'')
+        +'<div class="pv-foot">Gás Network Engenharia • Rua Ascânio 263 • São Paulo/SP • (11) 98542-4462</div>';
+    }catch(e){console.warn('[gn preview]', e);}
+  }
+
+  // Atualiza preview enquanto digita
+  setInterval(atualizaPreview, 1500);
+  // Listener nos inputs do form (debounced)
+  setTimeout(function(){
+    var pane=$('pane-novo'); if(!pane) return;
+    pane.addEventListener('input', function(){
+      clearTimeout(window.__pvT);
+      window.__pvT=setTimeout(atualizaPreview, 500);
+    });
+  }, 2000);
+
+  // Expor a função pra ser chamada de fora também
+  window.atualizaPreviewPDF=atualizaPreview;
+
+})();
+</script>
+<script>
+// Final wrapper - hook menu lateral pra salvar última aba
+(function(){
   setTimeout(function(){
     try{
       var side=document.getElementById('gn-side');
@@ -20414,14 +20564,16 @@ window.gnDocAbrir=function(tipo,id,num){
           var btn=ev.target.closest('[data-go]');
           if(btn){
             var t=btn.getAttribute('data-go');
-            if(t) localStorage.setItem('gn_last_tab', t);
+            if(t){
+              try{ localStorage.setItem('gn_last_tab', t); }catch(e){}
+              try{ localStorage.setItem('gn_last_route', t); }catch(e){}
+            }
           }
         }, true);
         side.__persistWrap=true;
       }
     }catch(e){}
   }, 2000);
-
 })();
 </script>
 </body>
