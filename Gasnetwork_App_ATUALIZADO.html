@@ -3145,8 +3145,10 @@ function gerarPDF(){
         var _fn=(currentMode==='completo'?'Proposta':'Orcamento')+' Gas Network '+String(docNum).replace(/[^A-Z0-9\-\/]/gi,'')+' - '+_nf(_tc(cl.nome||'Cliente'))+'.pdf';
         try{ gdoc.save(_fn); }catch(e){}
         try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(gdoc, _fn, {numero:docNum, cliente:(cl.nome||''), tipo:(currentMode==='completo'?'Proposta':'Orçamento')}); }catch(e){}
-        var _hist={numero:num,cliente:cl.nome||'—',servicos:svcs.map(function(s){return s.desc;}).join(', '),data:dtStr,valor:total,modo:currentMode,snapshot:{cl:cl,obj:obj,escopo:escopo,pgto:pgto,prazo:prazo,validade:validade,obsTec:obsTec,entregaveis:entregaveis,premissas:premissas,prazosDet:prazosDet,obsAdic:obsAdic,incluso:_inc,naoIncluso:_ninc,total:total,svcs:svcs,garantiaDias:_gDias}};
+        var _hist={numero:num,cliente:cl.nome||'—',servicos:svcs.map(function(s){return s.desc;}).join(', '),data:dtStr,valor:total,modo:currentMode,snapshot:{cl:cl,obj:obj,escopo:escopo,pgto:pgto,prazo:prazo,validade:validade,obsTec:obsTec,entregaveis:entregaveis,premissas:premissas,prazosDet:prazosDet,obsAdic:obsAdic,incluso:_inc,naoIncluso:_ninc,total:total,svcs:svcs,garantiaDias:_gDias,descTipo:(document.getElementById('gn-desc-tipo')||{}).value||'',descQtd:(document.getElementById('gn-desc-qtd')||{}).value||''}};
         try{ saveHist(_hist); }catch(e){}
+        try{ if(typeof renderPed==='function') renderPed(); }catch(e){}
+        try{ if(typeof renderPedTudo==='function') renderPedTudo(); }catch(e){}
         try{ var _b64=gdoc.output('datauristring').split(',')[1]; cloudSave(_hist,_b64,_fn); }catch(eUp){}
         try{ updCount(); }catch(e){}
         if(typeof toast==='function') toast('✓ PDF gerado: '+_fn,'ok');
@@ -3358,7 +3360,7 @@ function loadSnapshot(entry){if(!entry){toast('Registro sem dados.','er');return
     entry.snapshot={ cl:_cl, obj:'', escopo:'', pgto:'', prazo:'', validade:'30 dias', obsTec:'', svcs:_sv, total:Number(entry.valor)||0 };
     try{ if(typeof toast==='function') toast('Pedido aberto para edição. Confira/complete os dados e salve.','ok'); }catch(_t){}
   }
-  const s=entry.snapshot;currentMode=entry.modo||'simples';setMode(currentMode);propostaNum=entry.numero;document.getElementById('badge').textContent=entry.numero;set('f-nome',s.cl?.nome||'');set('f-cpf',s.cl?.cpf||'');set('f-rg',s.cl?.rg||'');set('f-end-cliente',s.cl?.end||'');set('f-end-obra',s.cl?.obra||'');set('f-responsavel',s.cl?.resp||'');set('f-tel',s.cl?.tel||'');set('f-email',s.cl?.email||'');set('f-obj',s.obj||'');set('f-escopo',s.escopo||'');set('f-pgto',s.pgto||'');set('f-prazo',s.prazo||'');set('f-validade',s.validade||'30 dias');set('f-obs-tec',s.obsTec||'');set('f-entregaveis',s.entregaveis||'');set('f-premissas',s.premissas||'');set('f-prazos-det',s.prazosDet||'');set('f-obs-adic',s.obsAdic||'');set('f-incluso',s.incluso||'');set('f-nao-incluso',s.naoIncluso||'');set('f-garantia-dias',s.garantiaDias||'90');renderSvcs(s.svcs&&s.svcs.length?s.svcs.map(sv=>({descricao:sv.desc,quantidade:sv.qtd,valor_unitario:sv.vu,subtotal:sv.sub})):[{descricao:'',quantidade:1,valor_unitario:0,subtotal:0}]);const totFmt=s.total?fmt(s.total):'';document.getElementById('f-tot').value=totFmt;updTot(totFmt);return true;}
+  const s=entry.snapshot;currentMode=entry.modo||'simples';setMode(currentMode);propostaNum=entry.numero;document.getElementById('badge').textContent=entry.numero;set('f-nome',s.cl?.nome||'');set('f-cpf',s.cl?.cpf||'');set('f-rg',s.cl?.rg||'');set('f-end-cliente',s.cl?.end||'');set('f-end-obra',s.cl?.obra||'');set('f-responsavel',s.cl?.resp||'');set('f-tel',s.cl?.tel||'');set('f-email',s.cl?.email||'');set('f-obj',s.obj||'');set('f-escopo',s.escopo||'');set('f-pgto',s.pgto||'');set('f-prazo',s.prazo||'');set('f-validade',s.validade||'30 dias');set('f-obs-tec',s.obsTec||'');set('f-entregaveis',s.entregaveis||'');set('f-premissas',s.premissas||'');set('f-prazos-det',s.prazosDet||'');set('f-obs-adic',s.obsAdic||'');set('f-incluso',s.incluso||'');set('f-nao-incluso',s.naoIncluso||'');set('f-garantia-dias',s.garantiaDias||'90');try{var _dt=document.getElementById('gn-desc-tipo'),_dq=document.getElementById('gn-desc-qtd');if(_dt)_dt.value=s.descTipo||'';if(_dq)_dq.value=s.descQtd||'';if(window.gnDescCalc)setTimeout(window.gnDescCalc,300);}catch(e){}renderSvcs(s.svcs&&s.svcs.length?s.svcs.map(sv=>({descricao:sv.desc,quantidade:sv.qtd,valor_unitario:sv.vu,subtotal:sv.sub})):[{descricao:'',quantidade:1,valor_unitario:0,subtotal:0}]);const totFmt=s.total?fmt(s.total):'';document.getElementById('f-tot').value=totFmt;updTot(totFmt);return true;}
 function editarHist(i){const h=JSON.parse(localStorage.getItem('gn_hist')||'[]');if(!loadSnapshot(h[i]))return;goTab('novo');document.getElementById('preview').style.display='block';setTimeout(()=>document.getElementById('preview').scrollIntoView({behavior:'smooth',block:'start'}),150);toast('✓ Proposta carregada para edição.','ok');}
 function baixarHistPDF(i){const h=JSON.parse(localStorage.getItem('gn_hist')||'[]');if(!loadSnapshot(h[i]))return;document.getElementById('preview').style.display='block';setTimeout(()=>gerarPDF(),80);}
 function updCount(){var el=document.getElementById('hcount');if(el)el.textContent=JSON.parse(localStorage.getItem('gn_hist')||'[]').length;}
@@ -4484,13 +4486,17 @@ function pedSyncFinance(numero, entry){
 }
 function pedEditar(numero){ try{ if(typeof pdClose==='function') pdClose(); }catch(e){} try{ var m=document.getElementById('pd-modal'); if(m) m.style.display='none'; }catch(e){} var h=pedHist(); var i=h.findIndex(function(e){ return e.numero===numero; }); if(i<0){ toast('Pedido sem dados','er'); return; } if(typeof editarHist==='function') editarHist(i); else if(typeof goTab==='function') goTab('novo'); }
 function pedExcluir(numero){
-  if(!confirm('Excluir este pedido? (remove o pedido e o lançamento financeiro ligado a ele)')) return;
-  try{ var h=pedHist().filter(function(e){ return e.numero!==numero; }); localStorage.setItem('gn_hist', JSON.stringify(h)); }catch(e){}
-  try{ var ov=pedOverlay(); delete ov[numero]; pedSaveOverlay(ov); }catch(e){}
-  try{ if(typeof finData==='function'){ var f=finData().filter(function(x){ return x.origem!==('ped:'+numero) && x.origem!==numero; }); finSaveAll(f); } }catch(e){}
-  try{ if(typeof gnCloud2PushKey==='function'){ gnCloud2PushKey('gn_hist'); gnCloud2PushKey('gn_ped'); gnCloud2PushKey('gn_fin'); } }catch(e){}
-  try{ renderPed(); }catch(e){} try{ if(typeof renderFin==='function') renderFin(); }catch(e){} try{ if(typeof updCount==='function') updCount(); }catch(e){} try{ if(typeof renderInicio==='function') renderInicio(); }catch(e){}
-  toast('✓ Pedido excluído.','ok');
+  function _do(){
+    try{ if(typeof pdClose==='function') pdClose(); }catch(e){}
+    try{ var h=pedHist().filter(function(e){ return e.numero!==numero; }); localStorage.setItem('gn_hist', JSON.stringify(h)); }catch(e){}
+    try{ var ov=pedOverlay(); delete ov[numero]; pedSaveOverlay(ov); }catch(e){}
+    try{ if(typeof finData==='function'){ var f=finData().filter(function(x){ return x.origem!==('ped:'+numero) && x.origem!==numero; }); finSaveAll(f); } }catch(e){}
+    try{ if(typeof gnCloud2PushKey==='function'){ gnCloud2PushKey('gn_hist'); gnCloud2PushKey('gn_ped'); gnCloud2PushKey('gn_fin'); } }catch(e){}
+    try{ renderPed(); }catch(e){} try{ if(typeof renderPedTudo==='function') renderPedTudo(); }catch(e){} try{ if(typeof renderFin==='function') renderFin(); }catch(e){} try{ if(typeof updCount==='function') updCount(); }catch(e){} try{ if(typeof renderInicio==='function') renderInicio(); }catch(e){}
+    toast('✓ Pedido excluído.','ok');
+  }
+  if(typeof gnConfirm==='function'){ gnConfirm('Excluir este pedido?','Remove o pedido e o lançamento financeiro ligado a ele. Não dá pra desfazer.',true).then(function(y){ if(y) _do(); }); }
+  else { if(confirm('Excluir este pedido? (remove o pedido e o lançamento financeiro ligado a ele)')) _do(); }
 }
 
 function pedDoc(numero, preview){
@@ -4525,8 +4531,7 @@ function pedDoc(numero, preview){
   else { if(snap.descricao||e.servicos) blocos.push({titulo:'Serviços', texto:(snap.descricao||e.servicos)}); }
   var titmap={'Orçamento':'Orçamento','Proposta comercial':'Proposta comercial','Nota de Serviço':'Nota de serviço','Recibo':'Recibo','Contrato':'Contrato','Laudo técnico':'Laudo técnico','Fatura':'Fatura','Pedido':'Pedido','Resumo financeiro':'Resumo financeiro do pedido','Projeto':'Projeto','Voucher de transporte':'Voucher de transporte'};
   var ov=(typeof pedOverlay==='function')?(pedOverlay()[numero]||{}):{};
-  var gd=ov.garantiaDias;
-  if(gd==null && tipo!=='Recibo'){ gd=prompt('Garantia deste serviço, em DIAS — opções: 30 (1 mês), 90 (3 meses), 180 (6 meses), 365 (1 ano). Ou digite outro valor:','90'); if(gd!=null){ try{ pedSet(numero,'garantiaDias',gd); }catch(e){} } }
+  function _gerarDoc(gd){
   var docNum;
   if(typeof gnDocNum==='function'){
     if((tipo==='Nota de Serviço'||tipo==='Recibo') && ov.osCore){
@@ -4551,6 +4556,21 @@ function pedDoc(numero, preview){
   if(doc){ var _fn=(titmap[tipo]||tipo)+' '+docNum+' - '+(e.cliente||'')+'.pdf';
     if(preview){ try{ window.open(doc.output('bloburl'),'_blank'); }catch(e2){ try{ doc.output('dataurlnewwindow'); }catch(e3){ doc.save(_fn); } } }
     else { doc.save(_fn); try{ if(typeof gnAutoSaveDoc==='function') gnAutoSaveDoc(doc, _fn, {numero:docNum, cliente:(e.cliente||''), tipo:(titmap[tipo]||tipo)}); }catch(er){} }
+  }
+  }
+  // Pergunta a garantia ANTES de gerar (balão bonito) e só então gera o documento.
+  // (Antes o prompt era sequestrado e retornava 90 na hora, ignorando a escolha.)
+  if(ov.garantiaDias==null && tipo!=='Recibo' && typeof gnAsk==='function'){
+    gnAsk({titulo:'🛡 Garantia deste serviço', icone:'🛡', subtitulo:'Quantos dias de garantia para este documento?',
+      perguntas:[ {id:'dias', label:'Garantia', tipo:'chips', padrao:'90', opcoes:[{v:'30',l:'30 dias (1 mês)'},{v:'90',l:'90 dias (3 meses)'},{v:'180',l:'180 dias (6 meses)'},{v:'365',l:'365 dias (1 ano)'},{v:'custom',l:'Outro valor...'}]},
+                  {id:'custom', label:'Outro valor (dias)', tipo:'number', padrao:''} ]
+    }).then(function(o){
+      var _gd = o ? (o.dias==='custom' ? (o.custom||'90') : o.dias) : '90';
+      try{ pedSet(numero,'garantiaDias',_gd); }catch(e){}
+      _gerarDoc(_gd);
+    });
+  } else {
+    _gerarDoc(ov.garantiaDias!=null ? ov.garantiaDias : (tipo!=='Recibo' ? '90' : ''));
   }
 }
 
@@ -15775,6 +15795,34 @@ window.gnDocAbrir=function(tipo,id,num){
     }catch(e){if(window.toast)toast('Erro: '+e.message,'er');}
   };
 
+  // Excluir qualquer documento da lista de Pedidos (orçamento, laudo, NS, recibo, contrato),
+  // com modal bonito (gnConfirm) em vez da caixa branca nativa.
+  window.gnPedExcluir=function(tipo, id, num){
+    function doDel(){
+      var ok=false;
+      try{
+        if(tipo==='orc'||tipo==='laudo'){
+          var before=gj('gn_hist'); var arr=before.filter(function(x){ return x.numero!==num; });
+          if(arr.length!==before.length){ ls('gn_hist', arr); try{ if(window.gnCloud2PushKey) gnCloud2PushKey('gn_hist'); }catch(e){} ok=true;
+            try{ if(typeof finData==='function'){ var f=finData().filter(function(x){ return x.origem!==('ped:'+num) && x.origem!==num; }); finSaveAll(f); if(window.gnCloud2PushKey) gnCloud2PushKey('gn_fin'); } }catch(e){}
+          }
+        } else {
+          var k='gn_'+tipo; var b2=gj(k); var a2=b2.filter(function(x){ return x.id!==id && x.numero!==num; });
+          if(a2.length!==b2.length){ ls(k, a2); try{ if(window.gnCloud2PushKey) gnCloud2PushKey(k); }catch(e){} ok=true; }
+        }
+      }catch(e){}
+      // laudos de renovação ficam em gn_renov (chave por id)
+      try{ var rv=gj('gn_renov'); var rv2=rv.filter(function(x){ return x.id!==id; }); if(rv2.length!==rv.length){ ls('gn_renov', rv2); if(window.gnCloud2PushKey) gnCloud2PushKey('gn_renov'); ok=true; } }catch(e){}
+      try{ if(window.renderPedTudo) renderPedTudo(); }catch(e){}
+      try{ if(window.renderFin) renderFin(); }catch(e){}
+      try{ if(window.renderInicio) renderInicio(); }catch(e){}
+      if(window.toast) toast(ok?'✓ Documento excluído':'Não encontrei esse documento pra excluir', ok?'ok':'er');
+    }
+    if(typeof window.gnConfirm==='function'){
+      window.gnConfirm('Excluir este documento?', 'Remove o pedido e o lançamento financeiro ligado a ele. Não dá pra desfazer.', true).then(function(yes){ if(yes) doDel(); });
+    } else { if(confirm('Excluir este documento?')) doDel(); }
+  };
+
   // ── 4) Auto-stamp editadoEm em qualquer save de gn_hist/gn_os/gn_rec/gn_ctr ──
   // Intercepta localStorage.setItem para marcar editadoEm nos documentos
   var origSet=localStorage.setItem.bind(localStorage);
@@ -18680,7 +18728,8 @@ window.gnDocAbrir=function(tipo,id,num){
         var arg="'"+o.tipo+"','"+esc(o.id||'')+"','"+esc(o.num||'')+"'";
         // ações principais (sempre visíveis)
         var actsP='<button class="ab pri" onclick="event.stopPropagation();gnPedAbrirEditar('+arg+')">✎ Abrir / Editar</button>'
-                +'<button class="ab green" onclick="event.stopPropagation();gnPedDuplicar('+arg+')">📋 Duplicar</button>';
+                +'<button class="ab green" onclick="event.stopPropagation();gnPedDuplicar('+arg+')">📋 Duplicar</button>'
+                +'<button class="ab" style="background:rgba(220,38,38,.16);color:#fca5a5;" onclick="event.stopPropagation();gnPedExcluir('+arg+')" title="Excluir este documento">🗑 Excluir</button>';
         // ações secundárias (só pra orçamento)
         var actsS='';
         if(o.tipo==='orc'){
@@ -20537,6 +20586,65 @@ window.gnDocAbrir=function(tipo,id,num){
     document.body.appendChild(b);
   }, 5000);
 
+})();
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════════
+// ═══ GESTO "VOLTAR" estilo app de celular                         ═══
+// ═══ Arrastar da borda esquerda → direita = voltar                ═══
+// ═══ Também trata o botão/gesto "voltar" do Android (popstate):   ═══
+// ═══ fecha o balão aberto ou volta pra aba anterior antes de sair ═══
+// ══════════════════════════════════════════════════════════════════
+(function(){
+  var MODAIS=['gn-drill','pd-modal','pw-modal','iaprop-modal','env-modal','gn-cli-balao','gn-cli-balao-full','gnrb-modal','gn-ferr-qr-modal'];
+  function visivel(m){ if(!m) return false; try{ var d=getComputedStyle(m).display; return d && d!=='none'; }catch(e){ return m.style.display && m.style.display!=='none'; } }
+  function modalAberto(){
+    for(var i=0;i<MODAIS.length;i++){ var m=document.getElementById(MODAIS[i]); if(visivel(m)) return m; }
+    var g=document.querySelector('.gn-modal-bd'); if(visivel(g)) return g;
+    return null;
+  }
+  function fecharModal(m){
+    var byId={'gn-drill':'gnDrillClose','pd-modal':'pdClose','pw-modal':'pwClose','iaprop-modal':'iaPropClose','env-modal':'envClose'};
+    var fn=byId[m.id];
+    if(fn && typeof window[fn]==='function'){ try{ window[fn](); return; }catch(e){} }
+    try{ m.style.display='none'; }catch(e){}
+  }
+  // back-stack de abas (lembra a aba anterior)
+  var tabStack=[];
+  if(typeof window.goTab==='function' && !window.goTab.__backStack){
+    var _gt=window.goTab;
+    window.goTab=function(t){
+      try{ if(!window.__gnSkipPush){ var cur=window.__gnTabAtual; if(cur && cur!==t){ tabStack.push(cur); if(tabStack.length>30) tabStack.shift(); } } }catch(e){}
+      window.__gnTabAtual=t;
+      return _gt.apply(this, arguments);
+    };
+    window.goTab.__backStack=true;
+  }
+  window.gnVoltar=function(){
+    var m=modalAberto();
+    if(m){ fecharModal(m); return true; }
+    if(tabStack.length){ var prev=tabStack.pop(); window.__gnSkipPush=true; try{ window.goTab(prev); }catch(e){} window.__gnSkipPush=false; return true; }
+    return false;
+  };
+  // Arrastar da borda esquerda → direita
+  var sx=0, sy=0, tracking=false, t0=0;
+  document.addEventListener('touchstart', function(e){
+    if(!e.touches || e.touches.length!==1){ tracking=false; return; }
+    var x=e.touches[0].clientX, y=e.touches[0].clientY;
+    if(x<=28){ tracking=true; sx=x; sy=y; t0=Date.now(); } else { tracking=false; }
+  }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    if(!tracking) return; tracking=false;
+    var t=(e.changedTouches && e.changedTouches[0]); if(!t) return;
+    var dx=t.clientX-sx, dy=Math.abs(t.clientY-sy), dt=Date.now()-t0;
+    if(dx>70 && dy<60 && dt<700){ if(window.gnVoltar) window.gnVoltar(); }
+  }, {passive:true});
+  // Botão/gesto "voltar" do Android (popstate): fecha balão / volta de aba antes de sair do app
+  try{ history.pushState({gnGuard:1}, ''); }catch(e){}
+  window.addEventListener('popstate', function(){
+    var consumiu = window.gnVoltar ? window.gnVoltar() : false;
+    if(consumiu){ try{ history.pushState({gnGuard:1}, ''); }catch(e){} }
+  });
 })();
 </script>
 </body>
