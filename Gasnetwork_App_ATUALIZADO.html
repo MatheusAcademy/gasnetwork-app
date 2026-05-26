@@ -4240,7 +4240,7 @@ function gnCor(){ var c=gnCfg(); return c.cor||'#7c5cff'; }
 // Dados compartilhados por toda a equipe + auto-save de documentos no Drive.
 // ══════════════════════════════════════════════
 var GN_CLOUD2 = 'https://script.google.com/macros/s/AKfycbycnK4Fx0J4QphoLr-LQJPkh04RTy6zbBto-Sqlgr306GqjggZkKhyOsJXypeprS0Loww/exec';
-var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_age_done','gn_prod','gn_ferr','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user','gn_upload_hist','gn_drive_idx','gn_nome_ok','gn_notinha_done','gn_gar_retornos','gn_whatsapp_log','gn_whatsapp_contatos','gn_whatsapp_agendados','gn_whatsapp_last','gn_whatsapp_chatfp','gn_msg_hist','gn_urgencias','gn_resumo_diario','gn_ia_recomendacoes','gn_resp_prontas','gn_cat_custom','gn_nps_done','gn_tomb_age','gn_lembr_avisados'];
+var GN_SHARED_KEYS = ['gn_hist','gn_ped','gn_cli','gn_fin','gn_svc','gn_tarefas','gn_atend','gn_forn','gn_compras','gn_chamados','gn_chk','gn_recur','gn_cfg','gn_rec','gn_os','gn_ctr','gn_agenda','gn_age_done','gn_prod','gn_ferr','gn_tomb','gn_nf','gn_assist_mem','gn_assist_log','gn_renov','gn_modelos','gn_pvdone','gn_garcfg','gn_gcal_hidden','gn_svc_user','gn_upload_hist','gn_drive_idx','gn_nome_ok','gn_notinha_done','gn_gar_retornos','gn_whatsapp_log','gn_whatsapp_contatos','gn_whatsapp_agendados','gn_whatsapp_last','gn_whatsapp_chatfp','gn_msg_hist','gn_urgencias','gn_resumo_diario','gn_ia_recomendacoes','gn_resp_prontas','gn_memoria','gn_aprendizado','gn_memoria_idx','gn_cat_custom','gn_nps_done','gn_tomb_age','gn_lembr_avisados'];
 var _gnSynced = {};        // último valor conhecido por chave (string)
 var _gnSyncBusy = false;
 var _gnSyncOn = true;
@@ -13827,6 +13827,158 @@ window.gnDocAbrir=function(tipo,id,num){
   };
   try{ if(!localStorage.getItem('gn_resp_prontas')) localStorage.setItem('gn_resp_prontas',JSON.stringify(RESP_DEFAULT)); }catch(e){}
 
+})();
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// ═══ MEMÓRIA INFINITA + APRENDIZADO — submenu "🧠 Memória" ════
+// Indexa todos os registros que a IA leu por dia/semana/mês/ano.
+// Mostra padrões aprendidos (valores médios, frases, horários).
+// ══════════════════════════════════════════════════════════════
+(function(){
+  function $(id){return document.getElementById(id);}
+  function gj(k){try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];}}
+  function go(k){try{return JSON.parse(localStorage.getItem(k)||'{}');}catch(e){return {};}}
+  function escH(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function brl(n){n=Number(n)||0;return 'R$ '+n.toFixed(2).replace('.',',');}
+  function dBR(s){s=String(s||'');var m=s.match(/(\d{4})-(\d{2})-(\d{2})/);return m?(m[3]+'/'+m[2]+'/'+m[1]):s;}
+
+  function buildMemPane(){
+    if(document.getElementById('pane-memoria')) return;
+    var ref=document.getElementById('pane-whatsapp')||document.getElementById('pane-cli')||document.getElementById('pane-cfg'); if(!ref||!ref.parentNode) return;
+    var p=document.createElement('div'); p.id='pane-memoria'; p.style.display='none';
+    p.innerHTML=
+      '<div class="eyebrow">Inteligência</div>'
+      +'<div class="pgtitle" style="margin-bottom:4px;">🧠 Memória <span style="font-size:11px;background:#7c5cff;color:#fff;border-radius:10px;padding:1px 8px;font-weight:700;vertical-align:middle;">infinita</span></div>'
+      +'<div class="pgsub" style="margin-bottom:14px;">Tudo que a IA leu do WhatsApp fica aqui — indexado por hoje, ontem, semana, mês, ano. Quanto mais ela lê, melhor fica nas sugestões (valores típicos, formas de falar dos clientes, horários, dúvidas comuns).</div>'
+      +'<div id="mem-stats" style="margin-bottom:14px;"></div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;" id="mem-filtros"></div>'
+      +'<input id="mem-busca" placeholder="🔍 Buscar na memória (nome, palavra, valor...)" style="width:100%;padding:10px 12px;border:1px solid var(--gn-border);border-radius:8px;margin-bottom:12px;">'
+      +'<div style="font-weight:800;color:var(--gn-text);margin:12px 0 6px;font-size:14px;">📚 Aprendizado acumulado (do que a IA já viu)</div>'
+      +'<div id="mem-aprendizado"></div>'
+      +'<div style="font-weight:800;color:var(--gn-text);margin:18px 0 6px;font-size:14px;">📜 Registros da memória</div>'
+      +'<div id="mem-lista"></div>';
+    ref.parentNode.insertBefore(p, ref.nextSibling);
+  }
+
+  window.__memFiltro='hoje';
+  window.memSetFiltro=function(f){window.__memFiltro=f; window.memRefresh();};
+
+  function periodos(){return [['hoje','Hoje'],['ontem','Ontem'],['semana','Esta semana'],['mes','Este mês'],['ano','Este ano'],['tudo','Tudo']];}
+
+  function filtraMem(arr){
+    var f=window.__memFiltro||'hoje'; if(f==='tudo') return arr;
+    var hoje=new Date(); var hojeISO=hoje.toISOString().slice(0,10);
+    var ontem=new Date(hoje.getTime()-86400000).toISOString().slice(0,10);
+    function semIso(d){var dt=new Date(d); var oneJan=new Date(dt.getFullYear(),0,1); var w=Math.ceil((((dt-oneJan)/86400000)+oneJan.getDay()+1)/7); return dt.getFullYear()+'-W'+w;}
+    var hojeSem=semIso(hoje); var hojeMes=hoje.getFullYear()+'-'+('0'+(hoje.getMonth()+1)).slice(-2); var hojeAno=hoje.getFullYear();
+    return arr.filter(function(r){var iso=String(r.timestamp_iso||r.data||'').slice(0,10); if(!iso) return false;
+      if(f==='hoje') return iso===hojeISO;
+      if(f==='ontem') return iso===ontem;
+      if(f==='semana'){var ri=new Date(iso); return semIso(ri)===hojeSem;}
+      if(f==='mes') return iso.startsWith(hojeMes);
+      if(f==='ano') return iso.startsWith(String(hojeAno));
+      return true;
+    });
+  }
+
+  window.memRefresh=function(){
+    try{
+      var mem=gj('gn_memoria'); var ap=go('gn_aprendizado');
+      // Stats
+      var s=$('mem-stats'); if(s){
+        var hoje=new Date().toISOString().slice(0,10);
+        var hojeQ=mem.filter(function(r){return String(r.timestamp_iso||r.data||'').slice(0,10)===hoje;}).length;
+        s.innerHTML='<div style="background:linear-gradient(135deg,rgba(124,92,255,.15),rgba(67,56,202,.10));border:1px solid #7c5cff;border-radius:12px;padding:13px 16px;">'
+          +'<div style="display:flex;gap:14px;flex-wrap:wrap;color:var(--gn-text);font-size:13px;">'
+          +'<div>📜 <b>'+mem.length+'</b> registros no total</div>'
+          +'<div>📅 <b>'+hojeQ+'</b> hoje</div>'
+          +'<div>🧠 <b>'+Object.keys(ap.valores_por_servico||{}).length+'</b> tipos de serviço aprendidos</div>'
+          +'<div>👥 <b>'+Object.keys(ap.clientes_recorrentes||{}).length+'</b> clientes recorrentes</div>'
+          +'</div></div>';
+      }
+      // Filtros chips
+      var fb=$('mem-filtros'); if(fb && !fb.children.length){ fb.innerHTML=periodos().map(function(p){var on=p[0]===window.__memFiltro; return '<button onclick="memSetFiltro(\''+p[0]+'\')" style="border:1px solid '+(on?'#7c5cff':'var(--gn-border)')+';background:'+(on?'#7c5cff':'transparent')+';color:'+(on?'#fff':'var(--gn-text)')+';border-radius:18px;padding:6px 14px;cursor:pointer;font-size:12.5px;font-weight:700;">'+p[1]+'</button>';}).join(''); } else if(fb){ Array.prototype.forEach.call(fb.children, function(b,i){var on=periodos()[i][0]===window.__memFiltro; b.style.background=on?'#7c5cff':'transparent'; b.style.color=on?'#fff':'var(--gn-text)'; b.style.borderColor=on?'#7c5cff':'var(--gn-border)';}); }
+      // Aprendizado
+      var ai=$('mem-aprendizado'); if(ai){
+        var html='';
+        // Valores por serviço (média)
+        if(ap.valores_por_servico && Object.keys(ap.valores_por_servico).length){
+          html+='<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:10px;padding:11px 14px;margin-bottom:8px;"><div style="font-weight:700;color:#16a34a;margin-bottom:4px;">💰 Valor médio por serviço (aprendido)</div>';
+          Object.keys(ap.valores_por_servico).slice(0,8).forEach(function(k){var vals=ap.valores_por_servico[k]; if(!vals||!vals.length)return; var media=vals.reduce(function(a,b){return a+Number(b);},0)/vals.length; html+='<div style="font-size:12.5px;color:var(--gn-text);">• '+escH(k)+': <b>'+brl(media)+'</b> <span style="color:var(--gn-dim);font-size:11px;">('+vals.length+' obs.)</span></div>';});
+          html+='</div>';
+        }
+        // Dúvidas frequentes
+        if(ap.duvidas_frequentes && Object.keys(ap.duvidas_frequentes).length){
+          html+='<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:10px;padding:11px 14px;margin-bottom:8px;"><div style="font-weight:700;color:#0891b2;margin-bottom:4px;">❓ Dúvidas mais frequentes</div>';
+          Object.keys(ap.duvidas_frequentes).slice(0,5).forEach(function(k){var d=ap.duvidas_frequentes[k]; html+='<div style="font-size:12.5px;color:var(--gn-text);margin-bottom:3px;">• "'+escH(k)+'" <span style="color:var(--gn-dim);">('+(d.count||1)+'x)</span></div>';});
+          html+='</div>';
+        }
+        // Formas de pagamento
+        if(ap.formas_pagamento && Object.keys(ap.formas_pagamento).length){
+          var fp=Object.keys(ap.formas_pagamento).map(function(k){return [k,ap.formas_pagamento[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,5);
+          html+='<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:10px;padding:11px 14px;margin-bottom:8px;"><div style="font-weight:700;color:#7c5cff;margin-bottom:4px;">💳 Formas de pagamento preferidas</div>'+fp.map(function(x){return '<span style="display:inline-block;background:rgba(124,92,255,.15);color:var(--gn-text);border-radius:14px;padding:2px 10px;margin:2px;font-size:12px;">'+escH(x[0])+' ('+x[1]+')</span>';}).join('')+'</div>';
+        }
+        if(!html) html='<div style="color:var(--gn-dim);padding:12px;border:1px dashed var(--gn-border);border-radius:10px;font-size:13px;">Ainda sem aprendizado registrado. Após algumas leituras do WhatsApp, os padrões vão aparecer aqui.</div>';
+        ai.innerHTML=html;
+      }
+      // Lista filtrada
+      var arr=filtraMem(mem); var q=(($('mem-busca')||{}).value||'').toLowerCase();
+      if(q) arr=arr.filter(function(r){return ((r.cliente||'')+(r.texto||'')+(r.servico||'')+(r.intencao||'')).toLowerCase().indexOf(q)>=0;});
+      arr=arr.sort(function(a,b){return String(b.timestamp_iso||b.data||'').localeCompare(String(a.timestamp_iso||a.data||''));}).slice(0,150);
+      var l=$('mem-lista'); if(l){
+        if(!arr.length){ l.innerHTML='<div style="color:var(--gn-dim);padding:12px;border:1px dashed var(--gn-border);border-radius:10px;">Nada nesse filtro.</div>'; }
+        else { l.innerHTML='<div style="font-size:12px;color:var(--gn-dim);margin-bottom:6px;">'+arr.length+' registro(s) (até 150 mais recentes)</div>'+arr.map(function(r){var sent=r.sentimento||''; var dt=''; try{dt=new Date(r.timestamp_iso||r.data).toLocaleString("pt-BR",{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){} return '<div style="border:1px solid var(--gn-border);border-left:3px solid #7c5cff;border-radius:8px;padding:8px 12px;margin-bottom:5px;font-size:12.5px;color:var(--gn-text);"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;"><b>'+escH(r.cliente||'?')+'</b>'+(sent?(' '+sent):'')+(r.urgente?' 🚨':'')+'<span style="color:var(--gn-dim);font-size:11px;">'+escH(dt)+(r.intencao?(' · '+escH(r.intencao)):'')+'</span></div><div style="margin-top:3px;">'+escH(String(r.texto||'').slice(0,200))+'</div>'+(r.valor_mencionado?('<div style="font-size:11.5px;color:#16a34a;margin-top:2px;">💰 '+brl(r.valor_mencionado)+'</div>'):'')+'</div>';}).join(''); }
+      }
+    }catch(e){}
+  };
+
+  // Menu lateral
+  function addMemMenu(){
+    try{
+      var side=document.getElementById('gn-side'); if(!side||side.querySelector('[data-go="memoria"]')) return;
+      var grps=side.querySelectorAll('.gn-grp'); var ges;
+      Array.prototype.forEach.call(grps,function(g){if(/Gest|Comercial/.test(g.textContent))ges=g;});
+      if(!ges) ges=grps[0];
+      var b=document.createElement('button'); b.className='gn-nav'; b.setAttribute('data-go','memoria');
+      b.innerHTML='<span class="gn-ic">🧠</span><span>Memória</span>';
+      b.onclick=function(){if(typeof gnNav==='function') gnNav('memoria'); else window.goTab('memoria');};
+      var depois=ges; var next=ges.nextElementSibling; while(next && next.classList && next.classList.contains('gn-nav')){depois=next; next=next.nextElementSibling;}
+      depois.parentNode.insertBefore(b, depois.nextSibling);
+    }catch(e){}
+  }
+  setInterval(addMemMenu, 2000);
+
+  // hook goTab
+  if(typeof window.goTab==='function' && !window.goTab.__memWrap){
+    var _ogt=window.goTab; window.goTab=function(t){_ogt.apply(this,arguments); try{ buildMemPane(); var p=$('pane-memoria'); if(p) p.style.display=(t==='memoria')?'block':'none'; if(t==='memoria') window.memRefresh();}catch(e){}};
+    try{for(var k in _ogt) if(_ogt.hasOwnProperty(k)) window.goTab[k]=_ogt[k];}catch(e){}
+    window.goTab.__memWrap=true;
+  }
+  setTimeout(buildMemPane, 1800);
+  // busca live
+  setInterval(function(){ var i=$('mem-busca'); if(i && !i.__hook){ i.__hook=true; i.addEventListener('input', function(){window.memRefresh();}); } }, 3000);
+
+  // ── Integração: usa aprendizado pra sugerir valor médio ao gerar orçamento ──
+  // Quando svcUsar for chamado, se houver valor médio aprendido, pré-preenche se o serviço estiver zerado.
+  if(typeof window.svcUsar==='function' && !window.svcUsar.__memInt){
+    var _osu=window.svcUsar;
+    window.svcUsar=function(id){
+      _osu.apply(this,arguments);
+      try{
+        setTimeout(function(){
+          var ap=go('gn_aprendizado'); if(!ap||!ap.valores_por_servico) return;
+          var c=gj('gn_svc').filter(function(x){return x.id===id;})[0]; if(!c||Number(c.valor)) return;
+          var key=Object.keys(ap.valores_por_servico).filter(function(k){return k.toLowerCase().indexOf(String(c.nome||'').toLowerCase().slice(0,10))>=0;})[0];
+          if(!key) return;
+          var vals=ap.valores_por_servico[key]; if(!vals||!vals.length) return;
+          var media=vals.reduce(function(a,b){return a+Number(b);},0)/vals.length;
+          if(window.toast) toast('🧠 Valor médio aprendido pra esse serviço: '+brl(media)+' (de '+vals.length+' observações)','ok');
+        }, 500);
+      }catch(e){}
+    };
+    window.svcUsar.__memInt=true;
+  }
 })();
 </script>
 </body>
