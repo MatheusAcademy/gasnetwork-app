@@ -19341,48 +19341,69 @@ window.gnDocAbrir=function(tipo,id,num){
     return arg;
   }
 
-  // ═══ REATIVADO — patch jsPDF de forma SUPER SEGURA ═══
+  // ═══ FIX BRUTAL — sanitização ASCII+Latin1 ONLY + charSpace=0 forçado ═══
+  // Função BRUTAL: só deixa passar caracteres que helvetica suporta (Latin-1)
+  function brutalClean(s){
+    if(s==null) return '';
+    var t=String(s);
+    // Remove emojis e bytes corrompidos típicos
+    t=t.replace(/Ø=ÜÆ/g,'').replace(/Ø=Ý'/g,'').replace(/&™þ/g,'').replace(/Ø=[^\s]+/g,'');
+    t=t.replace(/['"]?\s*þ\s*/g,'');
+    // Tenta remover emojis Unicode
+    try{
+      t=t.replace(/[\u{1F000}-\u{1FFFF}]/gu,'');
+      t=t.replace(/[\u{2600}-\u{27BF}]/gu,'');
+      t=t.replace(/[\u{FE00}-\u{FE0F}]/gu,'');
+      t=t.replace(/[\u{200B}-\u{200F}]/gu,'');
+      t=t.replace(/[\u{2060}-\u{206F}]/gu,'');
+    }catch(_){}
+    // BRUTAL: só permite ASCII printável + Latin-1 + quebras + acentos pt-BR
+    var out='';
+    for(var i=0;i<t.length;i++){
+      var c=t.charCodeAt(i);
+      if(c===10||c===13||c===9||(c>=32&&c<=126)||(c>=160&&c<=255)){
+        out+=t[i];
+      }
+      // ignora qualquer outro
+    }
+    // espaços duplos
+    out=out.replace(/[ \t]+/g,' ');
+    return out;
+  }
+  window.brutalClean=brutalClean;
+
   function patchJsPDF(){
     try{
       var JP=window.jspdf && window.jspdf.jsPDF;
-      if(!JP || !JP.API || JP.API.__gnSanitized) return;
+      if(!JP || !JP.API || JP.API.__brutalDone) return;
       var origText=JP.API.text;
       if(typeof origText!=='function') return;
       JP.API.text=function(text){
-        var args=arguments;
+        // FORÇA reset de fonte/charSpace antes de cada text
+        try{ this.setFont&&this.setFont('helvetica','normal'); }catch(_){}
+        try{ this.setCharSpace&&this.setCharSpace(0); }catch(_){}
         try{
           if(text!=null){
-            if(Array.isArray(text)){
-              args[0]=text.map(function(x){return typeof x==='string'?window.gnLimpaTxtPDF(x):x;});
-            } else if(typeof text==='string'){
-              args[0]=window.gnLimpaTxtPDF(text);
-            }
+            if(Array.isArray(text)) arguments[0]=text.map(function(x){return typeof x==='string'?brutalClean(x):x;});
+            else if(typeof text==='string') arguments[0]=brutalClean(text);
           }
         }catch(e){}
-        try{
-          return origText.apply(this, args);
-        }catch(e2){
-          // se mesmo assim falhar, chama com texto original sem sanitização
-          try{return origText.apply(this, arguments);}catch(_){return undefined;}
-        }
+        try{ return origText.apply(this, arguments); }
+        catch(e2){ try{return origText.call(this, String(text||''));}catch(_){return undefined;} }
       };
       var origSplit=JP.API.splitTextToSize;
       if(typeof origSplit==='function'){
         JP.API.splitTextToSize=function(text){
-          var args=arguments;
           try{
-            if(typeof text==='string') args[0]=window.gnLimpaTxtPDF(text);
+            if(typeof text==='string') arguments[0]=brutalClean(text);
           }catch(e){}
-          try{
-            return origSplit.apply(this, args);
-          }catch(e2){
-            try{return origSplit.apply(this, arguments);}catch(_){return [String(text||'')];}
-          }
+          try{ return origSplit.apply(this, arguments); }
+          catch(e2){ return [String(text||'')]; }
         };
       }
-      JP.API.__gnSanitized=true;
-      console.log('[gnPDF] jsPDF sanitizado (versao segura)');
-    }catch(e){console.warn('[gnPDF] erro patch:', e);}
+      JP.API.__brutalDone=true;
+      console.log('[gnPDF BRUTAL] aplicado');
+    }catch(e){console.warn('[gnPDF] erro:', e);}
   }
 
   // Tenta agora e tenta de novo conforme o jsPDF carrega
@@ -19738,14 +19759,48 @@ window.gnDocAbrir=function(tipo,id,num){
     }catch(e){if(window.toast) toast('Erro: '+e.message,'er');}
   };
 
-  // Auto-limpa dados antigos SEMPRE no boot (até versão v3 garantir tudo limpo)
-  setTimeout(function(){
-    if(localStorage.getItem('gn_emoji_clean_v3')==='1') return;
+  // LIMPEZA BRUTAL — percorre TUDO no localStorage recursivamente
+  window.gnLimpezaBrutal=function(){
     try{
-      gnLimparEmojisHist();
-      localStorage.setItem('gn_emoji_clean_v3','1');
-      console.log('[gn] Dados antigos limpos de emojis corrompidos');
-    }catch(e){}
+      var keys=['gn_hist','gn_os','gn_rec','gn_ctr','gn_ped','gn_renov','gn_modelos','gn_modelos_orc','gn_cli','gn_assist_mem','gn_assist_hist','gn_msg_hist','gn_memoria','gn_whatsapp_log'];
+      var totalChanges=0;
+      function limparObj(o, depth){
+        if(depth>5||o==null) return o;
+        if(typeof o==='string') return window.brutalClean?brutalClean(o):o;
+        if(Array.isArray(o)) return o.map(function(x){return limparObj(x, depth+1);});
+        if(typeof o==='object'){
+          Object.keys(o).forEach(function(k){
+            if(typeof o[k]==='string'){
+              var antes=o[k];
+              o[k]=window.brutalClean?brutalClean(o[k]):o[k];
+              if(antes!==o[k]) totalChanges++;
+            } else if(typeof o[k]==='object'){
+              o[k]=limparObj(o[k], depth+1);
+            }
+          });
+        }
+        return o;
+      }
+      keys.forEach(function(k){
+        try{
+          var raw=localStorage.getItem(k); if(!raw) return;
+          var data=JSON.parse(raw);
+          var clean=limparObj(data, 0);
+          localStorage.setItem(k, JSON.stringify(clean));
+        }catch(e){}
+      });
+      console.log('[gn LIMPEZA BRUTAL] '+totalChanges+' strings limpas');
+      return totalChanges;
+    }catch(e){return 0;}
+  };
+
+  // Auto-roda no boot (versão v5 — força mesmo se rodou antes)
+  setTimeout(function(){
+    if(localStorage.getItem('gn_emoji_clean_v5')==='1') return;
+    setTimeout(function(){
+      window.gnLimpezaBrutal();
+      localStorage.setItem('gn_emoji_clean_v5','1');
+    }, 500);
   }, 4000);
 
   // ══════════════════════════════════════════════════════════════════
