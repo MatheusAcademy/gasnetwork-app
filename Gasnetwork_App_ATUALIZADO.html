@@ -5545,12 +5545,16 @@ var finPulled = false;
 var finCats = ['Material','Combustível','Pedágio','Estacionamento','Funcionário','Comissão','Ferramentas','EPI','Publicidade','Telefone','Internet','Aluguel','Água/Luz','Impostos','Taxa de cartão','Manutenção de veículo','Alimentação','Mercado','Farmácia/Saúde','Serviços profissionais','Fornecedor / Empresa','Pagamento a pessoa (PF)','Recebimento','Aplicação','Resgate','Outros'];
 function finData(){ try{ return JSON.parse(localStorage.getItem('gn_fin')||'[]'); }catch(e){ return []; } }
 function finSnapPush(prev){
-  // Guarda uma "fotografia" do financeiro ANTES de alterar, para poder voltar.
+  // Guarda uma "fotografia" do financeiro ANTES de alterar — só MÁX 3 snaps e só
+  // se a última foi há mais de 12h (evita inchar localStorage; backups longos vão
+  // pro Drive via gnAutoBackupNuvem a cada 2h).
   try{
     var snaps=JSON.parse(localStorage.getItem('gn_fin_snaps')||'[]');
+    var ultima=snaps[0]; if(ultima && (Date.now()-(ultima.ts||0))<12*3600*1000) return;
     snaps.unshift({ ts:Date.now(), iso:new Date().toISOString(), data:prev });
-    if(snaps.length>40) snaps=snaps.slice(0,40);
-    localStorage.setItem('gn_fin_snaps', JSON.stringify(snaps));
+    if(snaps.length>3) snaps=snaps.slice(0,3);
+    try{ localStorage.setItem('gn_fin_snaps', JSON.stringify(snaps)); }
+    catch(qe){ /* sem espaço — pula (o backup do Drive cobre) */ try{ localStorage.removeItem('gn_fin_snaps'); }catch(_){} }
   }catch(e){}
 }
 function finSaveAll(arr){
@@ -6298,7 +6302,14 @@ function cliEdit(id){ var c=cliFind(id); if(!c) return;
   document.getElementById('cli-f-obs').value=c.obs||''; document.getElementById('cli-form').style.display='block';
   document.getElementById('cli-form').scrollIntoView({behavior:'smooth',block:'start'}); }
 function cliSaveForm(){
-  var nome=(document.getElementById('cli-f-nome').value||'').trim(); if(!nome){ toast('Informe o nome do cliente','er'); return; }
+  var nome=(document.getElementById('cli-f-nome').value||'').trim();
+  var tel=(document.getElementById('cli-f-tel').value||'').replace(/\D/g,'');
+  var whats=(document.getElementById('cli-f-whats').value||'').replace(/\D/g,'');
+  var email=(document.getElementById('cli-f-email').value||'').trim();
+  var emailOk=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  // VALIDAÇÃO OBRIGATÓRIA: nome (2+ letras) + ao menos um contato (telefone OU whatsapp OU e-mail)
+  if(!nome || nome.length<2 || (typeof gnNomeRuim==='function' && gnNomeRuim(nome))){ toast('Informe um NOME válido (com letras, não use só números ou descrição de serviço).','er'); try{document.getElementById('cli-f-nome').focus();}catch(e){} return; }
+  if(tel.length<8 && whats.length<8 && !emailOk){ toast('⛔ Cadastre pelo menos UM contato: telefone (8+ dígitos), WhatsApp ou e-mail válido.','er'); try{document.getElementById('cli-f-tel').focus();}catch(e){} return; }
   var id=document.getElementById('cli-f-id').value || ('c'+Date.now());
   var c={ id:id, tipo:document.getElementById('cli-f-tipo').value, nome:nome, cpf:document.getElementById('cli-f-doc').value||'', cep:document.getElementById('cli-f-cep').value||'', tel:document.getElementById('cli-f-tel').value||'', whatsapp:document.getElementById('cli-f-whats').value||'', email:document.getElementById('cli-f-email').value||'', nascimento:((document.getElementById('cli-f-nasc')||{}).value||''), endereco:document.getElementById('cli-f-end').value||'', cidade:document.getElementById('cli-f-cidade').value||'', obs:document.getElementById('cli-f-obs').value||'', status:'ativo' };
   var arr=cliData(); var i=arr.findIndex(function(x){ return x.id===id; }); if(i>=0) arr[i]=c; else arr.unshift(c);
@@ -6675,11 +6686,13 @@ function svcSeedGas(silencioso){
   if(!silencioso){ renderSvc(); toast(add?('✓ '+add+' serviço(s) adicionados ao catálogo'):'Catálogo já estava completo', add?'ok':'in'); }
   return add;
 }
-// Semeia o catálogo automaticamente na primeira vez (uma vez por aparelho).
+// Semeia o catálogo automaticamente: se a lista estiver vazia OU com poucos itens,
+// SEMPRE popula (mesmo se a flag estiver setada — assim sobrevive a sincronizações
+// que vieram com a lista vazia).
 function svcAutoSeed(){
   try{
-    if(localStorage.getItem('gn_svc_seeded')==='1') return;
-    if(svcData().length>=40){ localStorage.setItem('gn_svc_seeded','1'); return; }
+    var n=svcData().length;
+    if(n>=40){ localStorage.setItem('gn_svc_seeded','1'); return; }
     svcSeedGas(true);
     localStorage.setItem('gn_svc_seeded','1');
   }catch(e){}
@@ -9517,7 +9530,7 @@ function renderRenov(){
   if(!window.__renovPulled){ window.__renovPulled=true; try{ if(typeof gnStorePull==='function') gnStorePull('renov', function(ch){ if(ch) renderRenov(); }); }catch(e){} }
   var vl=document.getElementById('renov-validade-lbl'); if(vl) vl.textContent=renovValMeses();
   var list=document.getElementById('renov-list'); if(!list) return;
-  var arr=renovData().slice().filter(function(c){ return (typeof gnServRegra==='function')?gnServRegra(c.servico).lembrete:true; }); // só serviços que mandam lembrete de renovação (laudo, mangueira, regulador, manutenção...)
+  /* MARKER_RENOV_LAUDOS_v3 */ var arr=renovData().slice().filter(function(c){ return /laudo|estanqueidade|teste/i.test(String(c.servico||'')); }); // só LAUDOS de estanqueidade
   arr=renovDedup(arr); // remove clientes repetidos (mesmo telefone/e-mail/endereço) por categoria de serviço
   arr.forEach(function(c){ var meses=(typeof gnServRegra==='function')?gnServRegra(c.servico).meses:c.validadeMeses; var s=renovStatus(c.data, meses); c._st=s.status; c._dias=s.dias; c._venc=s.venc; });
   var ordem={vencido:0,vence:1,'sem-data':2,ok:3};
@@ -10644,7 +10657,11 @@ function docsAnalisarDrive(){
     .then(function(j){
       if(!j || !j.ok || !Array.isArray(j.clientes)) throw new Error('sem-listDrive');
       var idx={ em:new Date().toISOString(), clientes:j.clientes };
-      try{ localStorage.setItem('gn_drive_idx', JSON.stringify(idx)); }catch(e){}
+      // DRIVE-FIRST: índice fica em MEMÓRIA. Só persiste no localStorage se couber
+      // (cap em 200 clientes); o resto é buscado no Drive sob demanda.
+      try{ window.__gnDriveIdx=idx; }catch(e){}
+      try{ var leve={em:idx.em, clientes:idx.clientes.slice(0,200)}; localStorage.setItem('gn_drive_idx', JSON.stringify(leve)); }
+      catch(qe){ try{ localStorage.removeItem('gn_drive_idx'); }catch(_){} }
       try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_drive_idx'); }catch(e){}
       var nF=0; j.clientes.forEach(function(c){ nF+=(c.arquivos||[]).length; });
       if(stt) stt.innerHTML='☁ Drive lido: <b style="color:var(--gn-text);">'+j.clientes.length+'</b> cliente(s) · <b style="color:var(--gn-text);">'+nF+'</b> arquivo(s). Atualizado agora.';
@@ -11551,7 +11568,10 @@ function docsAutoDrive(){
       .then(function(j){
         if(!j || !j.ok || !Array.isArray(j.clientes)) return;
         var idx={ em:new Date().toISOString(), clientes:j.clientes };
-        try{ localStorage.setItem('gn_drive_idx', JSON.stringify(idx)); }catch(e){}
+        // DRIVE-FIRST: índice em memória; localStorage só guarda os 200 primeiros (resto vem do Drive sob demanda).
+        try{ window.__gnDriveIdx=idx; }catch(e){}
+        try{ var leve={em:idx.em, clientes:idx.clientes.slice(0,200)}; localStorage.setItem('gn_drive_idx', JSON.stringify(leve)); }
+        catch(qe){ try{ localStorage.removeItem('gn_drive_idx'); }catch(_){} }
         try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_drive_idx'); }catch(e){}
         try{ var s=document.getElementById('docs-drive-status'); if(s){ var n=0; j.clientes.forEach(function(c){ n+=(c.arquivos||[]).length; }); s.innerHTML='☁ Drive lido: <b style="color:var(--gn-text);">'+j.clientes.length+'</b> cliente(s) · <b style="color:var(--gn-text);">'+n+'</b> arquivo(s). Atualizado agora.'; } }catch(e){}
         try{ var pane=document.getElementById('pane-docs'); if(pane && pane.style.display!=='none' && typeof renderDocsCliente==='function') renderDocsCliente(); }catch(e){}
@@ -12137,6 +12157,252 @@ window.gnDocAbrir=function(tipo,id,num){
   }
   function init(){ buildPane(); autoSeed(); wrapGoTab(); }
   if(document.readyState==='complete') setTimeout(init,1500); else window.addEventListener('load', function(){ setTimeout(init,1500); });
+})();
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// ═══ UPLOAD EM MASSA — processa pasta/arquivos e ROTEIA ═════════
+// PDF/Word/Excel/CSV/TXT → extrai nome+contato+data+tipo e manda
+// para Renovação (laudo/estanqueidade), Notas de Serviço, Recibos,
+// Contratos ou Orçamentos. Cadastra cliente novo automaticamente
+// se houver nome + contato (telefone/e-mail). Recusa e LISTA os
+// que faltam dados (NUNCA salva cliente sem contato). Sem duplicar.
+// Faz upload do arquivo para a pasta do cliente no Drive.
+// ══════════════════════════════════════════════════════════════
+(function(){
+  function $(id){return document.getElementById(id);}
+  function setLog(t){var el=$('bulk-log'); if(el){ el.textContent=t; el.scrollTop=el.scrollHeight; }}
+  function appendLog(t){var el=$('bulk-log'); if(el){ el.textContent += (el.textContent?'\n':'')+t; el.scrollTop=el.scrollHeight; }}
+  function setStatus(t){var el=$('bulk-status'); if(el) el.innerHTML=t;}
+  function setBar(p){var b=$('bulk-prog-bar'); if(b) b.style.width=p+'%';}
+  function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();}
+  function digits(s){return String(s||'').replace(/\D/g,'');}
+
+  window.bulkInfo=function(){
+    var f=$('bulk-folder'), g=$('bulk-files');
+    var n=((f&&f.files)?f.files.length:0)+((g&&g.files)?g.files.length:0);
+    var c=$('bulk-count'); if(c) c.textContent=n?(n+' arquivo(s) selecionado(s)'):'';
+  };
+
+  function readText(file){return new Promise(function(res){var r=new FileReader();r.onload=function(e){res(String(e.target.result||''));};r.onerror=function(){res('');};r.readAsText(file,'utf-8');});}
+  function readArr(file){return new Promise(function(res){var r=new FileReader();r.onload=function(e){res(e.target.result);};r.onerror=function(){res(null);};r.readAsArrayBuffer(file);});}
+  function readDataUri(file){return new Promise(function(res){var r=new FileReader();r.onload=function(e){res(String(e.target.result||''));};r.onerror=function(){res('');};r.readAsDataURL(file);});}
+
+  async function extractText(file){
+    var nm=String(file.name||'').toLowerCase();
+    try{
+      if(/\.pdf$/.test(nm) && typeof extractPDFText==='function'){ var t=await extractPDFText(file); return t||''; }
+      if(/\.(xlsx|xls)$/.test(nm) && typeof XLSX!=='undefined'){ var ab=await readArr(file); if(!ab) return ''; var wb=XLSX.read(new Uint8Array(ab),{type:'array'}); var out=[]; wb.SheetNames.forEach(function(n){ out.push(XLSX.utils.sheet_to_csv(wb.Sheets[n])); }); return out.join('\n'); }
+      if(/\.(csv|txt)$/.test(nm)){ return await readText(file); }
+      if(/\.docx$/.test(nm) && typeof JSZip!=='undefined'){ var ab2=await readArr(file); if(!ab2) return ''; var z=await JSZip.loadAsync(ab2); var docFile=z.file('word/document.xml'); if(!docFile) return ''; var x=await docFile.async('string'); return String(x||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim(); }
+    }catch(e){}
+    return '';
+  }
+
+  function detectType(filename, text){
+    var t=(' '+norm(filename+' '+String(text||'').slice(0,2000))+' ');
+    if(/\b(laudo|estanqueidade|teste de estanq)\b/.test(t)) return 'renov';
+    if(/\b(nota de servico|nota fiscal|notinha|ordem de servico)\b/.test(t)) return 'os';
+    if(/\bns[- ]\d/.test(t)) return 'os';
+    if(/\b(recibo)\b/.test(t)) return 'rec';
+    if(/\b(contrato|contratante|contratada)\b/.test(t)) return 'ctr';
+    if(/\b(orcamento|proposta comercial|proposta)\b/.test(t)) return 'orc';
+    return '';
+  }
+
+  function extractData(filename, text){
+    var d={}; var T=String(text||''); var fnm=String(filename||'');
+    var mt=T.match(/(?:\+?55\s?)?\(?\d{2}\)?\s?9?\s?\d{4,5}-?\s?\d{4}/);
+    if(mt) d.telefone=mt[0].replace(/\s+/g,' ').trim();
+    var me=T.match(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/);
+    if(me) d.email=me[0];
+    var mcnpj=T.match(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/); if(mcnpj) d.cnpj=mcnpj[0];
+    var mcpf=T.match(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/); if(mcpf && (!mcnpj || mcpf[0]!==mcnpj[0])) d.cpf=mcpf[0];
+    var mcep=T.match(/\b\d{5}-?\d{3}\b/); if(mcep) d.cep=mcep[0];
+    var mv=T.match(/R\$\s?(\d{1,3}(?:\.\d{3})+,\d{2}|\d+,\d{2})/i); if(mv){ d.valor=Number(mv[1].replace(/\./g,'').replace(',','.'))||0; }
+    var md=T.match(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})\b/);
+    if(md){ var yy=md[3].length===2?('20'+md[3]):md[3]; d.data=yy+'-'+('0'+md[2]).slice(-2)+'-'+('0'+md[1]).slice(-2); }
+    var mn=T.match(/(?:^|\n|\.)\s*(?:cliente|contratante|nome)\s*:?\s*([A-ZÁÉÍÓÚÂÊÔÃÕÇa-záéíóúâêôãõç ]{4,60})/);
+    if(mn) d.nome=mn[1].replace(/\s+/g,' ').trim();
+    if(!d.nome){ var nm=fnm.replace(/\.[a-z0-9]+$/i,'').replace(/^(laudo|nota|recibo|contrato|orcamento|or[çc]amento|proposta|ns[- ]?\d*)[- _]*/i,'').replace(/[- _]+/g,' ').trim(); if(nm && nm.length>=3 && /[A-Za-zÀ-ÿ]/.test(nm)) d.nome=nm; }
+    return d;
+  }
+
+  function buscarCliente(d){
+    var arr=[]; try{ arr=JSON.parse(localStorage.getItem('gn_cli')||'[]'); }catch(e){}
+    var nomeN=norm(d.nome||''); var telN=digits(d.telefone).slice(-8); var emailN=String(d.email||'').toLowerCase();
+    var cpfN=digits(d.cpf), cnpjN=digits(d.cnpj);
+    for(var i=0;i<arr.length;i++){ var c=arr[i]; if(!c) continue;
+      if(cnpjN && cnpjN.length===14 && digits(c.cnpj)===cnpjN) return c;
+      if(cpfN && cpfN.length===11 && digits(c.cpf)===cpfN) return c;
+      if(emailN && String(c.email||'').toLowerCase()===emailN) return c;
+      if(telN && telN.length>=8 && (digits(c.tel).slice(-8)===telN || digits(c.whatsapp).slice(-8)===telN)) return c;
+      if(nomeN && nomeN.length>=4 && norm(c.nome||'')===nomeN) return c;
+    }
+    return null;
+  }
+
+  function cadastrarCliente(d){
+    var nome=String(d.nome||'').trim();
+    if(!nome || (typeof gnNomeRuim==='function' && gnNomeRuim(nome))) return null;
+    var tel=digits(d.telefone); var email=String(d.email||'').trim();
+    if(tel.length<8 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+    var c={id:'c'+Date.now()+'_'+Math.floor(Math.random()*9999), tipo:d.cnpj?'PJ':'PF', nome:nome, cpf:d.cpf||'', cnpj:d.cnpj||'', cep:d.cep||'', tel:d.telefone||'', whatsapp:d.telefone||'', email:email, endereco:'', cidade:'', obs:'(cadastrado pelo upload em massa)', status:'ativo'};
+    var arr=[]; try{ arr=JSON.parse(localStorage.getItem('gn_cli')||'[]'); }catch(e){} arr.unshift(c);
+    try{ localStorage.setItem('gn_cli', JSON.stringify(arr)); }catch(e){}
+    try{ if(window.gnCloud2PushKey) window.gnCloud2PushKey('gn_cli'); }catch(e){}
+    return c;
+  }
+
+  function pushTo(kind, obj){
+    var k='gn_'+(kind==='orc'?'hist':kind);
+    var arr=[]; try{ arr=JSON.parse(localStorage.getItem(k)||'[]'); }catch(e){}
+    var sig=function(o){return (String(o.nome||o.cliente||'').toLowerCase().trim())+'|'+(o.data||'')+'|'+Math.round(Number(o.valor)||0);};
+    var s=sig(obj);
+    if(arr.some(function(x){return (x.id&&x.id===obj.id)||sig(x)===s;})) return false;
+    arr.unshift(obj);
+    try{ localStorage.setItem(k, JSON.stringify(arr)); }catch(e){ return false; }
+    try{ if(window.gnCloud2PushKey) window.gnCloud2PushKey(k); }catch(e){}
+    return true;
+  }
+
+  async function enviarDrive(file, cliente, tipoRot){
+    if(typeof GN_CLOUD2==='undefined' || !GN_CLOUD2) return false;
+    try{
+      var uri=await readDataUri(file); var b64=uri.split(',')[1]||''; if(!b64) return false;
+      var label={renov:'Laudo de estanqueidade',os:'Nota de Serviço',rec:'Recibo',ctr:'Contrato',orc:'Orçamento'}[tipoRot]||'Documentos';
+      await fetch(GN_CLOUD2,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveDoc',base64:b64,filename:file.name,mime:file.type||'application/octet-stream',cliente:(cliente&&cliente.nome)||'Sem nome',tipo:label,numero:''})});
+      return true;
+    }catch(e){ return false; }
+  }
+
+  window.__bulkPaused=false; window.__bulkCancel=false;
+  window.bulkPauseToggle=function(){ window.__bulkPaused=!window.__bulkPaused; var b=$('bulk-pause'); if(b) b.textContent=window.__bulkPaused?'▶ Continuar':'⏸ Pausar'; };
+  window.bulkCancel=function(){ window.__bulkCancel=true; };
+
+  window.bulkProcess=async function(){
+    var f=$('bulk-folder'), g=$('bulk-files');
+    var files=[]; if(f&&f.files) for(var i=0;i<f.files.length;i++) files.push(f.files[i]); if(g&&g.files) for(var j=0;j<g.files.length;j++) files.push(g.files[j]);
+    if(!files.length){ setStatus('<span style="color:#fb7185;">Escolha uma pasta ou arquivos primeiro.</span>'); return; }
+    if(window.__bulkRun){ setStatus('Já está processando…'); return; }
+    window.__bulkRun=true; window.__bulkPaused=false; window.__bulkCancel=false;
+    var pb=$('bulk-pause'), cb=$('bulk-cancel'); if(pb) pb.style.display='inline-block'; if(cb) cb.style.display='inline-block';
+    var doDrive=!!($('bulk-drive')&&$('bulk-drive').checked);
+    setLog(''); appendLog('🚀 Iniciando processamento de '+files.length+' arquivo(s)…');
+    var stats={total:files.length,lidos:0,roteados:{renov:0,os:0,rec:0,ctr:0,orc:0},cadastrados:0,vinculados:0,rejeitados:[],ignorados:0,drive:0};
+    for(var i2=0;i2<files.length;i2++){
+      while(window.__bulkPaused){ await new Promise(function(r){setTimeout(r,500);}); }
+      if(window.__bulkCancel){ appendLog('✖ Cancelado.'); break; }
+      var file=files[i2]; var pct=Math.round(((i2+1)/files.length)*100); setBar(pct); setStatus('Processando '+(i2+1)+'/'+files.length+': <b>'+file.name+'</b>');
+      try{
+        var nm=String(file.name||'').toLowerCase();
+        if(!/\.(pdf|docx|xlsx|xls|csv|txt)$/.test(nm)){ stats.ignorados++; appendLog('⏭ ignorado (tipo): '+file.name); continue; }
+        var text=await extractText(file);
+        var tipo=detectType(file.name, text);
+        if(!tipo){ stats.ignorados++; appendLog('⏭ não identificado: '+file.name); continue; }
+        var d=extractData(file.name, text);
+        if(!d.nome){ stats.rejeitados.push({file:file.name, motivo:'sem nome'}); appendLog('❌ sem nome: '+file.name); continue; }
+        var cliente=buscarCliente(d);
+        if(!cliente){
+          cliente=cadastrarCliente(d);
+          if(cliente){ stats.cadastrados++; appendLog('🟢 cliente novo: '+cliente.nome+(d.telefone?(' · '+d.telefone):'')+(d.email?(' · '+d.email):'')); }
+          else { stats.rejeitados.push({file:file.name, motivo:'sem contato (telefone/e-mail)'}); appendLog('⚠ SEM contato — rejeitado: '+file.name+' ('+d.nome+')'); continue; }
+        } else { stats.vinculados++; }
+        var jobId=tipo+'_'+(d.data||'')+'_'+norm(cliente.nome).replace(/\s+/g,'-').slice(0,30);
+        var obj={id:jobId, nome:cliente.nome, clientId:cliente.id||'', data:d.data||'', valor:d.valor||0, _imp:'upload_massa', _arquivo:file.name};
+        if(tipo==='renov'){ obj.servico='Laudo de estanqueidade'; obj.descricao=String(text||'').slice(0,300); obj.validadeMeses=12; }
+        else if(tipo==='os'){ obj.numero='IMP-'+Date.now().toString(36).slice(-6); obj.status='Finalizada'; obj.exec=String(text||'').slice(0,300); }
+        else if(tipo==='rec'){ obj.numero='REC-IMP-'+Date.now().toString(36).slice(-6); obj.ref=String(text||'').slice(0,200); }
+        else if(tipo==='ctr'){ obj.numero='CTR-IMP-'+Date.now().toString(36).slice(-6); obj.objeto=String(text||'').slice(0,300); }
+        else if(tipo==='orc'){ obj.numero='ORC-IMP-'+Date.now().toString(36).slice(-6); obj.cliente=cliente.nome; obj.servicos=String(text||'').slice(0,200); }
+        var ok=pushTo(tipo, obj);
+        if(ok){ stats.roteados[tipo]++; appendLog('✓ '+tipo.toUpperCase()+': '+file.name+' → '+cliente.nome+(d.data?(' · '+d.data):'')+(d.valor?(' · R$ '+d.valor.toFixed(2).replace('.',',')):'')); }
+        else { appendLog('↪ já existia (não duplicou): '+file.name); }
+        if(doDrive){ var ok2=await enviarDrive(file, cliente, tipo); if(ok2) stats.drive++; }
+        stats.lidos++;
+      }catch(e){ appendLog('⚠ erro em '+file.name+': '+(e&&e.message||e)); }
+      if(i2%5===0){ await new Promise(function(r){setTimeout(r,30);}); }
+    }
+    setBar(100);
+    appendLog('\n📊 RELATÓRIO FINAL:');
+    appendLog('• Lidos: '+stats.lidos+' / '+stats.total);
+    appendLog('• Clientes novos cadastrados: '+stats.cadastrados+' · vinculados a existentes: '+stats.vinculados);
+    appendLog('• Roteados → Laudos (renovação): '+stats.roteados.renov+' · Notas de Serviço: '+stats.roteados.os+' · Recibos: '+stats.roteados.rec+' · Contratos: '+stats.roteados.ctr+' · Orçamentos: '+stats.roteados.orc);
+    appendLog('• Enviados ao Google Drive: '+stats.drive);
+    appendLog('• Ignorados (tipo não reconhecido): '+stats.ignorados);
+    appendLog('• Rejeitados por falta de dado: '+stats.rejeitados.length);
+    if(stats.rejeitados.length){ appendLog('  Detalhe dos rejeitados:'); stats.rejeitados.slice(0,40).forEach(function(r){ appendLog('  - '+r.file+' ('+r.motivo+')'); }); if(stats.rejeitados.length>40) appendLog('  …e mais '+(stats.rejeitados.length-40)); }
+    setStatus('<span style="color:#16a34a;font-weight:700;">✓ Concluído.</span> '+stats.lidos+' processados, '+stats.cadastrados+' clientes novos, '+stats.rejeitados.length+' rejeitados.');
+    try{ if(window.renderCli) window.renderCli(); }catch(e){} try{ if(window.renderRenov) window.renderRenov(); }catch(e){} try{ if(window.renderInicio) window.renderInicio(); }catch(e){}
+    if(pb) pb.style.display='none'; if(cb) cb.style.display='none';
+    window.__bulkRun=false;
+  };
+})();
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// ═══ OVERRIDES FINAIS — aplicados após todo o resto carregar ═══
+// (Bloqueio cadastro sem contato; auto-seed catálogo 50 serviços;
+// limite de snapshots financeiros pra não estourar localStorage.)
+// ══════════════════════════════════════════════════════════════
+(function(){
+  // ── #1 Bloqueio: cliente precisa de NOME + CONTATO (telefone OU e-mail) ──
+  function digits(s){return String(s||'').replace(/\D/g,'');}
+  function emailOk(s){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s||'').trim());}
+  function vNome(s){ if(!s) return false; var v=String(s).trim(); if(v.length<2) return false; if(typeof window.gnNomeRuim==='function' && window.gnNomeRuim(v)) return false; return /[A-Za-zÀ-ÿ]{2,}/.test(v); }
+  window.cliSaveForm=function(){
+    var nome=(document.getElementById('cli-f-nome')||{}).value||'';
+    var tel=digits((document.getElementById('cli-f-tel')||{}).value);
+    var whats=digits((document.getElementById('cli-f-whats')||{}).value);
+    var email=(document.getElementById('cli-f-email')||{}).value||'';
+    if(!vNome(nome)){ if(window.toast) toast('Informe um NOME válido (com letras, não use código nem descrição).','er'); try{document.getElementById('cli-f-nome').focus();}catch(e){} return; }
+    if(tel.length<8 && whats.length<8 && !emailOk(email)){ if(window.toast) toast('⛔ Cadastre pelo menos UM contato: telefone (8+ dígitos), WhatsApp ou e-mail válido.','er'); try{document.getElementById('cli-f-tel').focus();}catch(e){} return; }
+    // Tudo OK — segue o fluxo original montando o objeto direto
+    var id=(document.getElementById('cli-f-id')||{}).value || ('c'+Date.now());
+    var cnpj=(document.getElementById('cli-f-doc')||{}).value||'';
+    var c={ id:id, tipo:((document.getElementById('cli-f-tipo')||{}).value||'PF'), nome:String(nome).trim(), cpf:cnpj, cep:((document.getElementById('cli-f-cep')||{}).value||''), tel:((document.getElementById('cli-f-tel')||{}).value||''), whatsapp:((document.getElementById('cli-f-whats')||{}).value||''), email:String(email).trim(), endereco:((document.getElementById('cli-f-end')||{}).value||''), cidade:((document.getElementById('cli-f-cidade')||{}).value||''), obs:((document.getElementById('cli-f-obs')||{}).value||''), nasc:((document.getElementById('cli-f-nasc')||{}).value||''), status:'ativo' };
+    try{
+      var arr=JSON.parse(localStorage.getItem('gn_cli')||'[]'); var i=arr.findIndex(function(x){return x.id===id;});
+      if(i>=0) arr[i]=c; else arr.unshift(c);
+      localStorage.setItem('gn_cli', JSON.stringify(arr));
+      try{ if(window.cliCloudPush) cliCloudPush(c); }catch(e){}
+      try{ if(window.gnCloud2PushKey) window.gnCloud2PushKey('gn_cli'); }catch(e){}
+    }catch(e){}
+    try{ document.getElementById('cli-form').style.display='none'; }catch(e){}
+    try{ if(window.renderCli) renderCli(); }catch(e){}
+    if(window.toast) toast('✓ Cliente salvo','ok');
+  };
+
+  // ── #2 Auto-seed do catálogo de 50 serviços (mesmo se a flag estiver setada) ──
+  function rodarSeedServicos(){
+    try{
+      if(typeof window.svcData!=='function' || typeof window.svcSeedGas!=='function') return;
+      if(window.svcData().length<40){ window.svcSeedGas(true); }
+      try{ if(window.renderSvc) renderSvc(); }catch(e){}
+    }catch(e){}
+  }
+  setTimeout(rodarSeedServicos, 2500);
+  setTimeout(rodarSeedServicos, 8000); // segunda tentativa depois do sync inicial
+
+  // ── #3 Drive-first: limita snapshots financeiros (já tem backup no Drive a cada 2h) ──
+  if(typeof window.finSnapPush==='function'){
+    var origSnap=window.finSnapPush;
+    window.finSnapPush=function(prev){
+      try{
+        var snaps=JSON.parse(localStorage.getItem('gn_fin_snaps')||'[]');
+        var ultima=snaps[0]; if(ultima && (Date.now()-(ultima.ts||0))<12*3600*1000) return;
+        snaps.unshift({ts:Date.now(), iso:new Date().toISOString(), data:prev});
+        if(snaps.length>3) snaps=snaps.slice(0,3);
+        try{ localStorage.setItem('gn_fin_snaps', JSON.stringify(snaps)); }
+        catch(qe){ try{ localStorage.removeItem('gn_fin_snaps'); }catch(_){} }
+      }catch(e){}
+    };
+  }
+  // Limpa snaps acumulados pra liberar espaço já agora
+  try{
+    var s=JSON.parse(localStorage.getItem('gn_fin_snaps')||'[]');
+    if(s.length>3){ s=s.slice(0,3); localStorage.setItem('gn_fin_snaps', JSON.stringify(s)); }
+  }catch(e){}
 })();
 </script>
 </body>
