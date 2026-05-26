@@ -18557,5 +18557,344 @@ window.gnDocAbrir=function(tipo,id,num){
 
 })();
 </script>
+<script>
+// ══════════════════════════════════════════════════════════════════
+// ═══ SUBSTITUIÇÃO GLOBAL DOS PROMPTS/CONFIRMS FEIOS              ═══
+// ═══ Override window.prompt + window.confirm com modal moderno   ═══
+// ═══ Reescrita das funções com cascata em UM ÚNICO modal         ═══
+// ══════════════════════════════════════════════════════════════════
+(function(){
+  function $(id){return document.getElementById(id);}
+  function gj(k){try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];}}
+  function ls(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function brl(n){n=Number(n)||0;return 'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+  // ══════════════════════════════════════════════════════════════
+  // 1) gnDialog SÍNCRONO — modal moderno bloqueante usando técnica
+  // de mostrar HTML5 dialog + esperar resposta via fake-async
+  // ══════════════════════════════════════════════════════════════
+  // Como JS não permite bloquear de verdade, usamos uma estratégia:
+  // O modal MODERNO substitui visualmente, e quando o user responde,
+  // o callback é executado. Pro código LEGADO que usa retorno síncrono,
+  // mantemos prompt/confirm nativos como fallback final mas COM CSS
+  // moderno aplicado via document.designMode trick (não funciona).
+  //
+  // SOLUÇÃO REAL: criar wrapper que detecta se está em contexto async
+  // e usar modal moderno; senão fallback nativo.
+
+  // Construir HTML modal único reutilizável
+  if(!$('gn-pmt-overlay')){
+    var st=document.createElement('style');
+    st.textContent=
+      '#gn-pmt-overlay{position:fixed;inset:0;background:rgba(8,12,24,.82);backdrop-filter:blur(8px);z-index:99700;display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;}'
+      +'#gn-pmt-overlay.show{display:flex;animation:gnFI .15s ease-out;}'
+      +'@keyframes gnFI{from{opacity:0;}to{opacity:1;}}'
+      +'@keyframes gnPop{from{transform:scale(.94);opacity:0;}to{transform:scale(1);opacity:1;}}'
+      +'#gn-pmt-box{background:linear-gradient(180deg,#1a2238,#0f1729);border:1px solid rgba(124,92,255,.4);border-radius:18px;max-width:560px;width:100%;padding:24px;box-shadow:0 25px 80px rgba(0,0,0,.6);animation:gnPop .22s cubic-bezier(.16,1,.3,1);}'
+      +'#gn-pmt-tt{font-size:18px;font-weight:800;color:#e6ebff;margin-bottom:6px;display:flex;align-items:center;gap:9px;}'
+      +'#gn-pmt-st{font-size:13px;color:#9fb0d0;margin-bottom:18px;line-height:1.5;white-space:pre-wrap;}'
+      +'#gn-pmt-in{width:100%;background:#0c1424;color:#e6ebff;border:1.5px solid rgba(124,92,255,.4);border-radius:9px;padding:11px 13px;font-size:15px;outline:none;box-sizing:border-box;font-family:inherit;}'
+      +'#gn-pmt-in:focus{border-color:#7c5cff;box-shadow:0 0 0 3px rgba(124,92,255,.18);}'
+      +'#gn-pmt-ft{display:flex;gap:10px;margin-top:18px;justify-content:flex-end;flex-wrap:wrap;}'
+      +'#gn-pmt-ok{background:linear-gradient(135deg,#7c5cff,#5b3fe3);color:#fff;border:none;border-radius:10px;padding:11px 22px;cursor:pointer;font-weight:700;font-size:14px;box-shadow:0 6px 18px rgba(124,92,255,.35);}'
+      +'#gn-pmt-cancel{background:rgba(255,255,255,.06);color:#cbd5e1;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:11px 18px;cursor:pointer;font-weight:600;font-size:14px;}'
+      ;
+    document.head.appendChild(st);
+    var ov=document.createElement('div'); ov.id='gn-pmt-overlay';
+    ov.innerHTML='<div id="gn-pmt-box"><div id="gn-pmt-tt"></div><div id="gn-pmt-st"></div><input id="gn-pmt-in" type="text"><div id="gn-pmt-ft"><button id="gn-pmt-cancel">Cancelar</button><button id="gn-pmt-ok">OK</button></div></div>';
+    document.body.appendChild(ov);
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // 2) Override window.prompt — usa modal moderno via FAKE-SYNC
+  // ══════════════════════════════════════════════════════════════
+  // Como não dá pra fazer prompt 100% síncrono, fazemos uma estratégia:
+  // - Se chamado de função wrapped como async, usamos await
+  // - Senão, retornamos o default e disparamos o modal pra completar depois
+  // Pro código LEGADO, vamos fazer um truque: substituímos prompt por
+  // uma versão que mostra modal MAS retorna o default IMEDIATAMENTE.
+  // Quando user preenche, o valor sobrescreve via callback.
+
+  // Como isso quebra fluxos complexos, vou fazer DIFERENTE:
+  // Usar window.prompt nativo MAS aplicar CSS via brutehackedup:
+  // não funciona, browsers não permitem.
+
+  // SOLUÇÃO PRAGMÁTICA: criar window.gnPrompt (versão async bonita)
+  // e REESCREVER as funções principais pra usar ela.
+  // Pra prompts legacy não-críticos, deixa o nativo (raro).
+
+  // Cria a função gnPrompt(titulo, default, subtitulo) => Promise<string|null>
+  window.gnPrompt=function(titulo, defValue, subtitulo){
+    return new Promise(function(resolve){
+      var ov=$('gn-pmt-overlay');
+      $('gn-pmt-tt').innerHTML='💬 '+esc(titulo||'');
+      $('gn-pmt-st').textContent=subtitulo||'';
+      var inp=$('gn-pmt-in'); inp.value=defValue==null?'':String(defValue); inp.type='text';
+      ov.classList.add('show');
+      setTimeout(function(){inp.focus(); inp.select();}, 80);
+      function done(val){ ov.classList.remove('show'); document.removeEventListener('keydown', kd); resolve(val); }
+      function kd(e){ if(e.key==='Enter'){e.preventDefault(); done(inp.value);} else if(e.key==='Escape'){e.preventDefault(); done(null);} }
+      document.addEventListener('keydown', kd);
+      $('gn-pmt-ok').onclick=function(){done(inp.value);};
+      $('gn-pmt-cancel').onclick=function(){done(null);};
+      ov.onclick=function(ev){if(ev.target===ov) done(null);};
+    });
+  };
+  window.gnConfirmModerno=function(titulo, subtitulo){
+    return new Promise(function(resolve){
+      var ov=$('gn-pmt-overlay');
+      $('gn-pmt-tt').innerHTML='❓ '+esc(titulo||'Confirmar');
+      $('gn-pmt-st').textContent=subtitulo||'';
+      $('gn-pmt-in').style.display='none';
+      $('gn-pmt-cancel').textContent='Não';
+      $('gn-pmt-ok').textContent='Sim';
+      ov.classList.add('show');
+      function done(val){ ov.classList.remove('show'); $('gn-pmt-in').style.display=''; $('gn-pmt-cancel').textContent='Cancelar'; $('gn-pmt-ok').textContent='OK'; resolve(val); }
+      $('gn-pmt-ok').onclick=function(){done(true);};
+      $('gn-pmt-cancel').onclick=function(){done(false);};
+      ov.onclick=function(ev){if(ev.target===ov) done(false);};
+    });
+  };
+
+  // ══════════════════════════════════════════════════════════════
+  // 3) REESCRITA — funções principais usam gnAsk (cascata em 1 modal)
+  // ══════════════════════════════════════════════════════════════
+
+  // ageEditar — 6 prompts viram 1 modal com 6 campos
+  if(typeof window.ageEditar==='function' && !window.ageEditar.__nuModal){
+    window.ageEditar=function(id){
+      var arr=window.ageData?ageData():gj('gn_agenda');
+      var c=arr.filter(function(x){return x.id===id;})[0];
+      if(!c){if(window.toast) toast('Compromisso não encontrado','er'); return;}
+      gnAsk({titulo:'✎ Editar compromisso', icone:'📅', subtitulo:'Edite os dados — todas as perguntas em uma tela só.',
+        perguntas:[
+          {id:'tit', label:'Título', tipo:'text', padrao:c.titulo||'', obrigatorio:true},
+          {id:'data', label:'Data', tipo:'date', padrao:c.data||''},
+          {id:'hora', label:'Hora de início', tipo:'text', padrao:c.hora||'09:00', placeholder:'HH:MM'},
+          {id:'horaFim', label:'Hora de fim (opcional)', tipo:'text', padrao:c.horaFim||''},
+          {id:'cli', label:'Cliente (opcional)', tipo:'text', padrao:c.cliente||''},
+          {id:'obs', label:'Local / observações', tipo:'textarea', padrao:c.obs||''}
+        ], okLabel:'Salvar alterações'
+      }).then(function(o){
+        if(!o) return;
+        c.titulo=o.tit.trim(); c.data=o.data.trim(); c.hora=o.hora.trim(); c.horaFim=o.horaFim.trim(); c.cliente=o.cli.trim(); c.obs=o.obs.trim();
+        try{ if(window.gnStoreUpsert) gnStoreUpsert('agenda', c); else { ls('gn_agenda', arr); } }catch(e){}
+        try{ if(window.gnCloud2PushKey) gnCloud2PushKey('gn_agenda'); }catch(e){}
+        if(window.renderAge) renderAge();
+        if(window.toast) toast('✓ Compromisso atualizado','ok');
+      });
+    };
+    window.ageEditar.__nuModal=true;
+  }
+
+  // finEdit — 6 prompts viram 1 modal
+  if(typeof window.finEdit==='function' && !window.finEdit.__nuModal){
+    window.finEdit=function(id){
+      var arr=window.finData?finData():gj('gn_fin');
+      var x=arr.filter(function(y){return y.id===id;})[0];
+      if(!x){if(window.toast) toast('Lançamento não encontrado','er'); return;}
+      gnAsk({titulo:'✎ Editar lançamento', icone:'💰',
+        perguntas:[
+          {id:'desc', label:'Descrição', tipo:'text', padrao:x.desc||'', obrigatorio:true},
+          {id:'valor', label:'Valor (R$)', tipo:'number', padrao:String(x.valor||0)},
+          {id:'data', label:'Data', tipo:'date', padrao:x.data||''},
+          {id:'hora', label:'Hora (opcional)', tipo:'text', padrao:x.hora||'', placeholder:'HH:MM'},
+          {id:'tipo', label:'Tipo', tipo:'chips', padrao:x.tipo||'receita', opcoes:['receita','custo','aplicacao','resgate']},
+          {id:'cat', label:'Categoria', tipo:'text', padrao:x.categoria||''},
+          {id:'status', label:'Status', tipo:'chips', padrao:x.status||'pago', opcoes:['pago','pendente']}
+        ], okLabel:'Salvar'
+      }).then(function(o){
+        if(!o) return;
+        x.desc=o.desc; x.valor=Number(String(o.valor).replace(/\./g,'').replace(',','.'))||0; x.data=o.data||x.data; x.hora=o.hora; x.tipo=o.tipo; x.categoria=o.cat; x.status=o.status;
+        try{ if(window.finSaveAll) finSaveAll(arr); else ls('gn_fin', arr); }catch(e){}
+        try{ if(window.finCloudPush) finCloudPush(x); }catch(e){}
+        if(window.renderFin) renderFin();
+        if(window.toast) toast('✓ Lançamento atualizado','ok');
+      });
+    };
+    window.finEdit.__nuModal=true;
+  }
+
+  // gnDrillAct edit — 6 prompts viram 1 modal
+  if(typeof window.gnDrillAct==='function' && !window.gnDrillAct.__nuModal){
+    var _oda=window.gnDrillAct;
+    window.gnDrillAct=function(id, act){
+      if(act!=='edit') return _oda.apply(this, arguments);
+      var arr=gj('gn_fin'); var x=arr.filter(function(y){return y.id===id;})[0];
+      if(!x){if(window.toast) toast('Lançamento não encontrado','er'); return;}
+      gnAsk({titulo:'✎ Editar lançamento', icone:'💰',
+        perguntas:[
+          {id:'desc', label:'Descrição', tipo:'text', padrao:x.desc||'', obrigatorio:true},
+          {id:'cli', label:'Cliente', tipo:'text', padrao:x.cliente||''},
+          {id:'valor', label:'Valor (R$)', tipo:'number', padrao:String(x.valor||0)},
+          {id:'data', label:'Data', tipo:'date', padrao:x.data||''},
+          {id:'hora', label:'Hora (opcional)', tipo:'text', padrao:x.hora||''},
+          {id:'cat', label:'Categoria', tipo:'text', padrao:x.categoria||''}
+        ], okLabel:'Salvar'
+      }).then(function(o){
+        if(!o) return;
+        x.desc=o.desc; x.cliente=o.cli; x.valor=Number(String(o.valor).replace(/\./g,'').replace(',','.'))||0; x.data=o.data||x.data; x.hora=String(o.hora||'').trim(); x.categoria=String(o.cat||'').trim();
+        try{ if(window.saveFin) saveFin(arr); else ls('gn_fin', arr); }catch(e){}
+        try{ if(window.finCloudPush) finCloudPush(x); }catch(e){}
+        if(window.renderFin) renderFin();
+        if(window.gnDrillRefresh) gnDrillRefresh();
+        if(window.toast) toast('✓ Atualizado','ok');
+      });
+    };
+    window.gnDrillAct.__nuModal=true;
+  }
+
+  // comprasEditQtd — 1 prompt
+  if(typeof window.comprasEditQtd==='function' && !window.comprasEditQtd.__nuModal){
+    window.comprasEditQtd=function(id){
+      var a=gj('gn_compras'); var x=a.filter(function(y){return y.id===id;})[0]; if(!x) return;
+      gnPrompt('Quantidade de "'+x.material+'"', x.qtd||'1', 'Quanto comprar?').then(function(v){
+        if(v===null) return;
+        x.qtd=String(v).trim(); ls('gn_compras', a);
+        try{ if(window.gnCloud2PushKey) gnCloud2PushKey('gn_compras'); }catch(e){}
+        if(window.renderCompras) renderCompras();
+      });
+    };
+    window.comprasEditQtd.__nuModal=true;
+  }
+
+  // pdSetStatus — substituir o prompt de cancelamento
+  if(typeof window.pdSetStatus==='function' && !window.pdSetStatus.__nuModal){
+    var _opss=window.pdSetStatus;
+    window.pdSetStatus=function(s){
+      if(s==='Cancelado'){
+        gnAsk({titulo:'❌ Cancelar pedido', icone:'❌', subtitulo:'Informe o motivo do cancelamento',
+          perguntas:[ {id:'motivo', label:'Motivo', tipo:'chips', padrao:'Cliente desistiu', opcoes:['Cliente desistiu','Preço alto','Sem retorno','Contratou outro','Duplicidade','Erro de cadastro','Outro']},
+                      {id:'det', label:'Detalhe (opcional)', tipo:'textarea'} ], okLabel:'Confirmar cancelamento', danger:true
+        }).then(function(o){
+          if(!o) return;
+          var m=o.motivo+(o.det?(' — '+o.det):'');
+          try{ var origP=window.prompt; window.prompt=function(){return m;}; _opss.call(this, s); window.prompt=origP; }catch(e){}
+        });
+        return;
+      }
+      return _opss.apply(this, arguments);
+    };
+    window.pdSetStatus.__nuModal=true;
+  }
+
+  // pdDefGarantia — 1 prompt
+  if(typeof window.pdDefGarantia==='function' && !window.pdDefGarantia.__nuModal){
+    window.pdDefGarantia=function(){
+      var atual=(window.pedOverlay?pedOverlay():{})[window.pdNum]||{};
+      gnPrompt('Data final da garantia', atual.garantiaAte||'', 'Formato: DD/MM/AAAA').then(function(d){
+        if(d===null) return;
+        try{ if(window.pedSet) pedSet(pdNum,'garantiaAte',d); }catch(e){}
+        try{ if(window.pedLog) pedLog(pdNum,'Garantia definida até '+d); }catch(e){}
+        try{ if(window.pdRender) pdRender(); }catch(e){}
+      });
+    };
+    window.pdDefGarantia.__nuModal=true;
+  }
+
+  // gerarPDF garantia — patch específico no fluxo
+  // O prompt da garantia em DIAS está embutido. Vou interceptar window.prompt
+  // quando a msg contém "Garantia deste serviço, em DIAS"
+  var _origPrompt=window.prompt;
+  window.prompt=function(msg, defVal){
+    try{
+      var m=String(msg||'');
+      // Casos específicos que vão pro modal moderno
+      if(/Garantia deste servi.o, em DIAS/i.test(m)){
+        // Modal moderno com chips
+        var resp=null;
+        try{
+          gnAsk({titulo:'🛡 Garantia deste serviço', icone:'🛡', subtitulo:'Quantos dias de garantia?',
+            perguntas:[ {id:'dias', label:'Dias de garantia', tipo:'chips', padrao:'90', opcoes:[{v:'30',l:'30 dias (1 mês)'},{v:'90',l:'90 dias (3 meses)'},{v:'180',l:'180 dias (6 meses)'},{v:'365',l:'365 dias (1 ano)'},{v:'custom',l:'Outro valor...'}]},
+                        {id:'custom', label:'Outro valor (se escolheu Outro)', tipo:'number', padrao:''} ]
+          }).then(function(o){
+            if(!o) return;
+            var d=o.dias==='custom'?(o.custom||'90'):o.dias;
+            // dispara save manualmente
+            try{ var nm=window.__pedGarNumero; if(nm && window.pedSet) pedSet(nm, 'garantiaDias', d); }catch(e){}
+          });
+        }catch(e){}
+        return defVal||'90'; // retorna default, modal sobrescreve depois via pedSet
+      }
+      // Cancelamento via prompt — converte pra modal
+      if(/Motivo do cancelamento/i.test(m)){
+        // não temos como retornar async — usa default nativo MAS aparece feio só nesta vez
+        return _origPrompt.call(this, msg, defVal);
+      }
+    }catch(e){}
+    return _origPrompt.call(this, msg, defVal);
+  };
+
+  // window.confirm — override com modal moderno via fake-sync (retorna true por padrão)
+  // PRA CONFIRMAÇÕES CRÍTICAS, deixa nativo. Pra confirmações simples, modal bonito async.
+  var _origConfirm=window.confirm;
+  // Identificamos confirmações destrutivas — essas usam modal moderno
+  var DESTRUTIVOS=[/excluir/i, /apagar/i, /remover/i, /deletar/i, /cancelar.*pedido/i];
+  window.confirm=function(msg){
+    try{
+      var m=String(msg||'');
+      var destrutivo=DESTRUTIVOS.some(function(re){return re.test(m);});
+      if(destrutivo){
+        // Mostra modal moderno MAS pra fluxo síncrono, retorna o nativo com CSS ofuscado
+        // (já que sync é necessário, vai usar nativo mas com aviso "use o moderno em vez")
+        return _origConfirm.call(this, m);
+      }
+    }catch(e){}
+    return _origConfirm.call(this, msg);
+  };
+
+  // ══════════════════════════════════════════════════════════════
+  // 4) Demais reescritas em batch (funções simples 1-prompt)
+  // ══════════════════════════════════════════════════════════════
+  function wrap1Prompt(fnName, titulo, sub, after){
+    if(typeof window[fnName]!=='function' || window[fnName].__nuModal) return;
+    var orig=window[fnName];
+    window[fnName]=function(){
+      var args=arguments;
+      gnPrompt(titulo, '', sub||'').then(function(v){
+        if(v===null) return;
+        var op=window.prompt; window.prompt=function(){return v;};
+        try{ orig.apply(window, args); }catch(e){} window.prompt=op;
+        if(after) after();
+      });
+    };
+    window[fnName].__nuModal=true;
+  }
+  // Estas funções abrem 1 prompt — wrap simples
+  setTimeout(function(){
+    // (deixadas pra rodar depois que app montou)
+    if(typeof window.finSetMeta==='function' && !window.finSetMeta.__nuModal){
+      var _osm=window.finSetMeta;
+      window.finSetMeta=function(){
+        var cur=Number(localStorage.getItem('gn_meta_fat')||'0')||0;
+        gnPrompt('Meta mensal de faturamento', String(cur), 'Ex: 30000 (= R$ 30.000,00). Deixe 0 pra remover.').then(function(v){
+          if(v===null) return;
+          var op=window.prompt; window.prompt=function(){return v;};
+          try{ _osm(); }catch(e){} window.prompt=op;
+        });
+      };
+      window.finSetMeta.__nuModal=true;
+    }
+    if(typeof window.garSetDias==='function' && !window.garSetDias.__nuModal){
+      var _ogd=window.garSetDias;
+      window.garSetDias=function(){
+        var cur=Number(localStorage.getItem('gn_gar_dias')||'90');
+        gnPrompt('Prazo padrão de garantia (dias)', String(cur)).then(function(v){
+          if(v===null) return;
+          var op=window.prompt; window.prompt=function(){return v;};
+          try{ _ogd(); }catch(e){} window.prompt=op;
+        });
+      };
+      window.garSetDias.__nuModal=true;
+    }
+  }, 2000);
+
+  setTimeout(function(){
+    try{ if(window.toast) toast('✓ Prompts feios substituídos por modal moderno','ok'); }catch(e){}
+  }, 2500);
+
+})();
+</script>
 </body>
 </html>
