@@ -1060,23 +1060,7 @@ textarea.fi{resize:vertical;}
       <div style="font-size:11px;color:var(--gn-dim);margin-top:10px;">Cada linha começando com <code>## </code> vira um título de seção; o resto vira texto. A logo, o cabeçalho, o rodapé e a sua assinatura entram automaticamente. (O Laudo tem tela própria, na aba Laudo.)</div>
     </div>
   </div>
-  <div id="pane-forn" style="display:none;">
-    <div class="eyebrow">Suprimentos</div>
-    <div class="pgtitle" style="margin-bottom:4px;">Fornecedores</div>
-    <div class="pgsub" style="margin-bottom:14px;">Cadastro dos seus fornecedores de materiais e peças.</div>
-    <div style="background:var(--gn-card);border:1px solid var(--gn-border);border-radius:14px;padding:16px;margin-bottom:14px;">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">
-        <div><label style="font-size:12px;color:var(--gn-dim);">Nome *</label><input id="fo-nome" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div><label style="font-size:12px;color:var(--gn-dim);">Contato</label><input id="fo-contato" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div><label style="font-size:12px;color:var(--gn-dim);">Telefone/WhatsApp</label><input id="fo-tel" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div><label style="font-size:12px;color:var(--gn-dim);">E-mail</label><input id="fo-email" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Produtos fornecidos</label><input id="fo-prod" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-        <div style="grid-column:1/-1;"><label style="font-size:12px;color:var(--gn-dim);">Observações</label><input id="fo-obs" style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"></div>
-      </div>
-      <button onclick="fornAdd()" style="margin-top:12px;background:#16a34a;color:#fff;border:none;border-radius:9px;padding:10px 16px;cursor:pointer;font-weight:700;">+ Adicionar fornecedor</button>
-    </div>
-    <div id="forn-list"></div>
-  </div>
+  <div id="pane-forn" style="display:none;"></div>
   <!-- REMOVIDOS: pane-compras, pane-chamados, pane-posvenda, pane-atend (Matheus 26/05/2026 — não usa) -->
   <div id="pane-compras" style="display:none;"></div>
   <div id="pane-chamados" style="display:none;"></div>
@@ -2248,7 +2232,7 @@ function goTab(t) {
   if (t==='os'){renderOs();}
   if (t==='prod'){renderProd();}
   if (t==='rel'){renderRel(); try{ if(window.renderRelExtra) renderRelExtra(); }catch(e){}}
-  if (t==='chk'){renderChk();}
+  if (t==='chk'){try{if(typeof renderChk==='function')renderChk();}catch(e){}}
   if (t==='ctr'){renderCtr();}
   if (t==='cfg'){renderCfg();}
   if (t==='inicio'){renderInicio(); try{ if(window.renderResumoDia) renderResumoDia(); }catch(e){}}
@@ -2488,34 +2472,7 @@ function renderCob(){
 function cobCobrar(numero){ var e=pedEntry(numero); if(!e) return; var co=(typeof gnCO==='function')?gnCO():{}; var _t=(co.msgCobranca||''); var msg=_t?gnTplMsg(_t,e,pedGet(numero)):('Olá, '+(e.cliente||'')+'. Identificamos um pagamento pendente referente ao pedido '+numero+', no valor de '+gnBRL(e.valor)+'. Caso já tenha realizado o pagamento, por favor desconsidere esta mensagem. Estamos à disposição.'+(co.fantasia?(' — '+co.fantasia):'')); if(typeof pedEnvio==='function') pedEnvio(numero, msg); }
 function cobPago(numero){ pedSet(numero,'pagamento','Recebido'); renderCob(); toast('Marcado como pago','ok'); }
 
-// ═══ ATENDIMENTOS / FUNIL COMERCIAL (item 38) ═══
-var ATEND_ST=['Novo contato','Em atendimento','Orçamento enviado','Negociação','Ganho','Perdido'];
-var ATEND_PERDA=['Preço alto','Cliente sem retorno','Fechou com concorrente','Prazo não atendia','Serviço incompatível','Fora da área','Cliente desistiu','Outro'];
-function atendCor(s){ return {'Novo contato':'#64748b','Em atendimento':'#0891b2','Orçamento enviado':'#fbbf24','Negociação':'#7c5cff','Ganho':'#16a34a','Perdido':'#dc2626'}[s]||'#64748b'; }
-function atendGet(){ try{ return JSON.parse(localStorage.getItem('gn_atend')||'[]'); }catch(e){ return []; } }
-function atendSaveAll(a){ try{ localStorage.setItem('gn_atend',JSON.stringify(a)); }catch(e){} }
-function atendAdd(){ var nm=((document.getElementById('at-nome')||{}).value||'').trim(); if(!nm){ toast('Informe o nome do contato','er'); return; } var a=atendGet(); a.unshift({id:'l'+Date.now(), nome:nm, tel:(document.getElementById('at-tel')||{}).value||'', servico:(document.getElementById('at-svc')||{}).value||'', origem:(document.getElementById('at-orig')||{}).value||'', valorEst:(document.getElementById('at-val')||{}).value||'', temp:(document.getElementById('at-temp')||{}).value||'Morno', status:'Novo contato', criadoEm:new Date().toISOString()}); atendSaveAll(a); ['at-nome','at-tel','at-svc','at-val'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); renderAtend(); toast('Contato adicionado ao funil','ok'); }
-function atendSetStatus(id,s){ var a=atendGet(); if(s==='Perdido'){ var m=prompt('Motivo da perda ('+ATEND_PERDA.join(', ')+'):',''); a.forEach(function(x){ if(x.id===id){ x.status=s; if(m) x.motivoPerda=m; } }); } else { a.forEach(function(x){ if(x.id===id) x.status=s; }); } atendSaveAll(a); renderAtend(); }
-function atendDel(id){ if(!confirm('Excluir este contato?')) return; atendSaveAll(atendGet().filter(function(x){return x.id!==id;})); renderAtend(); }
-function atendWhats(id){ var x=atendGet().filter(function(y){return y.id===id;})[0]; if(!x) return; var t=String(x.tel||'').replace(/\D/g,''); var fone=t?((t.length<=11?'55':'')+t):''; window.open('https://wa.me/'+fone+'?text='+encodeURIComponent('Olá, '+x.nome+'! Tudo bem? Sobre o serviço de '+(x.servico||'')+', estou à disposição.'),'_blank'); }
-function atendConverter(id){ var x=atendGet().filter(function(y){return y.id===id;})[0]; if(!x) return; var a=atendGet(); a.forEach(function(y){ if(y.id===id) y.status='Ganho'; }); atendSaveAll(a); renderAtend(); if(typeof pwOpen==='function') pwOpen({nome:x.nome, tel:x.tel, servico:x.servico}); }
-function renderAtend(){
-  var box=document.getElementById('atend-list'); if(!box) return; var a=atendGet();
-  var cont={}; ATEND_ST.forEach(function(s){ cont[s]=0; }); a.forEach(function(x){ cont[x.status]=(cont[x.status]||0)+1; });
-  var cards=document.getElementById('atend-cards'); if(cards){ cards.innerHTML=ATEND_ST.map(function(s){ return '<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-top:3px solid '+atendCor(s)+';border-radius:12px;padding:10px 12px;"><div style="font-size:11px;color:'+atendCor(s)+';font-weight:700;">'+s+'</div><div style="font-size:18px;font-weight:800;color:var(--gn-text);margin-top:2px;">'+(cont[s]||0)+'</div></div>'; }).join(''); }
-  if(!a.length){ box.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum contato ainda. Cadastre o primeiro lá em cima.</div>'; return; }
-  var ord={}; ATEND_ST.forEach(function(s,i){ ord[s]=i; }); a.sort(function(x,y){ return (ord[x.status]||0)-(ord[y.status]||0); });
-  box.innerHTML=a.map(function(x){ var opt=ATEND_ST.map(function(s){ return '<option'+(s===x.status?' selected':'')+'>'+s+'</option>'; }).join(''); var fim=(x.status==='Ganho'||x.status==='Perdido'); var tcor=x.temp==='Quente'?'#dc2626':(x.temp==='Morno'?'#f59e0b':'#0891b2');
-    return '<div style="border:1px solid var(--gn-border);border-left:4px solid '+atendCor(x.status)+';border-radius:11px;padding:11px 13px;margin-bottom:7px;'+(fim?'opacity:.78;':'')+'"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;"><div style="min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(x.nome)+(x.temp?(' <span style="font-size:10px;color:'+tcor+';">● '+x.temp+'</span>'):'')+'</div><div style="font-size:12px;color:var(--gn-dim);">'+[x.servico,x.origem,x.tel].filter(Boolean).map(gnEsc).join(' · ')+(x.valorEst?(' · ~'+gnEsc(x.valorEst)):'')+(x.motivoPerda?(' · <span style="color:#dc2626;">perdido: '+gnEsc(x.motivoPerda)+'</span>'):'')+'</div></div><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;"><select onchange="atendSetStatus(\''+x.id+'\',this.value)" style="padding:6px;border:1px solid var(--gn-border);border-radius:7px;font-size:12px;color:'+atendCor(x.status)+';font-weight:600;">'+opt+'</select><button onclick="atendWhats(\''+x.id+'\')" title="WhatsApp" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;">💬</button><button onclick="atendConverter(\''+x.id+'\')" title="Converter em pedido" style="background:#4338ca;color:#fff;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;font-weight:600;">→ Pedido</button><button onclick="atendDel(\''+x.id+'\')" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;">✕</button></div></div></div>'; }).join('');
-}
-
-// ═══ FORNECEDORES (item 38) ═══
-function fornGet(){try{return JSON.parse(localStorage.getItem('gn_forn')||'[]');}catch(e){return[];}}
-function fornSaveAll(a){try{localStorage.setItem('gn_forn',JSON.stringify(a));}catch(e){}}
-function fornAdd(){var n=((document.getElementById('fo-nome')||{}).value||'').trim();if(!n){toast('Informe o nome do fornecedor','er');return;}var a=fornGet();a.unshift({id:'f'+Date.now(),nome:n,contato:(document.getElementById('fo-contato')||{}).value||'',tel:(document.getElementById('fo-tel')||{}).value||'',email:(document.getElementById('fo-email')||{}).value||'',produtos:(document.getElementById('fo-prod')||{}).value||'',obs:(document.getElementById('fo-obs')||{}).value||''});fornSaveAll(a);['fo-nome','fo-contato','fo-tel','fo-email','fo-prod','fo-obs'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});renderForn();toast('Fornecedor salvo','ok');}
-function fornDel(id){if(!confirm('Excluir fornecedor?'))return;fornSaveAll(fornGet().filter(function(x){return x.id!==id;}));renderForn();}
-function fornWhats(id){var x=fornGet().filter(function(y){return y.id===id;})[0];if(!x||!x.tel){toast('Fornecedor sem telefone','er');return;}var t=String(x.tel).replace(/\D/g,'');window.open('https://wa.me/'+(t.length<=11?'55':'')+t,'_blank');}
-function renderForn(){var box=document.getElementById('forn-list');if(!box)return;var a=fornGet();if(!a.length){box.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum fornecedor cadastrado.</div>';return;}box.innerHTML=a.map(function(x){return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--gn-border);border-radius:11px;margin-bottom:7px;"><div style="min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(x.nome)+'</div><div style="font-size:12px;color:var(--gn-dim);">'+[x.contato,x.tel,x.produtos].filter(Boolean).map(gnEsc).join(' · ')+'</div></div><div style="display:flex;gap:5px;"><button onclick="fornWhats(\''+x.id+'\')" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;">💬</button><button onclick="fornDel(\''+x.id+'\')" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;">✕</button></div></div>';}).join('');}
+// REMOVIDO Fase 4: ATENDIMENTOS / FUNIL COMERCIAL + FORNECEDORES (~25 linhas)
 
 // ═══ COMPRAS (item 38) ═══
 var COMPRAS_ST=['Necessário comprar','Cotando','Comprado','Recebido','Cancelado'];
@@ -2530,51 +2487,7 @@ function comprasSelAll(ck){Array.prototype.forEach.call(document.querySelectorAl
 function comprasRemoverSelec(){var ids=[];Array.prototype.forEach.call(document.querySelectorAll('#compras-list .compras-chk'),function(c){if(c.checked)ids.push(c.getAttribute('data-id'));});if(!ids.length){toast('Marque os itens que você já comprou (caixinhas).','er');return;}if(!confirm('Remover '+ids.length+' item(ns) da lista de compras? (use isso para tirar o que você já comprou)'))return;var set={};ids.forEach(function(i){set[i]=1;});comprasSaveAll(comprasGet().filter(function(x){return !set[x.id];}));try{ if(typeof gnCloud2PushKey==='function') gnCloud2PushKey('gn_compras'); }catch(e){}var sa=document.getElementById('compras-selall');if(sa)sa.checked=false;renderCompras();toast('✓ '+ids.length+' item(ns) comprado(s) removido(s) da lista.','ok');}
 function renderCompras(){var box=document.getElementById('compras-list');if(!box)return;var a=comprasGet();if(!a.length){box.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum item de compra. Dica: na aba <b>Materiais</b>, clique em <b>🛒 Comprar</b> no que estiver faltando — ele vem pra cá.</div>';return;}box.innerHTML=a.map(function(x){var opt=COMPRAS_ST.map(function(s){return '<option'+(s===x.status?' selected':'')+'>'+s+'</option>';}).join('');return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--gn-border);border-left:4px solid '+comprasCor(x.status)+';border-radius:11px;margin-bottom:7px;"><div style="display:flex;align-items:center;gap:10px;min-width:0;"><input type="checkbox" class="compras-chk" data-id="'+x.id+'" style="width:18px;height:18px;flex:none;cursor:pointer;"><div style="min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(x.material)+'</div><div style="font-size:12px;color:var(--gn-dim);">Qtd: <b style="color:var(--gn-text);">'+(gnEsc(x.qtd)||'1')+'</b> <button onclick="comprasEditQtd(\''+x.id+'\')" style="background:rgba(124,92,255,.18);color:var(--gn-text);border:none;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:11px;">✎ editar</button>'+([x.forn,x.valor].filter(Boolean).map(gnEsc).join(' · ')?(' · '+[x.forn,x.valor].filter(Boolean).map(gnEsc).join(' · ')):'')+'</div></div></div><div style="display:flex;gap:5px;align-items:center;"><select onchange="comprasSet(\''+x.id+'\',this.value)" style="padding:6px;border:1px solid var(--gn-border);border-radius:7px;font-size:12px;color:'+comprasCor(x.status)+';font-weight:600;">'+opt+'</select><button onclick="comprasDel(\''+x.id+'\')" title="Excluir" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;">✕</button></div></div>';}).join('');}
 
-// ═══ CHAMADOS TÉCNICOS (item 38) ═══
-var CHAM_ST=['Aberto','Em análise','Aguardando cliente','Resolvido','Cancelado'];
-function chamGet(){try{return JSON.parse(localStorage.getItem('gn_chamados')||'[]');}catch(e){return[];}}
-function chamSaveAll(a){try{localStorage.setItem('gn_chamados',JSON.stringify(a));}catch(e){}}
-function chamAdd(){var c=((document.getElementById('ch-cli')||{}).value||'').trim();var d=((document.getElementById('ch-desc')||{}).value||'').trim();if(!c&&!d){toast('Informe cliente e/ou descrição','er');return;}var a=chamGet();a.unshift({id:'h'+Date.now(),cliente:c,tipo:(document.getElementById('ch-tipo')||{}).value||'Garantia',prioridade:(document.getElementById('ch-prio')||{}).value||'Média',descricao:d,status:'Aberto',criadoEm:new Date().toISOString()});chamSaveAll(a);['ch-cli','ch-desc'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});renderChamados();toast('Chamado aberto','ok');}
-function chamSet(id,s){var a=chamGet();a.forEach(function(x){if(x.id===id)x.status=s;});chamSaveAll(a);renderChamados();}
-function chamDel(id){if(!confirm('Excluir chamado?'))return;chamSaveAll(chamGet().filter(function(x){return x.id!==id;}));renderChamados();}
-function chamCor(s){return {'Aberto':'#f59e0b','Em análise':'#0891b2','Aguardando cliente':'#fbbf24','Resolvido':'#16a34a','Cancelado':'#64748b'}[s]||'#64748b';}
-function renderChamados(){var box=document.getElementById('cham-list');if(!box)return;var a=chamGet();if(!a.length){box.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum chamado aberto.</div>';return;}var ord={'Urgente':0,'Alta':1,'Média':2,'Baixa':3};a.sort(function(x,y){if((x.status==='Resolvido'||x.status==='Cancelado')!==(y.status==='Resolvido'||y.status==='Cancelado'))return (x.status==='Resolvido'||x.status==='Cancelado')?1:-1;return (ord[x.prioridade]||9)-(ord[y.prioridade]||9);});box.innerHTML=a.map(function(x){var opt=CHAM_ST.map(function(s){return '<option'+(s===x.status?' selected':'')+'>'+s+'</option>';}).join('');return '<div style="padding:11px 13px;border:1px solid var(--gn-border);border-left:4px solid '+chamCor(x.status)+';border-radius:11px;margin-bottom:7px;"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;"><div style="min-width:0;"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(x.cliente||'—')+' <span style="font-size:11px;color:var(--gn-dim);">· '+gnEsc(x.tipo)+' · '+gnEsc(x.prioridade)+'</span></div><div style="font-size:12px;color:var(--gn-dim);">'+gnEsc(x.descricao||'')+'</div></div><div style="display:flex;gap:5px;align-items:center;"><select onchange="chamSet(\''+x.id+'\',this.value)" style="padding:6px;border:1px solid var(--gn-border);border-radius:7px;font-size:12px;color:'+chamCor(x.status)+';font-weight:600;">'+opt+'</select><button onclick="chamDel(\''+x.id+'\')" style="background:#fdecec;color:#dc2626;border:none;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:12px;">✕</button></div></div></div>';}).join('');}
-
-// ═══ PÓS-VENDA (item 38) ═══
-function pvMsg(e,tipo){
-  var co=(typeof gnCO==='function')?gnCO():{};
-  function pref(id,cat,fb){ var t=(typeof modeloById==='function'&&(modeloById(id)||{}).texto)||(typeof modeloByCat==='function'&&modeloByCat(cat))||fb; return String(t||'').replace(/\{nome\}/g, (typeof gnPrimNome==='function'?gnPrimNome(e.cliente):(e.cliente||'cliente'))); }
-  if(tipo==='agrad') return pref('m_agrad','Agradecimento','Olá, {nome}! Agradecemos pela confiança. Seu serviço foi concluído e ficamos à disposição sempre que precisar.'+(co.fantasia?(' — '+co.fantasia):''));
-  if(tipo==='pv') return pref('m_pv','Pós-venda','Olá, {nome}! Aqui é da Gás Network. Está tudo certo com o serviço que realizamos? Qualquer necessidade, é só me chamar!');
-  return pref('m_aval','Pós-venda','Olá, {nome}! Você poderia avaliar nosso atendimento? Sua opinião é muito importante pra gente melhorar cada vez mais. Obrigado!'+(co.fantasia?(' — '+co.fantasia):''));
-}
-function pvSend(numero,tipo){var e=pedEntry(numero);if(!e)return;if(typeof pedEnvio==='function')pedEnvio(numero,pvMsg(e,tipo));}
-function renderPosvenda(){
-  var box=document.getElementById('pv-list');if(!box)return;
-  var h=[];try{h=pedHist();}catch(e){}
-  var conc=h.filter(function(e){var st;try{st=pedGet(e.numero);}catch(_){return false;}return st.status==='Concluído'||st.status==='Garantia';});
-  if(!conc.length){box.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum serviço concluído ainda. Quando você concluir pedidos, eles aparecem aqui para agradecer e pedir avaliação.</div>';return;}
-  var pvDias=Number(localStorage.getItem('gn_pv_dias')||'3')||3;
-  var done=(typeof gnSetGet==='function')?gnSetGet('gn_pvdone'):[];
-  var h0=new Date();h0.setHours(0,0,0,0);
-  // ordena: pendentes (mais antigos primeiro) no topo
-  conc.forEach(function(e){ var ci=(typeof gnPedConcluidoEm==='function')?gnPedConcluidoEm(e.numero,e):pedISO(e.data); e._ci=ci; var d=ci?new Date(ci+'T00:00:00'):null; e._dias=(d&&!isNaN(d))?Math.round((h0-d)/86400000):null; e._feito=done.indexOf(e.numero)>=0; e._pend=(!e._feito && e._dias!=null && e._dias>=pvDias); });
-  conc.sort(function(a,b){ if(a._pend!==b._pend) return a._pend?-1:1; if(a._feito!==b._feito) return a._feito?1:-1; return (b._dias||0)-(a._dias||0); });
-  var nPend=conc.filter(function(e){return e._pend;}).length;
-  var topo=nPend?('<div style="background:rgba(124,92,255,.10);border:1px solid #7c5cff;border-radius:11px;padding:10px 13px;margin-bottom:10px;font-size:13px;color:var(--gn-text);"><b style="color:#7c5cff;">⭐ '+nPend+' serviço(s) prontos para pós-venda</b> (concluídos há '+pvDias+'+ dias). Mande um carinho pro cliente e marque como feito.</div>'):'';
-  box.innerHTML=topo+conc.map(function(e){
-    var diasTxt=(e._dias!=null)?('há '+e._dias+' dia(s)'):(e.data||'');
-    var selo=e._feito?' <span style="font-size:10px;color:#16a34a;font-weight:700;">✓ contatado</span>':(e._pend?' <span style="font-size:10px;background:#7c5cff;color:#fff;border-radius:8px;padding:1px 7px;">PENDENTE</span>':'');
-    return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 13px;border:1px solid var(--gn-border);border-left:4px solid '+(e._pend?'#7c5cff':(e._feito?'#16a34a':'var(--gn-border)'))+';border-radius:11px;margin-bottom:7px;opacity:'+(e._feito?'0.7':'1')+';">'
-      +'<div style="min-width:0;cursor:pointer;" onclick="pedDetalhe(\''+gnEsc(e.numero)+'\')"><div style="font-weight:700;color:var(--gn-text);">'+gnEsc(e.cliente||'Cliente')+selo+'</div><div style="font-size:12px;color:var(--gn-dim);">'+gnEsc(e.numero||'')+' · concluído '+diasTxt+'</div></div>'
-      +'<div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;">'
-      +'<button onclick="pvSend(\''+gnEsc(e.numero)+'\',\'pv\')" style="background:#0e7490;color:#fff;border:none;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:12px;font-weight:600;">💬 Pós-venda</button>'
-      +'<button onclick="pvSend(\''+gnEsc(e.numero)+'\',\'agrad\')" style="background:#16a34a;color:#fff;border:none;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:12px;font-weight:600;">🙏 Agradecer</button>'
-      +'<button onclick="pvSend(\''+gnEsc(e.numero)+'\',\'aval\')" style="background:#7c5cff;color:#fff;border:none;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:12px;font-weight:600;">⭐ Avaliação</button>'
-      +(e._feito?'':'<button onclick="pvFeito(\''+gnEsc(e.numero)+'\')" style="background:var(--gn-surface2);color:var(--gn-text);border:none;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:12px;">✓ Feito</button>')
-      +'</div></div>';
-  }).join('');
-}
+// REMOVIDO Fase 4: CHAMADOS TÉCNICOS + PÓS-VENDA (~50 linhas)
 
 // ══════════════════════════════════════════════
 // ═══ TÉCNICO EM CAMPO ═══════════════════════
@@ -7320,59 +7233,7 @@ function relCSV(tipo){
 
 </script>
 <script>
-// ══════════════════════════════════════════════
-// ═══ CHECKLIST DO PROJETO ═══════════════════════
-// ══════════════════════════════════════════════
-var CHK_STATUS=['Não iniciado','Em desenvolvimento','Em teste','Concluído','Corrigir','Revisar layout'];
-var CHK_ITENS=[
-  ['Tela inicial / Dashboard','Concluído'],
-  ['Botão flutuante de ações rápidas','Concluído'],
-  ['Cadastro de clientes (CRUD + nuvem)','Concluído'],
-  ['Usar cliente cadastrado no orçamento','Concluído'],
-  ['Catálogo de serviços (+ usar no orçamento)','Concluído'],
-  ['Catálogo de produtos e estoque','Concluído'],
-  ['Orçamento / Proposta com IA + PDF','Concluído'],
-  ['Envio por WhatsApp','Concluído'],
-  ['Recibo (PDF + nuvem)','Concluído'],
-  ['Ordem de serviço (PDF + status + nuvem)','Concluído'],
-  ['Laudo técnico','Concluído'],
-  ['Financeiro (receitas, custos, gráficos)','Concluído'],
-  ['Importar extrato bancário com IA','Concluído'],
-  ['Investimentos (aplicação/resgate)','Concluído'],
-  ['Relatórios + exportação CSV','Concluído'],
-  ['Sincronização na nuvem (Google)','Concluído'],
-  ['Contratos (modelos + PDF)','Não iniciado'],
-  ['Configurações da empresa (logo/cores/Pix editáveis)','Não iniciado'],
-  ['Assinatura do cliente na tela','Não iniciado'],
-  ['Área do cliente / aprovação por link','Não iniciado'],
-  ['Agenda com calendário visual','Em desenvolvimento'],
-  ['Esconder chave da OpenAI no servidor','Não iniciado'],
-  ['Salvar PDFs em pastas por cliente/tipo no Drive','Não iniciado'],
-  ['Modo claro/escuro','Não iniciado']
-];
-function chkData(){ try{ return JSON.parse(localStorage.getItem('gn_chk')||'{}'); }catch(e){ return {}; } }
-function chkSet(i,v){ var d=chkData(); d[i]=v; localStorage.setItem('gn_chk',JSON.stringify(d)); renderChk(); }
-function chkStatusOf(i){ var d=chkData(); return d.hasOwnProperty(i)?d[i]:CHK_ITENS[i][1]; }
-function chkCor(s){ return {'Concluído':'#16a34a','Em desenvolvimento':'#2563eb','Em teste':'#f59e0b','Corrigir':'#dc2626','Revisar layout':'#b45309','Não iniciado':'#9ca3af'}[s]||'#9ca3af'; }
-
-function renderChk(){
-  var list=document.getElementById('chk-list'); if(!list) return;
-  var done=0; CHK_ITENS.forEach(function(it,i){ if(chkStatusOf(i)==='Concluído') done++; });
-  var pct=Math.round(done/CHK_ITENS.length*100);
-  var prog=document.getElementById('chk-prog');
-  if(prog){ prog.innerHTML='<div style="font-weight:700;color:var(--gn-text);margin-bottom:6px;">'+done+' de '+CHK_ITENS.length+' concluídos ('+pct+'%)</div>'
-    + '<div style="background:#eee;border-radius:20px;height:14px;overflow:hidden;"><div style="width:'+pct+'%;height:100%;background:#16a34a;"></div></div>'; }
-  list.innerHTML=CHK_ITENS.map(function(it,i){
-    var st=chkStatusOf(i);
-    var opts=CHK_STATUS.map(function(s){ return '<option value="'+s+'"'+(s===st?' selected':'')+'>'+s+'</option>'; }).join('');
-    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--gn-border);border-left:4px solid '+chkCor(st)+';border-radius:10px;margin-bottom:6px;">'
-      + '<div style="font-weight:600;color:var(--gn-text);min-width:0;">'+gnEsc(it[0])+'</div>'
-      + '<select class="chk-sel" data-i="'+i+'" style="padding:7px 10px;border:1px solid var(--gn-border);border-radius:8px;font-size:13px;">'+opts+'</select>'
-      + '</div>';
-  }).join('');
-  Array.prototype.forEach.call(list.querySelectorAll('.chk-sel'), function(s){ s.onchange=function(){ chkSet(parseInt(s.getAttribute('data-i'),10), s.value); }; });
-}
-
+// REMOVIDO Fase 4: CHECKLIST DO PROJETO (tracker interno de dev — ~50 linhas)
 </script>
 <script>
 // ══════════════════════════════════════════════
@@ -10024,25 +9885,12 @@ function gnCEPLookup(cep){
 // ─── #6 Modelos de serviço (1 toque) ───
 var GN_SVC_TEMPLATES=[
   {nome:'Teste de estanqueidade', desc:'Verificação de estanqueidade da rede de gás', exec:'Ensaio de estanqueidade com manômetro e inspeção visual da tubulação, conexões e registros, conforme ABNT NBR 15526.', mat:'Manômetro, solução detectora de vazamento'},
-  {nome:'Instalação de ponto de gás', desc:'Instalação de ponto de gás', exec:'Instalação de tubulação, registro e ponto de consumo, com teste de estanqueidade ao final, conforme NBR 15526.', mat:'Tubo, conexões, registro de gás'},
-  {nome:'Troca de regulador', desc:'Substituição de regulador de pressão', exec:'Remoção do regulador antigo e instalação de novo regulador, com teste de vedação.', mat:'Regulador de pressão'},
-  {nome:'Manutenção preventiva', desc:'Manutenção preventiva da instalação de gás', exec:'Inspeção geral, reaperto de conexões, teste de vazamento e verificação dos dispositivos de segurança.', mat:''},
+  {nome:'Instalação de tubulação de gás', desc:'Instalação de tubulação de gás natural em rede aparente', exec:'Instalação de tubulação, abrigo de gás, conexões, fixações, pintura de identificação amarelo gás e teste de estanqueidade conforme NBR 15526, NBR 13103, NBR 15358 e IT-28/IT-29.', mat:'Tubo, conexões, registros, abraçadeiras, abrigo de gás'},
   {nome:'Conversão de fogão GLP/GN', desc:'Conversão de fogão', exec:'Troca dos injetores e regulagem da chama para o tipo de gás (GLP/GN).', mat:'Kit de injetores'},
   {nome:'Visita técnica / vistoria', desc:'Visita técnica', exec:'Vistoria técnica da instalação e levantamento das necessidades do cliente.', mat:''},
-  {nome:'Instalação e conversão de fogão', desc:'Instalação e conversão de fogão', exec:'Instalação do fogão/cooktop, conversão dos injetores ao tipo de gás (GLP/GN), ligação ao ponto e teste de estanqueidade e funcionamento.', mat:'Kit de injetores, mangueira e conexão homologada'},
-  {nome:'Adequação de ponto de gás', desc:'Adequação de ponto de gás', exec:'Correção/realocação do ponto de gás, registro e conexões conforme NBR 15526, com teste de estanqueidade do trecho.', mat:'Tubo, conexões, registro de gás'},
-  {nome:'Adequação de ponto + instalação de fogão', desc:'Adequação de ponto e instalação de fogão', exec:'Adequação do ponto de gás às normas, instalação e conversão do fogão, com teste de estanqueidade e de funcionamento.', mat:'Registro, conexões, kit de injetores'},
-  {nome:'Vistoria e teste de estanqueidade', desc:'Vistoria e teste de estanqueidade', exec:'Vistoria técnica da instalação acompanhada de ensaio de estanqueidade (NBR 15526), com registro dos valores e emissão de relatório.', mat:'Manômetro, solução detectora'},
-  {nome:'Verificação de vazamento', desc:'Visita técnica para verificação de vazamento', exec:'Investigação e localização de vazamento com detector e solução específica, isolamento do ponto e orientação corretiva.', mat:'Solução detectora de vazamento'},
   {nome:'Instalação de aquecedor a gás', desc:'Instalação de aquecedor a gás', exec:'Instalação de aquecedor de passagem, ponto de gás, exaustão e teste de estanqueidade e acionamento, conforme NBR 13103.', mat:'Aquecedor, tubo de exaustão, conexões'},
-  {nome:'Instalação de cooktop/forno', desc:'Instalação de cooktop e/ou forno a gás', exec:'Instalação e fixação do cooktop/forno de embutir, conversão dos injetores se necessário, ligação e testes.', mat:'Conexões homologadas, kit de injetores'},
-  {nome:'Construção de tubulação de gás', desc:'Construção de tubulação de gás', exec:'Execução de tubulação (cobre/multicamada) do cavalete aos pontos de consumo, com registros e teste de estanqueidade de toda a rede.', mat:'Tubo, conexões, registros, abraçadeiras'},
-  {nome:'Conversão de aquecedor GLP/GN', desc:'Conversão de aquecedor', exec:'Troca de injetores e regulagem da combustão do aquecedor para o tipo de gás, com testes de estanqueidade e funcionamento.', mat:'Kit de injetores do aquecedor'},
-  {nome:'Remanejamento de ponto de gás', desc:'Remanejamento de ponto de gás', exec:'Desativação segura e realocação do ponto de gás para novo local, com nova tubulação e teste de estanqueidade.', mat:'Tubo, conexões, registro'},
-  {nome:'Troca de mangueira e registro', desc:'Substituição de mangueira e registro de gás', exec:'Substituição da mangueira e do registro por itens homologados, com teste de vedação.', mat:'Mangueira homologada, registro de gás'},
   {nome:'Instalação de central de GLP', desc:'Instalação de central de GLP', exec:'Montagem do abrigo, reguladores de 1º e 2º estágio, manômetro e tubulação, com teste de estanqueidade e comissionamento (NBR 13523).', mat:'Reguladores, manômetro, tubo, abrigo'},
   {nome:'Reparo de vazamento', desc:'Reparo corretivo de vazamento', exec:'Localização e isolamento do vazamento, substituição do trecho/componente e validação por teste de estanqueidade.', mat:'Tubo, conexões, vedante'},
-  {nome:'Religação / comissionamento de gás', desc:'Religação e comissionamento da instalação', exec:'Religação do gás, sangria da rede, verificação dos aparelhos e teste de estanqueidade antes da liberação.', mat:''},
   {nome:'Emissão de laudo de estanqueidade', desc:'Emissão de laudo de estanqueidade', exec:'Ensaio de estanqueidade conforme NBR 15526 com emissão de laudo técnico assinado pelo responsável técnico.', mat:'Manômetro'}
 ];
 // Aprendizado: modelos criados/salvos pelo próprio usuário (persistidos e sincronizados)
@@ -14915,7 +14763,6 @@ window.gnDocAbrir=function(tipo,id,num){
     wrapWithGnConfirm('finDel', 'Excluir lançamento?', 'Esta ação não pode ser desfeita. O lançamento será removido em todos os aparelhos sincronizados.', true);
     wrapWithGnConfirm('ageDel', 'Excluir compromisso?', 'Vai sumir da agenda e das notinhas de serviço.', true);
     wrapWithGnConfirm('comprasDel', 'Excluir item da lista de compras?', 'Esta ação remove o item para sempre.', true);
-    wrapWithGnConfirm('chamDel', 'Excluir chamado?', 'Esta ação remove o chamado para sempre.', true);
     wrapWithGnConfirm('hubTarDel', 'Excluir tarefa?', 'A tarefa será removida da sua lista.', true);
   }, 2500);
 
@@ -15518,32 +15365,7 @@ window.gnDocAbrir=function(tipo,id,num){
     $('gn-sign-ok').onclick=function(){ var data=cv.toDataURL('image/png'); document.body.removeChild(bd); if(callback) callback({tipo:'imagem', valor:data, em:new Date().toISOString()}); };
   };
 
-  // ══════════════════════════════════════════════════════════════
-  // 35/36. ALERTA GARANTIA (já mostrado na ficha — também na criação de chamado)
-  // ══════════════════════════════════════════════════════════════
-  if(typeof window.chamAdd==='function' && !window.chamAdd.__garWrap){
-    var _ocha=window.chamAdd;
-    window.chamAdd=function(){
-      try{
-        var cli=(document.getElementById('ch-cli')||{}).value||'';
-        if(cli){
-          var hist=gj('gn_hist').filter(function(d){return norm(d.cliente||'')===norm(cli);});
-          var ativas=[];
-          hist.forEach(function(h){
-            var dt=Date.parse(h.data||h.criadoEm||''); if(!dt) return;
-            var dias=Math.floor((Date.now()-dt)/86400000); var lim=90;
-            if(/resina/i.test(h.tipo||h.descricao||'')) lim=365;
-            else if(/mangueira/i.test(h.tipo||h.descricao||'')) lim=1825;
-            else if(/laudo/i.test(h.tipo||'')) lim=365;
-            if(dias<lim) ativas.push({s:h.tipo||h.descricao||'serviço', r:lim-dias});
-          });
-          if(ativas.length){ if(!confirm('🛡 ATENÇÃO: '+cli+' tem '+ativas.length+' garantia(s) ATIVA(S):\n\n'+ativas.slice(0,3).map(function(g){return '• '+g.s+' — restam '+g.r+' dias';}).join('\n')+'\n\nVerifique se o reparo está coberto pela garantia (sem custo) antes de cobrar. Continuar?')) return; }
-        }
-      }catch(e){}
-      return _ocha.apply(this, arguments);
-    };
-    window.chamAdd.__garWrap=true;
-  }
+  // REMOVIDO Fase 4: wrapper chamAdd (chamados foram deletados)
 
   // ══════════════════════════════════════════════════════════════
   // 40/41. DUPLICAR ORÇAMENTO + USAR COMO MODELO
@@ -16145,11 +15967,6 @@ window.gnDocAbrir=function(tipo,id,num){
     return false;
   };
 
-  // REMOVIDO: Controle de Veículos/Combustível (~55 linhas)
-  window.gnVeicAdd=function(){};
-  window.gnCombAdd=function(){};
-  window.gnVerVeiculos=function(){};
-
   // ══════════════════════════════════════════════════════════════
   // 53-57. EQUIPE: TÉCNICO, COMISSÃO, ADIANTAMENTO, FOLHA
   // ══════════════════════════════════════════════════════════════
@@ -16211,65 +16028,7 @@ window.gnDocAbrir=function(tipo,id,num){
     abrirHTML('Folha de Pagamento — '+mesISO, html);
   };
 
-  // ══════════════════════════════════════════════════════════════
-  // 65/66/67/68. CHECK-IN/OUT, TEMPO REAL, PRODUTIVIDADE
-  // ══════════════════════════════════════════════════════════════
-  window.gnCheckIn=function(numero){
-    var arr=gj('gn_os'); var o=arr.filter(function(x){return x.numero===numero||x.id===numero;})[0];
-    if(!o){ // tenta criar baseado em pedido
-      var p=gj('gn_hist').filter(function(x){return x.numero===numero;})[0];
-      if(p){ o={id:'os'+Date.now(), numero:numero, cliente:p.cliente, valor:p.valor, criadoEm:new Date().toISOString()}; arr.unshift(o); }
-    }
-    if(!o){if(window.toast)toast('Não encontrei o pedido','er');return;}
-    o.checkin=new Date().toISOString();
-    o.status_desloc='em execução';
-    ls('gn_os', arr); push('gn_os');
-    if(window.toast) toast('✓ Check-in '+new Date().toLocaleTimeString('pt-BR'),'ok');
-  };
-  window.gnCheckOut=function(numero){
-    var arr=gj('gn_os'); var o=arr.filter(function(x){return x.numero===numero||x.id===numero;})[0];
-    if(!o){if(window.toast)toast('Não encontrei o pedido','er');return;}
-    o.checkout=new Date().toISOString();
-    o.status_desloc='finalizado';
-    if(o.checkin){
-      var dur=Math.round((Date.parse(o.checkout)-Date.parse(o.checkin))/60000);
-      o.duracao_min=dur;
-      if(window.toast) toast('✓ Check-out — duração: '+Math.floor(dur/60)+'h '+(dur%60)+'min','ok');
-    }
-    ls('gn_os', arr); push('gn_os');
-  };
-  window.gnRelProdutividade=function(){
-    var os=gj('gn_os').filter(function(o){return o.duracao_min;});
-    if(!os.length){ alert('Sem dados de produtividade ainda.\nUse "Check-in" e "Check-out" nos serviços pra começar a coletar.'); return; }
-    // agrupa por técnico
-    var porTec={};
-    os.forEach(function(o){var t=o.tecnico||o.responsavel||'Não informado'; if(!porTec[t]) porTec[t]={qtd:0,total:0,fat:0}; porTec[t].qtd++; porTec[t].total+=o.duracao_min; porTec[t].fat+=Number(o.valor)||0;});
-    var rows=Object.keys(porTec).map(function(k){var p=porTec[k];var media=p.total/p.qtd;return '<tr><td><b>'+esc(k)+'</b></td><td>'+p.qtd+'</td><td>'+Math.floor(media/60)+'h '+Math.round(media%60)+'min</td><td>'+brl(p.fat)+'</td><td>'+brl(p.fat/p.qtd)+'</td></tr>';}).join('');
-    var html='<h2>⏱ Produtividade por técnico</h2><table><thead><tr><th>Técnico</th><th>Serviços (c/ tempo)</th><th>Tempo médio</th><th>Faturamento</th><th>Ticket médio</th></tr></thead><tbody>'+rows+'</tbody></table>';
-    abrirHTML('Relatório de Produtividade', html);
-  };
-
-  // ══════════════════════════════════════════════════════════════
-  // 62. RELATÓRIO POR BAIRRO/REGIÃO
-  // ══════════════════════════════════════════════════════════════
-  window.gnRelBairro=function(){
-    var cli=gj('gn_cli'); var fin=gj('gn_fin');
-    var byB={};
-    cli.forEach(function(c){
-      var b=(c.bairro||c.cidade||'Não informado').trim();
-      if(!byB[b]) byB[b]={cli:0, fat:0};
-      byB[b].cli++;
-    });
-    fin.forEach(function(f){
-      if(f.tipo!=='receita'||f.status!=='pago') return;
-      var c=cli.filter(function(x){return norm(x.nome||'')===norm(f.cliente||'');})[0];
-      if(c){ var b=(c.bairro||c.cidade||'Não informado').trim(); if(!byB[b]) byB[b]={cli:0,fat:0}; byB[b].fat+=Number(f.valor)||0; }
-    });
-    var keys=Object.keys(byB).sort(function(a,b){return byB[b].fat-byB[a].fat;});
-    var rows=keys.slice(0,40).map(function(k){return '<tr><td>'+esc(k)+'</td><td>'+byB[k].cli+'</td><td>'+brl(byB[k].fat)+'</td></tr>';}).join('');
-    var html='<h2>🗺 Onde atendemos mais (top 40)</h2><table><thead><tr><th>Bairro/Cidade</th><th>Clientes</th><th>Faturamento</th></tr></thead><tbody>'+rows+'</tbody></table>';
-    abrirHTML('Relatório por Região', html);
-  };
+  // REMOVIDO Fase 4: Check-in/Check-out, Produtividade, Relatório por Bairro (~60 linhas)
 
   // ══════════════════════════════════════════════════════════════
   // 49/50/51/52. CUSTO PREVISTO / REAL / COMPARAÇÃO
@@ -16369,47 +16128,7 @@ window.gnDocAbrir=function(tipo,id,num){
     abrirHTML('Impressão — '+tipo, html);
   };
 
-  // ══════════════════════════════════════════════════════════════
-  // 92/93. PADRONIZAÇÃO DE LINGUAGEM + REVISÃO AUTO
-  // ══════════════════════════════════════════════════════════════
-  var DICIO_TECNICO={
-    'arrumar cano':'reparo em tubulação',
-    'gás vazando':'correção de vazamento em rede de gás',
-    'papel do gás':'laudo técnico de estanqueidade',
-    'mexer no gás':'instalação/reparo em rede de gás',
-    'botijão':'cilindro GLP',
-    'aquecedor':'aquecedor a gás',
-    'fogão':'fogão a gás',
-    'cheiro de gás':'odor de gás (suspeita de vazamento)',
-    'tubulação vazando':'vazamento em rede',
-    'colocar gás':'instalação de gás',
-    'tirar gás':'remoção de instalação de gás'
-  };
-  window.gnPadronizarTexto=function(txt){
-    var t=String(txt||'').toLowerCase();
-    var trocas=[];
-    Object.keys(DICIO_TECNICO).forEach(function(k){
-      if(t.indexOf(k)>=0){ trocas.push({de:k, para:DICIO_TECNICO[k]}); t=t.replace(new RegExp(k,'gi'), DICIO_TECNICO[k]); }
-    });
-    return {texto:t, trocas:trocas};
-  };
-  window.gnRevisarTexto=function(){
-    if(typeof gnAsk!=='function') return;
-    gnAsk({titulo:'🔤 Revisar texto', icone:'🔤', subtitulo:'Cole o texto e o app sugere termos técnicos profissionais.',
-      perguntas:[ {id:'txt', label:'Texto pra revisar', tipo:'textarea', obrigatorio:true, placeholder:'Ex: "arrumar cano de gás vazando"'} ]
-    }).then(function(o){
-      if(!o) return;
-      var r=gnPadronizarTexto(o.txt);
-      if(!r.trocas.length){ alert('✅ Texto já parece profissional. Sem sugestões.'); return; }
-      alert('🔤 SUGESTÕES:\n\n'+r.trocas.map(function(t){return '• "'+t.de+'" → "'+t.para+'"';}).join('\n')+'\n\n📝 TEXTO REVISADO:\n\n'+r.texto);
-    });
-  };
-
-  // REMOVIDO: Bloqueio inatividade + Mascaramento + Modo Demo (~35 linhas)
-  window.gnDestravar=function(){};
-  window.gnToggleIdleLock=function(){};
-  window.gnMascararDados=function(){};
-  window.gnModoDemo=function(){};
+  // REMOVIDO Fase 5: Padronização de linguagem + Revisor IA (~35 linhas)
 
   // ══════════════════════════════════════════════════════════════
   // 99. RELATÓRIO SEMANAL AUTOMÁTICO (on-demand)
@@ -16434,9 +16153,6 @@ window.gnDocAbrir=function(tipo,id,num){
       +'<h2>✅ Top recebimentos</h2><table><thead><tr><th>Cliente</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>'+rec.sort(function(a,b){return b.valor-a.valor;}).slice(0,10).map(function(r){return '<tr><td>'+esc(r.cliente||'')+'</td><td>'+esc(r.desc||'')+'</td><td>'+brl(r.valor)+'</td></tr>';}).join('')+'</tbody></table>';
     abrirHTML('Relatório Semanal — Gás Network', html);
   };
-
-  // REMOVIDO: Limpeza de contatos vazios (10 linhas)
-  window.gnLimparVazios=function(){};
 
   // ══════════════════════════════════════════════════════════════
   // 9. HISTÓRICO DE NAVEGAÇÃO (back stack)
@@ -16543,8 +16259,6 @@ window.gnDocAbrir=function(tipo,id,num){
         +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;">'
           +'<button onclick="gnRelOrigem()" style="background:#0e7490;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">📍 Origem dos clientes</button>'
           +'<button onclick="gnRelConversao()" style="background:#0e7490;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">🎯 Funil de conversão</button>'
-          +'<button onclick="gnRelBairro()" style="background:#0e7490;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">🗺 Por bairro/região</button>'
-          +'<button onclick="gnRelProdutividade()" style="background:#0e7490;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">⏱ Produtividade técnicos</button>'
           +'<button onclick="gnRelCustoLucro()" style="background:#0e7490;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">📊 Custo x Lucro</button>'
           +'<button onclick="gnRelSemanal()" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">📆 Relatório semanal</button>'
         +'</div>'
@@ -16553,24 +16267,15 @@ window.gnDocAbrir=function(tipo,id,num){
           +'<button onclick="gnFuncAdd()" style="background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">+ Funcionário</button>'
           +'<button onclick="gnAdiantAdd()" style="background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">+ Adiantamento</button>'
           +'<button onclick="gnFolhaPgto()" style="background:#5b3fe3;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">💼 Folha de pagamento</button>'
-          +'<button onclick="gnVeicAdd()" style="background:#0e7490;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">+ Veículo</button>'
-          +'<button onclick="gnCombAdd()" style="background:#0e7490;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">⛽ Abastecimento</button>'
-          +'<button onclick="gnVerVeiculos()" style="background:rgba(14,116,144,.18);color:#67e8f9;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">🚐 Ver frota</button>'
-        +'</div>'
         +'<div style="font-weight:800;color:#86efac;font-size:15px;margin:20px 0 10px;">📄 Documentos e impressão</div>'
         +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;">'
           +'<button onclick="gnVerModelosLaudo()" style="background:#a855f7;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">📋 Modelos de laudo</button>'
-          +'<button onclick="gnRevisarTexto()" style="background:#a855f7;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">🔤 Revisar texto (IA)</button>'
           +'<button onclick="gnImprimirRapido(\'agenda\')" style="background:#64748b;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">🖨 Imprimir agenda hoje</button>'
           +'<button onclick="gnImprimirRapido(\'compras\')" style="background:#64748b;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">🖨 Imprimir compras</button>'
           +'<button onclick="gnImprimirRapido(\'tarefas\')" style="background:#64748b;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">🖨 Imprimir tarefas</button>'
         +'</div>'
         +'<div style="font-weight:800;color:#86efac;font-size:15px;margin:20px 0 10px;">🔐 Segurança e organização</div>'
         +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;">'
-          +'<button onclick="gnToggleIdleLock()" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">🔒 Auto-bloqueio 15min</button>'
-          +'<button onclick="gnMascararDados()" style="background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">🙈 Modo apresentação</button>'
-          +'<button onclick="gnModoDemo()" style="background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">🎭 Modo demonstração</button>'
-          +'<button onclick="gnLimparVazios()" style="background:#f59e0b;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">🧹 Limpar contatos vazios</button>'
           +'<button onclick="gnFilaUpload()" style="background:#0891b2;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">📤 Fila de upload</button>'
         +'</div>'
         +'<div style="margin-top:14px;font-size:11.5px;color:#9fb0d0;font-style:italic;">💡 90+ melhorias ativas neste app. Use a Central de Sugestões pra anotar o que falta.</div>';
@@ -16686,146 +16391,7 @@ window.gnDocAbrir=function(tipo,id,num){
     window.cliFichaFull.__tlbtn=true;
   }
 
-  // ══════════════════════════════════════════════════════════════
-  // 28/29. CHECKLISTS POR TIPO DE SERVIÇO (OS)
-  // ══════════════════════════════════════════════════════════════
-  var CHECKLISTS={
-    'instalacao_fogao':{nome:'Instalação de fogão', itens:['Verificar local de instalação','Conferir registro fechado','Conectar mangueira nova','Vedação correta nos conectores','Teste de estanqueidade após instalação','Acender e verificar chama','Fotos antes/depois','Limpeza do local']},
-    'conversao_fogao':{nome:'Conversão de fogão (GN ↔ GLP)', itens:['Identificar tipo origem/destino','Trocar injetores','Ajustar regulador','Verificar válvulas','Acender todos os bicos','Conferir chama (cor)','Etiqueta de conversão','Manual atualizado ao cliente']},
-    'teste_estanqueidade':{nome:'Teste de estanqueidade', itens:['Cliente identificado','Endereço conferido','Tipo de gás identificado (GN/GLP)','Trecho a testar definido','Pressão 10 KPa aplicada','Tempo 15 min cronometrado','Sem queda de pressão observada','Conclusão registrada no laudo','Foto do manômetro','Etiqueta no medidor']},
-    'aplicacao_resina':{nome:'Aplicação de resina', itens:['Localizar vazamento','Limpar superfície','Aplicar resina conforme fabricante','Aguardar cura','Teste de estanqueidade após cura','Pressurizar pra confirmar','Foto do reparo','Garantia de 1 ano informada ao cliente']},
-    'troca_regulador':{nome:'Troca de regulador', itens:['Verificar tipo correto','Fechar registro','Trocar regulador (apertar bem)','Verificar vedação','Pressurizar e testar','Conferir consumo nos pontos','Foto do novo regulador']},
-    'manutencao_aquecedor':{nome:'Manutenção de aquecedor', itens:['Verificar exaustão','Limpar trocador de calor','Conferir ignição','Testar termostato','Verificar pressão','Limpar filtros','Conferir vedações','Teste final']},
-    'reparo_vazamento':{nome:'Reparo em vazamento', itens:['🚨 EVACUAR LOCAL se necessário','Fechar registro geral','Identificar ponto exato do vazamento','Reparar/substituir trecho','Aplicar vedante','Teste de estanqueidade','Pressurizar e confirmar','Ventilar local','Etiqueta no medidor']}
-  };
-  try{ if(!localStorage.getItem('gn_checklists')) ls('gn_checklists', CHECKLISTS); }catch(e){}
-  window.gnAbrirChecklist=function(numero, tipoServico){
-    var key=tipoServico||'teste_estanqueidade';
-    var cks=go('gn_checklists')||CHECKLISTS;
-    var c=cks[key]; if(!c){if(window.toast)toast('Checklist não encontrado','er');return;}
-    // estado por OS
-    var done=gj('gn_os_chk_'+numero);
-    var html='<div style="font-weight:800;color:#c4b5fd;margin-bottom:10px;font-size:14px;">📋 '+esc(c.nome)+'</div>';
-    html+=c.itens.map(function(it,i){
-      var ck=done.indexOf(i)>=0;
-      return '<label style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid rgba(124,92,255,.2);border-radius:8px;margin-bottom:5px;cursor:pointer;background:'+(ck?'rgba(22,163,74,.1)':'transparent')+';"><input type="checkbox" '+(ck?'checked':'')+' onchange="gnTogglChk(\''+numero+'\','+i+',this.checked)" style="width:18px;height:18px;cursor:pointer;"><span style="color:#cbd5e1;'+(ck?'text-decoration:line-through;opacity:.6;':'')+'">'+esc(it)+'</span></label>';
-    }).join('');
-    html+='<div style="font-size:11px;color:#9fb0d0;margin-top:10px;font-style:italic;">💡 Marcação salva automática. Você não consegue concluir a OS antes de marcar todos os itens críticos.</div>';
-    if(typeof gnAsk!=='function'){alert(c.nome+'\n\n'+c.itens.join('\n'));return;}
-    var bd=document.createElement('div'); bd.className='gn-modal-bd';
-    bd.innerHTML='<div class="gn-modal-bx"><div class="gn-modal-tt">✅ Checklist da OS '+esc(numero)+'</div><div style="max-height:60vh;overflow-y:auto;">'+html+'</div><div class="gn-modal-ft"><button class="gn-btn-pri" onclick="this.closest(\'.gn-modal-bd\').remove();">Fechar</button></div></div>';
-    document.body.appendChild(bd);
-    bd.onclick=function(ev){if(ev.target===bd) bd.remove();};
-  };
-  window.gnTogglChk=function(numero, idx, ck){
-    var done=gj('gn_os_chk_'+numero);
-    if(ck){if(done.indexOf(idx)<0) done.push(idx);} else {done=done.filter(function(x){return x!==idx;});}
-    ls('gn_os_chk_'+numero, done); push('gn_os_chk_'+numero);
-  };
-  // Bloqueia conclusão de OS sem checklist completo
-  if(typeof window.osConcluir==='function' && !window.osConcluir.__chkWrap){
-    var _oc=window.osConcluir;
-    window.osConcluir=function(numero){
-      // tenta detectar tipo de serviço
-      var os=gj('gn_os').filter(function(o){return o.numero===numero||o.id===numero;})[0];
-      var srv=norm(os&&(os.tipo||os.descricao||'')||'');
-      var key=null;
-      if(/instalac.*fog/i.test(srv)) key='instalacao_fogao';
-      else if(/convers/i.test(srv)) key='conversao_fogao';
-      else if(/estanq|laudo/i.test(srv)) key='teste_estanqueidade';
-      else if(/resina/i.test(srv)) key='aplicacao_resina';
-      else if(/regulador/i.test(srv)) key='troca_regulador';
-      else if(/aquecedor/i.test(srv)) key='manutencao_aquecedor';
-      else if(/vaz|reparo/i.test(srv)) key='reparo_vazamento';
-      if(key){
-        var cks=go('gn_checklists')||CHECKLISTS;
-        var total=cks[key].itens.length;
-        var done=gj('gn_os_chk_'+numero).length;
-        if(done<total){
-          if(!confirm('⚠️ CHECKLIST INCOMPLETO\n\n'+done+'/'+total+' itens marcados.\n\nClique em "Abrir checklist" antes de concluir. Continuar mesmo assim?')) return;
-        }
-      }
-      return _oc.apply(this, arguments);
-    };
-    window.osConcluir.__chkWrap=true;
-  }
-
-  // ══════════════════════════════════════════════════════════════
-  // 31. FOTOS OBRIGATÓRIAS NO LAUDO
-  // ══════════════════════════════════════════════════════════════
-  window.gnFotosLaudoReq=function(numero){
-    var arr=gj('gn_laudo_fotos');
-    var item=arr.filter(function(x){return x.numero===numero;})[0];
-    var ok={medidor:!!item&&item.medidor, manometro:!!item&&item.manometro, ponto:!!item&&item.ponto, abrigo:!!item&&item.abrigo, etiqueta:!!item&&item.etiqueta};
-    var total=Object.keys(ok).filter(function(k){return ok[k];}).length;
-    return {total:5, atual:total, ok:ok, msg:total<3?'⚠️ Recomendado: anexar fotos de medidor, manômetro, ponto de consumo, abrigo e etiqueta.':'✓ '+total+'/5 fotos anexadas'};
-  };
-  window.gnLaudoConfigFotos=function(numero){
-    var st=gnFotosLaudoReq(numero);
-    if(typeof gnAsk!=='function'){alert(st.msg);return;}
-    gnAsk({titulo:'📷 Fotos do laudo '+numero, icone:'📷', subtitulo:'Marque quais fotos foram anexadas (URLs ou referências).',
-      perguntas:[
-        {id:'medidor', label:'📍 Foto do medidor', tipo:'chips', padrao:st.ok.medidor?'sim':'nao', opcoes:[{v:'sim',l:'✓ anexada'},{v:'nao',l:'pendente'}]},
-        {id:'manometro', label:'📊 Foto do manômetro (com leitura)', tipo:'chips', padrao:st.ok.manometro?'sim':'nao', opcoes:[{v:'sim',l:'✓ anexada'},{v:'nao',l:'pendente'}]},
-        {id:'ponto', label:'🔧 Foto do ponto de consumo', tipo:'chips', padrao:st.ok.ponto?'sim':'nao', opcoes:[{v:'sim',l:'✓ anexada'},{v:'nao',l:'pendente'}]},
-        {id:'abrigo', label:'🏠 Foto do abrigo / local', tipo:'chips', padrao:st.ok.abrigo?'sim':'nao', opcoes:[{v:'sim',l:'✓ anexada'},{v:'nao',l:'pendente'}]},
-        {id:'etiqueta', label:'🏷 Foto da etiqueta', tipo:'chips', padrao:st.ok.etiqueta?'sim':'nao', opcoes:[{v:'sim',l:'✓ anexada'},{v:'nao',l:'pendente'}]}
-      ]
-    }).then(function(o){
-      if(!o) return;
-      var arr=gj('gn_laudo_fotos');
-      var it=arr.filter(function(x){return x.numero===numero;})[0];
-      if(!it){it={numero:numero}; arr.unshift(it);}
-      ['medidor','manometro','ponto','abrigo','etiqueta'].forEach(function(k){it[k]=(o[k]==='sim');});
-      ls('gn_laudo_fotos', arr); push('gn_laudo_fotos');
-      if(window.toast)toast('✓ Status de fotos salvo','ok');
-    });
-  };
-
-  // ══════════════════════════════════════════════════════════════
-  // 37. CONTROLE DE GARANTIA PERSONALIZADO POR TIPO
-  // ══════════════════════════════════════════════════════════════
-  var GARANTIA_DEFAULT={instalacao:90, resina:365, mangueira:1825, laudo:365, manutencao:365, reparo:90, regulador:365};
-  try{ if(!localStorage.getItem('gn_garantia_cfg')) ls('gn_garantia_cfg', GARANTIA_DEFAULT); }catch(e){}
-  window.gnConfigGarantia=function(){
-    var cfg=go('gn_garantia_cfg')||GARANTIA_DEFAULT;
-    if(typeof gnAsk!=='function') return;
-    gnAsk({titulo:'🛡 Configurar garantias', icone:'🛡', subtitulo:'Duração em DIAS por tipo de serviço (padrão atual)',
-      perguntas:Object.keys(cfg).map(function(k){return {id:k, label:k.charAt(0).toUpperCase()+k.slice(1)+' (dias)', tipo:'number', padrao:String(cfg[k])};})
-    }).then(function(o){
-      if(!o) return;
-      var n={}; Object.keys(o).forEach(function(k){n[k]=Number(o[k])||cfg[k];});
-      ls('gn_garantia_cfg', n); push('gn_garantia_cfg');
-      if(window.toast)toast('✓ Garantias atualizadas','ok');
-    });
-  };
-
-  // ══════════════════════════════════════════════════════════════
-  // 43. PREENCHIMENTO AUTOMÁTICO POR SERVIÇO
-  // ══════════════════════════════════════════════════════════════
-  var SERV_TEMPLATES={
-    'resina':{desc:'Aplicação de resina epóxi em ponto de vazamento', incluso:['Material (resina)','Mão de obra','Teste pós-aplicação'], nao:['Quebra de paredes','Acabamento'], garantia:'1 ano', obs:'Garantia válida em condições normais de uso. Não cobre danos externos.', valor_sugerido:350},
-    'laudo':{desc:'Laudo técnico de estanqueidade da instalação de gás', incluso:['Teste de pressurização','Documento técnico','ART (se inclusa)'], nao:['Reparos detectados (orçados à parte)'], garantia:'Validade 12 meses', obs:'Conforme NBR 15526. Pressão 10 KPa por 15 minutos.', valor_sugerido:320},
-    'instalacao':{desc:'Instalação de tubulação de gás', incluso:['Material','Mão de obra','Teste de estanqueidade'], nao:['Acabamento','Quebra/Recomposição'], garantia:'90 dias', obs:'Cliente responsável por liberar acesso.', valor_sugerido:800},
-    'mangueira':{desc:'Troca de mangueira de gás', incluso:['Mangueira nova','Mão de obra','Teste'], nao:[], garantia:'5 anos', obs:'Mangueira certificada INMETRO.', valor_sugerido:150},
-    'regulador':{desc:'Troca de regulador de gás', incluso:['Regulador novo','Mão de obra'], nao:[], garantia:'1 ano', obs:'', valor_sugerido:180}
-  };
-  window.gnAplicarTemplate=function(tipo){
-    var t=SERV_TEMPLATES[tipo]; if(!t){return null;}
-    return t;
-  };
-  window.gnUsarTemplate=function(){
-    if(typeof gnAsk!=='function')return;
-    gnAsk({titulo:'📋 Usar modelo de serviço', icone:'📋', subtitulo:'Selecione um modelo pra ver o conteúdo preenchido.',
-      perguntas:[{id:'tipo',label:'Tipo de serviço', tipo:'chips', padrao:'laudo', opcoes:[{v:'resina',l:'🧪 Resina'},{v:'laudo',l:'🔬 Laudo'},{v:'instalacao',l:'🔧 Instalação'},{v:'mangueira',l:'🪢 Mangueira'},{v:'regulador',l:'⚙ Regulador'}]}]
-    }).then(function(o){
-      if(!o) return;
-      var t=SERV_TEMPLATES[o.tipo]; if(!t) return;
-      var html='📝 DESCRIÇÃO:\n'+t.desc+'\n\n✅ INCLUSO:\n• '+t.incluso.join('\n• ')+'\n\n❌ NÃO INCLUSO:\n• '+(t.nao.length?t.nao.join('\n• '):'(nada)')+'\n\n🛡 GARANTIA: '+t.garantia+'\n\n📌 OBSERVAÇÃO: '+t.obs+'\n\n💰 VALOR SUGERIDO: '+brl(t.valor_sugerido);
-      alert(html);
-      try{navigator.clipboard.writeText(html);if(window.toast)toast('✓ Modelo copiado pra área de transferência','ok');}catch(e){}
-    });
-  };
+  // REMOVIDO Fase 5: Fotos Laudo + Config Garantia + Serv Templates IA (~80 linhas)
 
   // ══════════════════════════════════════════════════════════════
   // 44. INCLUSO/NÃO INCLUSO padronizado (já tem em gn_obs_padrao,
@@ -17037,9 +16603,7 @@ window.gnDocAbrir=function(tipo,id,num){
           +'<button onclick="gnRotaOtim()" style="background:#0e7490;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">🗺 Otimizar rota do dia</button>'
           +'<button onclick="gnMapaServicos()" style="background:#0e7490;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">📍 Abrir mapa (Google)</button>'
           +'<button onclick="gnSetPapel()" style="background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">👤 Definir papel (perm.)</button>'
-          +'<button onclick="gnConfigGarantia()" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">🛡 Config. garantias</button>'
           +'<button onclick="gnEditarObsPadrao()" style="background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">📌 Incluso/Não incluso</button>'
-          +'<button onclick="gnUsarTemplate()" style="background:#a855f7;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">📋 Usar modelo serviço</button>'
           +'<button onclick="gnLayoutPDF()" style="background:#f59e0b;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">📄 Layout do PDF</button>'
           +'<button onclick="gnTestarComp()" style="background:#0891b2;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">🗜 Testar compressão</button>'
           +'<button onclick="gnRestaurarComPreview()" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;">🔄 Restaurar (com preview)</button>'
@@ -17284,29 +16848,7 @@ window.gnDocAbrir=function(tipo,id,num){
   }
   setInterval(renderFunilInicial, 8000); setTimeout(renderFunilInicial, 2800);
 
-  // ══════════════════════════════════════════════════════════════
-  // 4) CHECK-IN/OUT NOS SERVIÇOS DO DIA (Hoje preciso resolver)
-  // ══════════════════════════════════════════════════════════════
-  function addCheckinHoje(){
-    try{
-      var box=$('gn-hpr'); if(!box) return;
-      var items=box.querySelectorAll('div[onclick*="goTab"]');
-      items.forEach(function(it){
-        if(it.querySelector('.gn-chkio-btn')) return;
-        var txt=it.textContent||'';
-        if(!/AGENDA|atender/i.test(txt)) return;
-        var nm=''; var b=it.querySelector('b'); if(b) nm=b.textContent.replace(/^.*?Atender\s*/i,'').trim();
-        if(!nm) return;
-        var btns=document.createElement('span'); btns.className='gn-chkio-btn';
-        btns.style.cssText='display:inline-flex;gap:3px;margin-left:6px;';
-        btns.innerHTML=
-          '<button onclick="event.stopPropagation();gnCheckIn(\''+esc(nm)+'\');" title="Marcar chegada" style="background:#16a34a;color:#fff;border:none;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:10px;font-weight:700;">📍 in</button>'
-          +'<button onclick="event.stopPropagation();gnCheckOut(\''+esc(nm)+'\');" title="Marcar saída" style="background:#7c5cff;color:#fff;border:none;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:10px;font-weight:700;">✅ out</button>';
-        it.appendChild(btns);
-      });
-    }catch(e){}
-  }
-  setInterval(addCheckinHoje, 3000);
+  // REMOVIDO Fase 4: addCheckinHoje (botões check-in/out no Hoje)
 
   // ══════════════════════════════════════════════════════════════
   // 5) BOTÃO LINHA DO TEMPO NA LISTA DE CLIENTES
@@ -19174,33 +18716,8 @@ window.gnDocAbrir=function(tipo,id,num){
 // ═══ Aplica em todos os PDFs: orçamento, laudo, recibo, NS, ctr  ═══
 // ══════════════════════════════════════════════════════════════════
 (function(){
-  // ═══ Mapa de substituição de emojis comuns ═══
-  var EMOJI_MAP={
-    '📅':'', '🗓':'', '📆':'',
-    '🛡':'', '🛠':'', '🔧':'', '⚙':'', '⚒':'',
-    '📋':'', '📝':'', '📄':'', '📑':'', '📃':'',
-    '✅':'', '✔':'', '✓':'-', '✗':'X', '❌':'X',
-    '🔴':'', '🟢':'', '🟠':'', '🟡':'', '🔵':'', '🟣':'', '⚪':'', '⚫':'',
-    '🟥':'', '🟧':'', '🟨':'', '🟩':'', '🟦':'', '🟪':'',
-    '💰':'', '💸':'', '💵':'', '💳':'', '💼':'',
-    '🏠':'', '🏢':'', '🏭':'', '🏗':'',
-    '👤':'', '👥':'', '👋':'', '👀':'', '👍':'', '👎':'',
-    '⚡':'', '⭐':'*', '🌟':'*', '✨':'',
-    '🔥':'', '🔍':'', '🔎':'', '🔒':'', '🔓':'', '🔑':'',
-    '📞':'', '📱':'', '☎':'', '📲':'',
-    '📧':'', '✉':'', '📨':'',
-    '🎯':'', '🎉':'', '🚀':'', '⚠':'!', '⛔':'',
-    '🟦':'', '➜':'->', '→':'->', '←':'<-', '↩':'',
-    '•':'-', // bullet seguro
-    '·':'-',
-    '—':'-', '–':'-',
-    '“':'"', '”':'"', '‘':"'", '’':"'",
-    '…':'...',
-    '€':'EUR', '£':'GBP',
-    '©':'(c)', '®':'(R)', '™':'(TM)',
-    '½':'1/2', '¼':'1/4', '¾':'3/4',
-    '°':'o', '±':'+/-'
-  };
+  // Mapa compacto — emojis Unicode já são removidos por regex; aqui só chars textuais
+  var EMOJI_MAP={'•':'-','·':'-','—':'-','–':'-','…':'...','™':'(TM)','©':'(c)','®':'(R)','°':'o','→':'->','←':'<-','➜':'->'};
 
   // Remove emojis Unicode + caracteres especiais que viram "Ø=ÜÆ" no PDF
   window.gnLimpaTxtPDF=function(s){
@@ -19613,12 +19130,6 @@ window.gnDocAbrir=function(tipo,id,num){
     t=t.replace(/\n{3,}/g,'\n\n');
     return t;
   };
-
-  // REMOVIDO: patchJsPDFUltra causava conflito com o primeiro patch.
-  // A sanitização do primeiro patch (gnLimpaTxtPDF) já remove emojis.
-
-  // REMOVIDO: wrap do gnDocPDF estava causando "Cannot read properties of undefined (reading 'apply')"
-  // A sanitização do jsPDF.text já resolve emojis nos PDFs gerados.
 
   // SANITIZAÇÃO EM OUTRO NÍVEL — hook em saveHist (limpa antes de salvar)
   setTimeout(function(){
