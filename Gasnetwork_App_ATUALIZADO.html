@@ -17524,5 +17524,905 @@ window.gnDocAbrir=function(tipo,id,num){
 
 })();
 </script>
+<script>
+// ══════════════════════════════════════════════════════════════════
+// ═══ MÓDULO: GESTÃO DE PAGAMENTO DE COLABORADORES                ═══
+// ═══ Empresa pré-configurada · 3 ativos + Roger inativo          ═══
+// ═══ Fechamento mensal · dívidas · adiantamentos · reembolsos    ═══
+// ═══ Recibo PDF · histórico · exportação                         ═══
+// ══════════════════════════════════════════════════════════════════
+(function(){
+  function $(id){return document.getElementById(id);}
+  function gj(k){try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];}}
+  function go(k){try{return JSON.parse(localStorage.getItem(k)||'{}');}catch(e){return {};}}
+  function ls(k,v){try{localStorage.setItem(k, JSON.stringify(v));}catch(e){}}
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function brl(n){n=Number(n)||0;return 'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function nBR(n){n=Number(n)||0;return n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function parseN(s){if(s==null)return 0;return Number(String(s).replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.'))||0;}
+  function hojeISO(){var d=new Date();return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
+  function mesISO(){return hojeISO().slice(0,7);}
+  function mesBR(iso){var p=String(iso||'').split('-');return p[1]?(['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][+p[1]]+'/'+p[0]):iso;}
+  function push(k){try{if(window.gnCloud2PushKey) gnCloud2PushKey(k);}catch(e){}}
+  function uid(p){return (p||'x')+Date.now().toString(36)+Math.random().toString(36).slice(2,5);}
+
+  // ══════════════════════════════════════════════════════════════
+  // PRÉ-POPULAR: empresa + 3 ativos + Roger inativo
+  // ══════════════════════════════════════════════════════════════
+  var EMP_DEFAULT={
+    nome:'Gás Network Engenharia',
+    razao:'Gás Network Serviços e Instalações Ltda',
+    cnpj:'46.701.957/0001-66',
+    responsavel:'Matheus Henrique dos Santos',
+    crea:'5071237552',
+    endereco:'Rua Ascânio, 263, Chácara Mafalda, São Paulo - SP',
+    cep:'03373-080',
+    telefone:'(11) 98542-4462',
+    email:'contato@gasnetwork.com.br',
+    site:'www.gasnetwork.org'
+  };
+  if(!localStorage.getItem('gn_folha_emp')) ls('gn_folha_emp', EMP_DEFAULT);
+
+  var FUNC_DEFAULT=[
+    {id:'fn_luan',  nome:'Luan Nunes',     tipo:'Técnico',        funcao:'Técnico operacional / instalações e manutenção de gás', status:'Ativo',  salario:3000.00, he_valor:35.00, comissao_pct:0, bonus_padrao:0, pix:'', banco:'', conta:'', telefone:'', email:'', forma_pgto:'Pix', perm_adi:true, perm_div:true, perm_reemb:true, obs:'Técnico de campo. Inclui salário, bonificação, hora extra, comissão, descontos, adiantamentos e controle de saldo devedor.', criadoEm:new Date().toISOString()},
+    {id:'fn_leo',   nome:'Leonardo Amaro', tipo:'Técnico',        funcao:'Técnico operacional / instalações e manutenção de gás', status:'Ativo',  salario:3000.00, he_valor:35.00, comissao_pct:0, bonus_padrao:0, pix:'', banco:'', conta:'', telefone:'', email:'', forma_pgto:'Pix', perm_adi:true, perm_div:true, perm_reemb:true, obs:'Técnico de campo. Inclui salário, hora extra, comissão, descontos, adiantamentos e controle de saldo devedor.', criadoEm:new Date().toISOString()},
+    {id:'fn_mayara',nome:'Mayara',         tipo:'Administrativo', funcao:'Assistente Administrativa', status:'Ativo', salario:1700.00, he_valor:15.00, comissao_pct:0, bonus_padrao:0, pix:'', banco:'', conta:'', telefone:'', email:'', forma_pgto:'Pix', perm_adi:true, perm_div:true, perm_reemb:true, obs:'Colaboradora administrativa da Gás Network. Folha de pagamento própria igual aos técnicos.', criadoEm:new Date().toISOString()},
+    {id:'fn_roger', nome:'Roger',          tipo:'Técnico',        funcao:'Técnico operacional (ex-colaborador)', status:'Desligado', salario:0, he_valor:0, comissao_pct:0, bonus_padrao:0, pix:'', banco:'', conta:'', telefone:'', email:'', forma_pgto:'Pix', perm_adi:false, perm_div:true, perm_reemb:false, obs:'Ex-colaborador da Gás Network. Mantido só pra histórico.', criadoEm:new Date().toISOString(), desligadoEm:new Date().toISOString()}
+  ];
+  if(!localStorage.getItem('gn_folha_func')) ls('gn_folha_func', FUNC_DEFAULT);
+
+  // estruturas de dados:
+  // gn_folha_fech: [{id, func_id, mes, dataFechamento, responsavel, status, prov:{salario,bonus,comissao,he_qtd,he_valor,he_total,reembolsos,outros}, desc:{adiantamento,celular,ferramenta,faltas,outros}, pago_hoje, adiantamento_novo, forma_pgto, obs, criadoEm}]
+  // gn_folha_divid: [{id, func_id, descricao, valor_original, valor_pago, valor_mes, saldo, parcelas, parcela_atual, status, data, obs}]
+  // gn_folha_adi: [{id, func_id, data, valor, motivo, modo, parcelas, valor_parcela, status, obs}]
+  // gn_folha_reemb: [{id, func_id, data, descricao, valor, status, forma_pgto, obs}]
+  // gn_folha_alt: [{id, em, quem, tipo, antes, depois, motivo}]
+
+  function getFuncs(){return gj('gn_folha_func');}
+  function getEmp(){return go('gn_folha_emp')||EMP_DEFAULT;}
+  function getFechs(){return gj('gn_folha_fech');}
+  function getDivs(){return gj('gn_folha_divid');}
+  function getAdis(){return gj('gn_folha_adi');}
+  function getReembs(){return gj('gn_folha_reemb');}
+  function logAlt(tipo, antes, depois, motivo){
+    try{var arr=gj('gn_folha_alt'); arr.unshift({id:uid('al'), em:new Date().toISOString(), quem:(localStorage.getItem('gn_papel')==='assistente'?'Mayara':'Matheus'), tipo:tipo, antes:antes, depois:depois, motivo:motivo||''}); ls('gn_folha_alt', arr.slice(0,500));}catch(e){}
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // ADD ITEM NO MENU LATERAL — "💼 Folha de pagamento"
+  // ══════════════════════════════════════════════════════════════
+  function addMenu(){
+    try{
+      var side=$('gn-side'); if(!side||side.querySelector('[data-go="folha"]')) return;
+      var grps=side.querySelectorAll('.gn-grp'); var g;
+      Array.prototype.forEach.call(grps,function(x){if(/Gest|Financ|Comercial/.test(x.textContent)) g=x;});
+      if(!g) g=grps[0];
+      var b=document.createElement('button'); b.className='gn-nav'; b.setAttribute('data-go','folha');
+      b.innerHTML='<span class="gn-ic">💼</span><span>Folha pagamento</span>';
+      b.onclick=function(){if(typeof gnNav==='function') gnNav('folha'); else if(typeof goTab==='function') goTab('folha');};
+      var depois=g; var next=g.nextElementSibling; while(next&&next.classList&&next.classList.contains('gn-nav')){depois=next; next=next.nextElementSibling;}
+      depois.parentNode.insertBefore(b, depois.nextSibling);
+    }catch(e){}
+  }
+  setInterval(addMenu, 2500);
+
+  // ══════════════════════════════════════════════════════════════
+  // CRIA O PANE "pane-folha"
+  // ══════════════════════════════════════════════════════════════
+  function buildPane(){
+    if($('pane-folha')) return;
+    var ref=$('pane-fin')||$('pane-cfg')||$('pane-cli'); if(!ref||!ref.parentNode) return;
+    var p=document.createElement('div'); p.id='pane-folha'; p.style.display='none';
+    p.innerHTML=
+      '<div class="eyebrow">Gestão</div>'
+      +'<div class="pgtitle" style="margin-bottom:4px;">💼 Folha de Pagamento de Colaboradores</div>'
+      +'<div class="pgsub" style="margin-bottom:14px;">Gestão completa de pagamento da Gás Network — salário, hora extra, comissão, bônus, reembolsos, adiantamentos e controle do que cada colaborador deve à empresa. Tudo editável.</div>'
+      +'<div id="folha-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;"></div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">'
+        +'<input id="folha-mes" type="month" value="'+mesISO()+'" onchange="folhaRender()" style="padding:8px 10px;border:1px solid var(--gn-border);border-radius:8px;background:var(--gn-card);color:var(--gn-text);">'
+        +'<select id="folha-filtro" onchange="folhaRender()" style="padding:8px 10px;border:1px solid var(--gn-border);border-radius:8px;background:var(--gn-card);color:var(--gn-text);">'
+          +'<option value="ativos">👥 Ativos</option>'
+          +'<option value="tecnicos">🔧 Só técnicos</option>'
+          +'<option value="adm">💼 Só administrativo</option>'
+          +'<option value="inativos">⛔ Inativos/desligados</option>'
+          +'<option value="todos">📋 Todos</option>'
+        +'</select>'
+        +'<button onclick="folhaNovoFunc()" style="background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:700;">+ Colaborador</button>'
+        +'<button onclick="folhaEmpEdit()" style="background:rgba(124,92,255,.18);color:var(--gn-text);border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:700;">🏢 Editar empresa</button>'
+        +'<button onclick="folhaExport()" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:700;">📊 Exportar tudo</button>'
+        +'<button onclick="folhaVerAlt()" style="background:rgba(245,158,11,.18);color:#fde68a;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:700;">📜 Histórico alterações</button>'
+      +'</div>'
+      +'<div id="folha-list"></div>';
+    ref.parentNode.insertBefore(p, ref.nextSibling);
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // CALCULAR FECHAMENTO DE UM FUNCIONÁRIO PARA UM MÊS
+  // ══════════════════════════════════════════════════════════════
+  function calcFech(f, mes){
+    var fech=getFechs().filter(function(x){return x.func_id===f.id && x.mes===mes;})[0];
+    if(!fech){
+      // criar default
+      fech={id:uid('fc'), func_id:f.id, mes:mes, dataFechamento:hojeISO(), responsavel:'Matheus Henrique', status:'Aberta',
+        prov:{salario:f.salario||0, bonus:0, comissao:0, he_qtd:0, he_valor:f.he_valor||0, he_total:0, reembolsos:0, outros:0},
+        desc:{adiantamento:0, celular:0, ferramenta:0, faltas:0, outros:0, dividas:0},
+        pago_hoje:0, adiantamento_novo:0, forma_pgto:f.forma_pgto||'Pix', obs:'', criadoEm:new Date().toISOString()};
+    }
+    // soma reembolsos aprovados do mês
+    var reembsAprov=getReembs().filter(function(r){return r.func_id===f.id && (r.status==='Aprovado'||r.status==='Pago') && String(r.data||'').slice(0,7)===mes;});
+    var totReemb=reembsAprov.reduce(function(s,r){return s+(Number(r.valor)||0);},0);
+    if(!fech.prov.reembolsos) fech.prov.reembolsos=totReemb;
+    // calcula HE total se não foi sobrescrito
+    var heCalc=(Number(fech.prov.he_qtd)||0)*(Number(fech.prov.he_valor)||0);
+    if(!fech.prov.he_total_manual) fech.prov.he_total=heCalc;
+    // total bruto
+    var bruto=(Number(fech.prov.salario)||0)+(Number(fech.prov.bonus)||0)+(Number(fech.prov.comissao)||0)+(Number(fech.prov.he_total)||0)+(Number(fech.prov.reembolsos)||0)+(Number(fech.prov.outros)||0);
+    // total descontos
+    var descTot=(Number(fech.desc.adiantamento)||0)+(Number(fech.desc.celular)||0)+(Number(fech.desc.ferramenta)||0)+(Number(fech.desc.faltas)||0)+(Number(fech.desc.outros)||0)+(Number(fech.desc.dividas)||0);
+    // líquido
+    var liq=bruto-descTot;
+    var pend=liq-(Number(fech.pago_hoje)||0);
+    // saldo devedor: soma de dívidas em aberto + adiantamentos em aberto
+    var divAtivas=getDivs().filter(function(d){return d.func_id===f.id && d.status!=='Quitada' && d.status!=='Cancelada';});
+    var saldoDiv=divAtivas.reduce(function(s,d){return s+((Number(d.valor_original)||0)-(Number(d.valor_pago)||0));},0);
+    var adiAtivos=getAdis().filter(function(a){return a.func_id===f.id && a.status!=='Quitado';});
+    var saldoAdi=adiAtivos.reduce(function(s,a){return s+(Number(a.valor)||0)-(Number(a.descontado||0));},0);
+    return {fech:fech, bruto:bruto, descTot:descTot, liq:liq, pend:pend, saldoDevedor:saldoDiv+saldoAdi, qtdDiv:divAtivas.length, qtdReemb:reembsAprov.length};
+  }
+  window.folhaCalc=calcFech;
+
+  // ══════════════════════════════════════════════════════════════
+  // SALVAR/ATUALIZAR FECHAMENTO
+  // ══════════════════════════════════════════════════════════════
+  function salvarFech(fech){
+    var arr=getFechs(); var i=-1;
+    for(var k=0;k<arr.length;k++){if(arr[k].id===fech.id){i=k;break;}}
+    if(i>=0) arr[i]=fech; else arr.unshift(fech);
+    ls('gn_folha_fech', arr); push('gn_folha_fech');
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // RENDERIZAR
+  // ══════════════════════════════════════════════════════════════
+  window.folhaRender=function(){
+    try{
+      buildPane();
+      var mes=($('folha-mes')||{}).value||mesISO();
+      var filtro=($('folha-filtro')||{}).value||'ativos';
+      var funcs=getFuncs();
+      var lista=funcs;
+      if(filtro==='ativos') lista=funcs.filter(function(f){return f.status==='Ativo';});
+      else if(filtro==='tecnicos') lista=funcs.filter(function(f){return f.status==='Ativo' && f.tipo==='Técnico';});
+      else if(filtro==='adm') lista=funcs.filter(function(f){return f.status==='Ativo' && f.tipo==='Administrativo';});
+      else if(filtro==='inativos') lista=funcs.filter(function(f){return f.status!=='Ativo';});
+      // Cards resumo
+      var totBruto=0, totDesc=0, totLiq=0, totPago=0, totPend=0, totDeve=0, totReembPend=0;
+      lista.forEach(function(f){var c=calcFech(f, mes); totBruto+=c.bruto; totDesc+=c.descTot; totLiq+=c.liq; totPago+=Number(c.fech.pago_hoje)||0; totPend+=c.pend; totDeve+=c.saldoDevedor;});
+      totReembPend=getReembs().filter(function(r){return r.status==='Pendente'||r.status==='Aprovado';}).reduce(function(s,r){return s+(Number(r.valor)||0);},0);
+      var c=$('folha-cards'); if(c){
+        function card(t,v,cor){return '<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-left:4px solid '+cor+';border-radius:11px;padding:11px 13px;"><div style="font-size:11.5px;color:var(--gn-dim);">'+t+'</div><div style="font-size:17px;font-weight:800;color:var(--gn-text);margin-top:3px;">'+v+'</div></div>';}
+        c.innerHTML=
+          card('Total bruto', brl(totBruto), '#16a34a')
+          +card('Descontos', brl(totDesc), '#dc2626')
+          +card('Líquido', brl(totLiq), '#7c5cff')
+          +card('Já pago', brl(totPago), '#0891b2')
+          +card('Pendente pagar', brl(totPend), totPend>0?'#f59e0b':'#16a34a')
+          +card('Devem à empresa', brl(totDeve), '#dc2626')
+          +card('Reembolsos pend.', brl(totReembPend), '#a855f7')
+          +card('Colaboradores', String(lista.length), '#7c5cff');
+      }
+      // Lista detalhada
+      var L=$('folha-list'); if(!L) return;
+      if(!lista.length){ L.innerHTML='<div style="color:var(--gn-dim);padding:14px;border:1px dashed var(--gn-border);border-radius:10px;">Nenhum colaborador neste filtro.</div>'; return; }
+      L.innerHTML=lista.map(function(f){
+        var cor=f.status==='Ativo'?'#16a34a':(f.status==='Desligado'?'#64748b':'#f59e0b');
+        var c=calcFech(f, mes);
+        var stCor=c.fech.status==='Paga'?'#16a34a':(c.fech.status==='Finalizada'?'#0891b2':(c.fech.status==='Parcialmente paga'?'#f59e0b':'#7c5cff'));
+        return '<div style="background:var(--gn-card);border:1px solid var(--gn-border);border-left:5px solid '+cor+';border-radius:13px;padding:14px 16px;margin-bottom:10px;">'
+          +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;">'
+            +'<div><div style="font-weight:800;color:var(--gn-text);font-size:16px;">'+esc(f.nome)+' <span style="font-size:11px;background:'+cor+';color:#fff;border-radius:10px;padding:2px 9px;font-weight:700;">'+esc(f.status)+'</span> <span style="font-size:11px;color:var(--gn-dim);">· '+esc(f.tipo)+' · '+esc(f.funcao||'')+'</span></div>'
+              +'<div style="font-size:11.5px;color:var(--gn-dim);margin-top:3px;">Salário padrão: <b style="color:var(--gn-text);">'+brl(f.salario)+'</b> · HE: '+brl(f.he_valor)+'/h'+(f.pix?(' · Pix: '+esc(f.pix)):'')+'</div></div>'
+            +'<div style="display:flex;gap:5px;flex-wrap:wrap;">'
+              +'<button onclick="folhaEditFunc(\''+f.id+'\')" style="background:rgba(124,92,255,.18);color:var(--gn-text);border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:11.5px;font-weight:700;">✎ Cadastro</button>'
+              +(f.status==='Ativo'?'<button onclick="folhaInativar(\''+f.id+'\')" style="background:rgba(220,38,38,.18);color:#fca5a5;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:11.5px;font-weight:700;">⛔ Inativar</button>':'<button onclick="folhaReativar(\''+f.id+'\')" style="background:rgba(22,163,74,.18);color:#86efac;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:11.5px;font-weight:700;">✓ Reativar</button>')
+            +'</div>'
+          +'</div>'
+          +(f.status==='Ativo' || c.fech.status!=='Aberta' ?(
+          '<div style="background:rgba(124,92,255,.06);border:1px solid rgba(124,92,255,.18);border-radius:10px;padding:11px;">'
+            +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">'
+              +'<div style="font-weight:700;color:#c4b5fd;font-size:13px;">📅 Fechamento de '+mesBR(mes)+' <span style="background:'+stCor+';color:#fff;border-radius:8px;padding:2px 8px;font-size:10.5px;font-weight:700;margin-left:5px;">'+esc(c.fech.status)+'</span></div>'
+              +'<button onclick="folhaAbrirFech(\''+f.id+'\',\''+mes+'\')" style="background:#7c5cff;color:#fff;border:none;border-radius:7px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:700;">✎ Editar fechamento</button>'
+            +'</div>'
+            +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;font-size:12px;color:var(--gn-text);">'
+              +'<div><span style="color:var(--gn-dim);">Bruto:</span> <b style="color:#86efac;">'+brl(c.bruto)+'</b></div>'
+              +'<div><span style="color:var(--gn-dim);">Desc:</span> <b style="color:#fca5a5;">'+brl(c.descTot)+'</b></div>'
+              +'<div><span style="color:var(--gn-dim);">Líquido:</span> <b style="color:#c4b5fd;">'+brl(c.liq)+'</b></div>'
+              +'<div><span style="color:var(--gn-dim);">Pago hj:</span> <b>'+brl(c.fech.pago_hoje||0)+'</b></div>'
+              +'<div><span style="color:var(--gn-dim);">Pendente:</span> <b style="color:'+(c.pend>0?'#fde68a':'#86efac')+';">'+brl(c.pend)+'</b></div>'
+              +'<div><span style="color:var(--gn-dim);">Deve à empresa:</span> <b style="color:#fca5a5;">'+brl(c.saldoDevedor)+'</b></div>'
+            +'</div>'
+            +'<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:10px;">'
+              +'<button onclick="folhaDivs(\''+f.id+'\')" style="background:rgba(220,38,38,.18);color:#fca5a5;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11.5px;font-weight:700;">💳 Dívidas ('+c.qtdDiv+')</button>'
+              +'<button onclick="folhaAdis(\''+f.id+'\')" style="background:rgba(245,158,11,.18);color:#fde68a;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11.5px;font-weight:700;">💵 Adiantamentos</button>'
+              +'<button onclick="folhaReembs(\''+f.id+'\')" style="background:rgba(168,85,247,.18);color:#d8b4fe;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11.5px;font-weight:700;">🧾 Reembolsos ('+c.qtdReemb+')</button>'
+              +'<button onclick="folhaHist(\''+f.id+'\')" style="background:rgba(124,92,255,.18);color:#c4b5fd;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11.5px;font-weight:700;">📜 Histórico mensal</button>'
+              +'<button onclick="folhaRecibo(\''+f.id+'\',\''+mes+'\')" style="background:#16a34a;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11.5px;font-weight:700;">🧾 Gerar recibo</button>'
+              +'<button onclick="folhaDuplicarMes(\''+f.id+'\',\''+mes+'\')" style="background:rgba(8,145,178,.18);color:#67e8f9;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11.5px;font-weight:700;">📋 Duplicar mês ant.</button>'
+            +'</div>'
+          +'</div>'):'<div style="color:var(--gn-dim);font-size:12px;padding:6px;font-style:italic;">Colaborador inativo — só aparece pra histórico.</div>')
+        +'</div>';
+      }).join('');
+    }catch(e){console.error(e);}
+  };
+
+  // ══════════════════════════════════════════════════════════════
+  // CRUD FUNCIONÁRIOS
+  // ══════════════════════════════════════════════════════════════
+  window.folhaNovoFunc=function(){
+    if(typeof gnAsk!=='function')return;
+    gnAsk({titulo:'+ Novo colaborador', icone:'👤',
+      perguntas:[
+        {id:'nome', label:'Nome', tipo:'text', obrigatorio:true},
+        {id:'tipo', label:'Tipo', tipo:'chips', padrao:'Técnico', opcoes:['Técnico','Administrativo','Comercial','Gestão']},
+        {id:'funcao', label:'Função', tipo:'text', placeholder:'Ex: Técnico de instalação'},
+        {id:'salario', label:'Salário mensal padrão (R$)', tipo:'number', padrao:'3000'},
+        {id:'he_valor', label:'Valor da hora extra (R$/h)', tipo:'number', padrao:'35'},
+        {id:'pix', label:'Chave Pix', tipo:'text'},
+        {id:'tel', label:'Telefone', tipo:'text'}
+      ]
+    }).then(function(o){
+      if(!o) return;
+      var arr=getFuncs();
+      var n={id:uid('fn'), nome:o.nome, tipo:o.tipo, funcao:o.funcao, status:'Ativo', salario:Number(o.salario)||0, he_valor:Number(o.he_valor)||0, comissao_pct:0, bonus_padrao:0, pix:o.pix, telefone:o.tel, forma_pgto:'Pix', perm_adi:true, perm_div:true, perm_reemb:true, criadoEm:new Date().toISOString()};
+      arr.push(n); ls('gn_folha_func', arr); push('gn_folha_func');
+      logAlt('novo_colaborador', null, n, 'cadastro inicial');
+      folhaRender();
+      if(window.toast) toast('✓ '+o.nome+' cadastrado','ok');
+    });
+  };
+  window.folhaEditFunc=function(id){
+    var arr=getFuncs(); var f=arr.filter(function(x){return x.id===id;})[0]; if(!f) return;
+    gnAsk({titulo:'✎ '+f.nome, icone:'👤',
+      perguntas:[
+        {id:'nome', label:'Nome', tipo:'text', padrao:f.nome, obrigatorio:true},
+        {id:'tipo', label:'Tipo', tipo:'chips', padrao:f.tipo, opcoes:['Técnico','Administrativo','Comercial','Gestão']},
+        {id:'funcao', label:'Função', tipo:'text', padrao:f.funcao||''},
+        {id:'salario', label:'Salário mensal padrão', tipo:'number', padrao:String(f.salario||0)},
+        {id:'he_valor', label:'Valor hora extra', tipo:'number', padrao:String(f.he_valor||0)},
+        {id:'pix', label:'Pix', tipo:'text', padrao:f.pix||''},
+        {id:'banco', label:'Banco', tipo:'text', padrao:f.banco||''},
+        {id:'conta', label:'Conta', tipo:'text', padrao:f.conta||''},
+        {id:'tel', label:'Telefone', tipo:'text', padrao:f.telefone||''},
+        {id:'email', label:'E-mail', tipo:'text', padrao:f.email||''},
+        {id:'obs', label:'Observações internas', tipo:'textarea', padrao:f.obs||''}
+      ], okLabel:'Salvar'
+    }).then(function(o){
+      if(!o) return;
+      var antes=JSON.parse(JSON.stringify(f));
+      f.nome=o.nome; f.tipo=o.tipo; f.funcao=o.funcao; f.salario=Number(o.salario)||0; f.he_valor=Number(o.he_valor)||0; f.pix=o.pix; f.banco=o.banco; f.conta=o.conta; f.telefone=o.tel; f.email=o.email; f.obs=o.obs;
+      ls('gn_folha_func', arr); push('gn_folha_func');
+      logAlt('edit_colaborador', antes, f, '');
+      folhaRender();
+      if(window.toast) toast('✓ '+f.nome+' atualizado','ok');
+    });
+  };
+  window.folhaInativar=function(id){
+    if(!confirm('Inativar este colaborador? Ele sai da lista de ativos mas o histórico fica preservado.')) return;
+    var arr=getFuncs(); arr.forEach(function(f){if(f.id===id){f.status='Desligado'; f.desligadoEm=new Date().toISOString(); logAlt('inativar', {status:'Ativo'}, {status:'Desligado'}, '');}});
+    ls('gn_folha_func', arr); push('gn_folha_func'); folhaRender();
+  };
+  window.folhaReativar=function(id){
+    var arr=getFuncs(); arr.forEach(function(f){if(f.id===id){f.status='Ativo'; delete f.desligadoEm; logAlt('reativar', {status:'Desligado'}, {status:'Ativo'}, '');}});
+    ls('gn_folha_func', arr); push('gn_folha_func'); folhaRender();
+  };
+
+  // ══════════════════════════════════════════════════════════════
+  // EDITAR EMPRESA
+  // ══════════════════════════════════════════════════════════════
+  window.folhaEmpEdit=function(){
+    var e=getEmp();
+    gnAsk({titulo:'🏢 Dados da empresa', icone:'🏢', subtitulo:'Aparece em recibos, PDFs e relatórios.',
+      perguntas:[
+        {id:'nome', label:'Nome fantasia', tipo:'text', padrao:e.nome},
+        {id:'razao', label:'Razão social', tipo:'text', padrao:e.razao},
+        {id:'cnpj', label:'CNPJ', tipo:'text', padrao:e.cnpj},
+        {id:'responsavel', label:'Responsável legal', tipo:'text', padrao:e.responsavel},
+        {id:'crea', label:'CREA', tipo:'text', padrao:e.crea},
+        {id:'endereco', label:'Endereço completo', tipo:'text', padrao:e.endereco},
+        {id:'cep', label:'CEP', tipo:'text', padrao:e.cep},
+        {id:'telefone', label:'Telefone/WhatsApp', tipo:'text', padrao:e.telefone},
+        {id:'email', label:'E-mail', tipo:'text', padrao:e.email},
+        {id:'site', label:'Site', tipo:'text', padrao:e.site}
+      ]
+    }).then(function(o){
+      if(!o) return;
+      ls('gn_folha_emp', o); push('gn_folha_emp');
+      if(window.toast) toast('✓ Dados da empresa atualizados','ok');
+    });
+  };
+
+  // ══════════════════════════════════════════════════════════════
+  // FECHAMENTO MENSAL — modal grande de edição
+  // ══════════════════════════════════════════════════════════════
+  window.folhaAbrirFech=function(funcId, mes){
+    var f=getFuncs().filter(function(x){return x.id===funcId;})[0]; if(!f) return;
+    var c=calcFech(f, mes);
+    var fech=c.fech;
+    var bd=document.createElement('div'); bd.className='gn-modal-bd';
+    bd.innerHTML='<div class="gn-modal-bx" style="max-width:720px;">'
+      +'<div class="gn-modal-tt">💼 Fechamento — '+esc(f.nome)+' · '+mesBR(mes)+'</div>'
+      +'<div class="gn-modal-st">Todos os campos editáveis. O cálculo é automático mas você pode sobrescrever qualquer valor.</div>'
+      +'<div style="max-height:65vh;overflow-y:auto;padding-right:4px;">'
+        +'<div style="font-weight:800;color:#86efac;margin:8px 0 5px;">✅ Valores a Receber</div>'
+        +rowInp('fc_salario', 'Salário', fech.prov.salario)
+        +rowInp('fc_bonus', 'Bônus', fech.prov.bonus)
+        +rowInp('fc_comissao', 'Comissão', fech.prov.comissao)
+        +'<div style="display:flex;gap:6px;margin-bottom:8px;">'
+          +'<div style="flex:1;"><label style="font-size:11.5px;color:#9fb0d0;">Qtd horas extras</label><input id="fc_he_qtd" type="number" value="'+(fech.prov.he_qtd||0)+'" oninput="folhaRecalcHE()" style="width:100%;background:#0c1424;color:#e6ebff;border:1.5px solid rgba(124,92,255,.3);border-radius:8px;padding:9px 11px;box-sizing:border-box;"></div>'
+          +'<div style="flex:1;"><label style="font-size:11.5px;color:#9fb0d0;">Valor da hora (R$)</label><input id="fc_he_valor" type="number" value="'+(fech.prov.he_valor||f.he_valor||0)+'" oninput="folhaRecalcHE()" style="width:100%;background:#0c1424;color:#e6ebff;border:1.5px solid rgba(124,92,255,.3);border-radius:8px;padding:9px 11px;box-sizing:border-box;"></div>'
+          +'<div style="flex:1;"><label style="font-size:11.5px;color:#9fb0d0;">Total HE (editável)</label><input id="fc_he_total" type="number" value="'+(fech.prov.he_total||0)+'" style="width:100%;background:#0c1424;color:#e6ebff;border:1.5px solid rgba(124,92,255,.3);border-radius:8px;padding:9px 11px;box-sizing:border-box;"></div>'
+        +'</div>'
+        +rowInp('fc_reembolsos', 'Reembolsos aprovados', fech.prov.reembolsos)
+        +rowInp('fc_outros', 'Outros adicionais', fech.prov.outros)
+        +'<div style="font-weight:800;color:#fca5a5;margin:14px 0 5px;">❌ Descontos do mês</div>'
+        +rowInp('fc_adiantamento', 'Adiantamento anterior (a descontar)', fech.desc.adiantamento)
+        +rowInp('fc_celular', 'Parcela celular', fech.desc.celular)
+        +rowInp('fc_ferramenta', 'Ferramenta/material', fech.desc.ferramenta)
+        +rowInp('fc_faltas', 'Faltas/atrasos', fech.desc.faltas)
+        +rowInp('fc_dividas', 'Outras dívidas descontadas', fech.desc.dividas)
+        +rowInp('fc_descoutros', 'Outros descontos', fech.desc.outros)
+        +'<div style="font-weight:800;color:#c4b5fd;margin:14px 0 5px;">💰 Pagamento</div>'
+        +rowInp('fc_pago_hoje', 'Valor pago hoje', fech.pago_hoje)
+        +rowInp('fc_adi_novo', 'Adiantamento NOVO pago hoje (vira dívida)', fech.adiantamento_novo)
+        +'<div style="display:flex;gap:6px;margin-bottom:8px;">'
+          +'<div style="flex:1;"><label style="font-size:11.5px;color:#9fb0d0;">Forma pagamento</label><select id="fc_forma" style="width:100%;background:#0c1424;color:#e6ebff;border:1.5px solid rgba(124,92,255,.3);border-radius:8px;padding:9px 11px;box-sizing:border-box;"><option>Pix</option><option>Dinheiro</option><option>Transferência</option><option>Boleto</option></select></div>'
+          +'<div style="flex:1;"><label style="font-size:11.5px;color:#9fb0d0;">Status</label><select id="fc_status" style="width:100%;background:#0c1424;color:#e6ebff;border:1.5px solid rgba(124,92,255,.3);border-radius:8px;padding:9px 11px;box-sizing:border-box;"><option>Aberta</option><option>Em revisão</option><option>Finalizada</option><option>Paga</option><option>Parcialmente paga</option><option>Cancelada</option></select></div>'
+        +'</div>'
+        +'<div><label style="font-size:11.5px;color:#9fb0d0;">Observação</label><textarea id="fc_obs" style="width:100%;background:#0c1424;color:#e6ebff;border:1.5px solid rgba(124,92,255,.3);border-radius:8px;padding:9px 11px;box-sizing:border-box;min-height:60px;">'+esc(fech.obs||'')+'</textarea></div>'
+        +'<div id="fc_resumo" style="background:rgba(124,92,255,.10);border:1px solid #7c5cff;border-radius:11px;padding:13px;margin-top:14px;font-size:13px;color:#cbd5e1;"></div>'
+      +'</div>'
+      +'<div class="gn-modal-ft">'
+        +'<button class="gn-btn-sec" onclick="folhaFechClose();">Cancelar</button>'
+        +'<button class="gn-btn-pri" onclick="folhaFechSave(\''+funcId+'\',\''+mes+'\',\''+fech.id+'\');">💾 Salvar fechamento</button>'
+      +'</div></div>';
+    document.body.appendChild(bd);
+    setTimeout(function(){$('fc_forma').value=fech.forma_pgto||'Pix'; $('fc_status').value=fech.status||'Aberta'; folhaRecalcResumo();},50);
+    function rowInp(id, lab, val){return '<div><label style="font-size:11.5px;color:#9fb0d0;">'+esc(lab)+'</label><input id="'+id+'" type="number" step="0.01" value="'+(val||0)+'" oninput="folhaRecalcResumo()" style="width:100%;background:#0c1424;color:#e6ebff;border:1.5px solid rgba(124,92,255,.3);border-radius:8px;padding:9px 11px;box-sizing:border-box;margin-bottom:6px;"></div>';}
+    window.folhaFechClose=function(){try{document.body.removeChild(bd);}catch(e){}};
+  };
+  window.folhaRecalcHE=function(){
+    var q=parseN($('fc_he_qtd').value), v=parseN($('fc_he_valor').value);
+    $('fc_he_total').value=(q*v).toFixed(2);
+    folhaRecalcResumo();
+  };
+  window.folhaRecalcResumo=function(){
+    try{
+      var sal=parseN($('fc_salario').value), bon=parseN($('fc_bonus').value), com=parseN($('fc_comissao').value), het=parseN($('fc_he_total').value), reb=parseN($('fc_reembolsos').value), out=parseN($('fc_outros').value);
+      var bruto=sal+bon+com+het+reb+out;
+      var adi=parseN($('fc_adiantamento').value), cel=parseN($('fc_celular').value), fer=parseN($('fc_ferramenta').value), fal=parseN($('fc_faltas').value), div=parseN($('fc_dividas').value), oud=parseN($('fc_descoutros').value);
+      var descTot=adi+cel+fer+fal+div+oud;
+      var liq=bruto-descTot;
+      var pago=parseN($('fc_pago_hoje').value);
+      var pend=liq-pago;
+      var adin=parseN($('fc_adi_novo').value);
+      $('fc_resumo').innerHTML='<b style="color:#86efac;">Bruto: '+brl(bruto)+'</b> · <b style="color:#fca5a5;">Desc: '+brl(descTot)+'</b> · <b style="color:#c4b5fd;">Líquido: '+brl(liq)+'</b><br><b>Pago hoje: '+brl(pago)+' · Pendente: '+(pend>0?'<span style="color:#fde68a;">':'<span style="color:#86efac;">')+brl(pend)+'</span></b>'+(adin>0?(' · <span style="color:#fde68a;">+'+brl(adin)+' adi. novo (vai pra dívida)</span>'):'');
+    }catch(e){}
+  };
+  window.folhaFechSave=function(funcId, mes, fechId){
+    try{
+      var arr=getFechs();
+      var f=getFuncs().filter(function(x){return x.id===funcId;})[0];
+      var i=-1; for(var k=0;k<arr.length;k++){if(arr[k].id===fechId){i=k;break;}}
+      var fech=i>=0?arr[i]:{id:fechId, func_id:funcId, mes:mes, criadoEm:new Date().toISOString()};
+      var antes=i>=0?JSON.parse(JSON.stringify(fech)):null;
+      fech.dataFechamento=hojeISO();
+      fech.responsavel=localStorage.getItem('gn_papel')==='assistente'?'Mayara':'Matheus Henrique';
+      fech.status=$('fc_status').value;
+      fech.prov={salario:parseN($('fc_salario').value), bonus:parseN($('fc_bonus').value), comissao:parseN($('fc_comissao').value), he_qtd:parseN($('fc_he_qtd').value), he_valor:parseN($('fc_he_valor').value), he_total:parseN($('fc_he_total').value), reembolsos:parseN($('fc_reembolsos').value), outros:parseN($('fc_outros').value), he_total_manual:true};
+      fech.desc={adiantamento:parseN($('fc_adiantamento').value), celular:parseN($('fc_celular').value), ferramenta:parseN($('fc_ferramenta').value), faltas:parseN($('fc_faltas').value), dividas:parseN($('fc_dividas').value), outros:parseN($('fc_descoutros').value)};
+      fech.pago_hoje=parseN($('fc_pago_hoje').value);
+      fech.adiantamento_novo=parseN($('fc_adi_novo').value);
+      fech.forma_pgto=$('fc_forma').value;
+      fech.obs=$('fc_obs').value;
+      if(i>=0) arr[i]=fech; else arr.unshift(fech);
+      ls('gn_folha_fech', arr); push('gn_folha_fech');
+      // se tem adiantamento novo, registra como dívida
+      if(fech.adiantamento_novo>0){
+        var divs=getDivs(); divs.unshift({id:uid('dv'), func_id:funcId, descricao:'Adiantamento '+mesBR(mes), valor_original:fech.adiantamento_novo, valor_pago:0, valor_mes:0, saldo:fech.adiantamento_novo, parcelas:1, parcela_atual:1, status:'Em aberto', data:hojeISO(), obs:'gerado no fechamento'});
+        ls('gn_folha_divid', divs); push('gn_folha_divid');
+      }
+      // lança no financeiro
+      if(fech.pago_hoje>0){
+        var fin=gj('gn_fin'); fin.unshift({id:uid('ff'), tipo:'custo', desc:'Folha '+mesBR(mes)+' — '+f.nome, valor:fech.pago_hoje, data:hojeISO(), status:'pago', categoria:'Folha de pagamento', origem:'folha:'+fech.id});
+        ls('gn_fin', fin); push('gn_fin');
+      }
+      logAlt('fechamento_salvo', antes, fech, '');
+      folhaFechClose(); folhaRender();
+      if(window.toast) toast('✓ Fechamento salvo','ok');
+    }catch(e){alert('Erro: '+e.message);}
+  };
+
+  // ══════════════════════════════════════════════════════════════
+  // DÍVIDAS
+  // ══════════════════════════════════════════════════════════════
+  window.folhaDivs=function(funcId){
+    var f=getFuncs().filter(function(x){return x.id===funcId;})[0]; if(!f) return;
+    var divs=getDivs().filter(function(d){return d.func_id===funcId;});
+    var w=window.open('','_blank');
+    var rows=divs.map(function(d){return '<tr><td>'+esc(d.descricao||'')+'</td><td>'+(d.data||'')+'</td><td>'+brl(d.valor_original)+'</td><td>'+brl(d.valor_pago||0)+'</td><td>'+brl((d.valor_original||0)-(d.valor_pago||0))+'</td><td>'+(d.parcela_atual||1)+'/'+(d.parcelas||1)+'</td><td>'+esc(d.status||'')+'</td><td><button onclick="opener.folhaAbatDiv(\''+d.id+'\');" style="background:#16a34a;color:#fff;border:none;padding:5px 9px;border-radius:6px;cursor:pointer;">Abater</button> <button onclick="opener.folhaDelDiv(\''+d.id+'\');this.parentNode.parentNode.style.opacity=.4;" style="background:#dc2626;color:#fff;border:none;padding:5px 9px;border-radius:6px;cursor:pointer;">Excluir</button></td></tr>';}).join('');
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Dívidas '+esc(f.nome)+'</title><style>body{font-family:Arial;background:#0c1424;color:#cbd5e1;padding:20px;}h1{color:#dc2626;}table{width:100%;border-collapse:collapse;font-size:13px;}th,td{border:1px solid #475569;padding:7px 10px;}th{background:#dc2626;color:#fff;}button{margin:0 2px;}</style></head><body><h1>💳 Dívidas de '+esc(f.nome)+'</h1><div style="margin-bottom:14px;"><button onclick="opener.folhaAddDiv(\''+funcId+'\');" style="background:#7c5cff;color:#fff;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:700;">+ Nova dívida</button></div><table><thead><tr><th>Descrição</th><th>Data</th><th>Original</th><th>Pago</th><th>Saldo</th><th>Parc.</th><th>Status</th><th>Ações</th></tr></thead><tbody>'+(rows||'<tr><td colspan="8" style="text-align:center;color:#9fb0d0;">Nenhuma dívida.</td></tr>')+'</tbody></table></body></html>');
+  };
+  window.folhaAddDiv=function(funcId){
+    gnAsk({titulo:'+ Nova dívida', icone:'💳',
+      perguntas:[
+        {id:'descricao', label:'Descrição', tipo:'text', obrigatorio:true, placeholder:'Ex: Celular, Ferramenta, Empréstimo'},
+        {id:'valor', label:'Valor original (R$)', tipo:'number', obrigatorio:true},
+        {id:'parcelas', label:'Parcelas', tipo:'number', padrao:'1'},
+        {id:'obs', label:'Observação', tipo:'textarea'}
+      ]
+    }).then(function(o){
+      if(!o) return;
+      var divs=getDivs(); divs.unshift({id:uid('dv'), func_id:funcId, descricao:o.descricao, valor_original:Number(o.valor), valor_pago:0, valor_mes:0, saldo:Number(o.valor), parcelas:Number(o.parcelas)||1, parcela_atual:1, status:'Em aberto', data:hojeISO(), obs:o.obs});
+      ls('gn_folha_divid', divs); push('gn_folha_divid');
+      logAlt('nova_divida', null, divs[0], '');
+      if(window.toast) toast('✓ Dívida registrada','ok');
+      folhaRender();
+    });
+  };
+  window.folhaAbatDiv=function(divId){
+    var divs=getDivs(); var d=divs.filter(function(x){return x.id===divId;})[0]; if(!d) return;
+    var v=prompt('Quanto abater? Saldo atual: '+brl((d.valor_original||0)-(d.valor_pago||0)), brl((d.valor_original||0)-(d.valor_pago||0)).replace('R$ ',''));
+    if(!v) return; var n=parseN(v); if(!n) return;
+    d.valor_pago=(d.valor_pago||0)+n;
+    if(d.valor_pago>=d.valor_original) d.status='Quitada'; else d.status='Parcialmente paga';
+    ls('gn_folha_divid', divs); push('gn_folha_divid');
+    logAlt('abatimento_divida', {saldo_antes:(d.valor_original-((d.valor_pago||0)-n))}, {saldo_depois:(d.valor_original-d.valor_pago)}, '');
+    if(window.toast) toast('✓ '+brl(n)+' abatido','ok');
+    folhaRender();
+  };
+  window.folhaDelDiv=function(divId){
+    if(!confirm('Excluir dívida?')) return;
+    var divs=getDivs().filter(function(x){return x.id!==divId;});
+    ls('gn_folha_divid', divs); push('gn_folha_divid');
+    folhaRender();
+  };
+
+  // ══════════════════════════════════════════════════════════════
+  // ADIANTAMENTOS
+  // ══════════════════════════════════════════════════════════════
+  window.folhaAdis=function(funcId){
+    var f=getFuncs().filter(function(x){return x.id===funcId;})[0]; if(!f) return;
+    var adis=getAdis().filter(function(a){return a.func_id===funcId;});
+    var w=window.open('','_blank');
+    var rows=adis.map(function(a){return '<tr><td>'+(a.data||'')+'</td><td>'+brl(a.valor)+'</td><td>'+esc(a.motivo||'')+'</td><td>'+esc(a.modo||'')+'</td><td>'+esc(a.status||'')+'</td><td><button onclick="opener.folhaDelAdi(\''+a.id+'\');this.parentNode.parentNode.style.opacity=.4;" style="background:#dc2626;color:#fff;border:none;padding:5px 9px;border-radius:6px;cursor:pointer;">Excluir</button></td></tr>';}).join('');
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Adiantamentos '+esc(f.nome)+'</title><style>body{font-family:Arial;background:#0c1424;color:#cbd5e1;padding:20px;}h1{color:#f59e0b;}table{width:100%;border-collapse:collapse;font-size:13px;}th,td{border:1px solid #475569;padding:7px 10px;}th{background:#f59e0b;color:#fff;}</style></head><body><h1>💵 Adiantamentos de '+esc(f.nome)+'</h1><div style="margin-bottom:14px;"><button onclick="opener.folhaAddAdi(\''+funcId+'\');" style="background:#7c5cff;color:#fff;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:700;">+ Novo adiantamento</button></div><table><thead><tr><th>Data</th><th>Valor</th><th>Motivo</th><th>Modo</th><th>Status</th><th>Ações</th></tr></thead><tbody>'+(rows||'<tr><td colspan="6" style="text-align:center;color:#9fb0d0;">Nenhum adiantamento.</td></tr>')+'</tbody></table></body></html>');
+  };
+  window.folhaAddAdi=function(funcId){
+    gnAsk({titulo:'+ Adiantamento', icone:'💵',
+      perguntas:[
+        {id:'valor', label:'Valor (R$)', tipo:'number', obrigatorio:true},
+        {id:'modo', label:'Quando descontar?', tipo:'chips', padrao:'proximo', opcoes:[{v:'mesmo',l:'Mesmo mês'},{v:'proximo',l:'Próximo mês'},{v:'parcelado',l:'Parcelado'},{v:'manual',l:'Manual'}]},
+        {id:'parcelas', label:'Parcelas (se parcelado)', tipo:'number', padrao:'1'},
+        {id:'motivo', label:'Motivo', tipo:'text'}
+      ]
+    }).then(function(o){
+      if(!o) return;
+      var adis=getAdis(); adis.unshift({id:uid('ad'), func_id:funcId, data:hojeISO(), valor:Number(o.valor), motivo:o.motivo, modo:o.modo, parcelas:Number(o.parcelas)||1, descontado:0, status:'Em aberto'});
+      ls('gn_folha_adi', adis); push('gn_folha_adi');
+      // criar dívida correspondente
+      var divs=getDivs(); divs.unshift({id:uid('dv'), func_id:funcId, descricao:'Adiantamento '+hojeISO().split('-').reverse().join('/'), valor_original:Number(o.valor), valor_pago:0, saldo:Number(o.valor), parcelas:Number(o.parcelas)||1, parcela_atual:1, status:'Em aberto', data:hojeISO()});
+      ls('gn_folha_divid', divs); push('gn_folha_divid');
+      // lança no financeiro
+      var f=getFuncs().filter(function(x){return x.id===funcId;})[0];
+      var fin=gj('gn_fin'); fin.unshift({id:uid('fa'), tipo:'custo', desc:'Adiantamento — '+(f?f.nome:''), valor:Number(o.valor), data:hojeISO(), status:'pago', categoria:'Folha de pagamento'});
+      ls('gn_fin', fin); push('gn_fin');
+      logAlt('novo_adiantamento', null, adis[0], '');
+      if(window.toast) toast('✓ Adiantamento registrado','ok');
+      folhaRender();
+    });
+  };
+  window.folhaDelAdi=function(adiId){
+    if(!confirm('Excluir?')) return;
+    var adis=getAdis().filter(function(x){return x.id!==adiId;});
+    ls('gn_folha_adi', adis); push('gn_folha_adi'); folhaRender();
+  };
+
+  // ══════════════════════════════════════════════════════════════
+  // REEMBOLSOS
+  // ══════════════════════════════════════════════════════════════
+  window.folhaReembs=function(funcId){
+    var f=getFuncs().filter(function(x){return x.id===funcId;})[0]; if(!f) return;
+    var rs=getReembs().filter(function(r){return r.func_id===funcId;});
+    var w=window.open('','_blank');
+    var rows=rs.map(function(r){return '<tr><td>'+(r.data||'')+'</td><td>'+esc(r.descricao||'')+'</td><td>'+brl(r.valor)+'</td><td>'+esc(r.status||'')+'</td><td><button onclick="opener.folhaAprovReemb(\''+r.id+'\');this.disabled=true;this.textContent=\'✓\';" style="background:#16a34a;color:#fff;border:none;padding:5px 9px;border-radius:6px;cursor:pointer;">Aprovar</button> <button onclick="opener.folhaPagReemb(\''+r.id+'\');" style="background:#0e7490;color:#fff;border:none;padding:5px 9px;border-radius:6px;cursor:pointer;">Marcar pago</button> <button onclick="opener.folhaDelReemb(\''+r.id+'\');this.parentNode.parentNode.style.opacity=.4;" style="background:#dc2626;color:#fff;border:none;padding:5px 9px;border-radius:6px;cursor:pointer;">Excluir</button></td></tr>';}).join('');
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Reembolsos '+esc(f.nome)+'</title><style>body{font-family:Arial;background:#0c1424;color:#cbd5e1;padding:20px;}h1{color:#a855f7;}table{width:100%;border-collapse:collapse;font-size:13px;}th,td{border:1px solid #475569;padding:7px 10px;}th{background:#a855f7;color:#fff;}</style></head><body><h1>🧾 Reembolsos de '+esc(f.nome)+'</h1><div style="margin-bottom:14px;"><button onclick="opener.folhaAddReemb(\''+funcId+'\');" style="background:#7c5cff;color:#fff;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:700;">+ Novo reembolso</button></div><table><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead><tbody>'+(rows||'<tr><td colspan="5" style="text-align:center;color:#9fb0d0;">Nenhum reembolso.</td></tr>')+'</tbody></table></body></html>');
+  };
+  window.folhaAddReemb=function(funcId){
+    gnAsk({titulo:'+ Reembolso', icone:'🧾', subtitulo:'Gasto que o colaborador fez pela empresa e precisa ser devolvido.',
+      perguntas:[
+        {id:'descricao', label:'Descrição', tipo:'chips', padrao:'Combustível', opcoes:['Combustível','Estacionamento','Pedágio','Material','Ferramenta','Alimentação','Transporte','Peças','Motoboy','Outro']},
+        {id:'valor', label:'Valor (R$)', tipo:'number', obrigatorio:true},
+        {id:'data', label:'Data do gasto', tipo:'date', padrao:hojeISO()},
+        {id:'obs', label:'Observação', tipo:'text'}
+      ]
+    }).then(function(o){
+      if(!o) return;
+      var rs=getReembs(); rs.unshift({id:uid('rb'), func_id:funcId, data:o.data, descricao:o.descricao, valor:Number(o.valor), status:'Pendente', obs:o.obs});
+      ls('gn_folha_reemb', rs); push('gn_folha_reemb');
+      logAlt('novo_reembolso', null, rs[0], '');
+      if(window.toast) toast('✓ Reembolso pendente registrado','ok');
+      folhaRender();
+    });
+  };
+  window.folhaAprovReemb=function(id){var rs=getReembs(); rs.forEach(function(r){if(r.id===id) r.status='Aprovado';}); ls('gn_folha_reemb', rs); push('gn_folha_reemb'); folhaRender();};
+  window.folhaPagReemb=function(id){var rs=getReembs(); rs.forEach(function(r){if(r.id===id) r.status='Pago';}); ls('gn_folha_reemb', rs); push('gn_folha_reemb'); folhaRender();};
+  window.folhaDelReemb=function(id){if(!confirm('Excluir?'))return; var rs=getReembs().filter(function(r){return r.id!==id;}); ls('gn_folha_reemb', rs); push('gn_folha_reemb'); folhaRender();};
+
+  // ══════════════════════════════════════════════════════════════
+  // HISTÓRICO MENSAL
+  // ══════════════════════════════════════════════════════════════
+  window.folhaHist=function(funcId){
+    var f=getFuncs().filter(function(x){return x.id===funcId;})[0]; if(!f) return;
+    var fechs=getFechs().filter(function(x){return x.func_id===funcId;}).sort(function(a,b){return String(b.mes||'').localeCompare(String(a.mes||''));});
+    var w=window.open('','_blank');
+    var rows=fechs.map(function(fc){var c=calcFech(f, fc.mes); return '<tr><td>'+mesBR(fc.mes)+'</td><td>'+brl(c.bruto)+'</td><td>'+brl(c.descTot)+'</td><td>'+brl(c.liq)+'</td><td>'+brl(fc.pago_hoje||0)+'</td><td>'+brl(c.pend)+'</td><td>'+esc(fc.status||'')+'</td></tr>';}).join('');
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Histórico '+esc(f.nome)+'</title><style>body{font-family:Arial;background:#0c1424;color:#cbd5e1;padding:20px;}h1{color:#7c5cff;}table{width:100%;border-collapse:collapse;font-size:13px;}th,td{border:1px solid #475569;padding:7px 10px;}th{background:#7c5cff;color:#fff;}</style></head><body><h1>📜 Histórico mensal de '+esc(f.nome)+'</h1><table><thead><tr><th>Mês</th><th>Bruto</th><th>Descontos</th><th>Líquido</th><th>Pago</th><th>Pendente</th><th>Status</th></tr></thead><tbody>'+(rows||'<tr><td colspan="7" style="text-align:center;color:#9fb0d0;">Nenhum fechamento.</td></tr>')+'</tbody></table><button onclick="window.print()" style="margin-top:20px;background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:700;">🖨 Imprimir</button></body></html>');
+  };
+
+  // ══════════════════════════════════════════════════════════════
+  // RECIBO
+  // ══════════════════════════════════════════════════════════════
+  window.folhaRecibo=function(funcId, mes){
+    var f=getFuncs().filter(function(x){return x.id===funcId;})[0]; if(!f) return;
+    var c=calcFech(f, mes); var fech=c.fech; var e=getEmp();
+    var w=window.open('','_blank');
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Recibo '+esc(f.nome)+'</title><style>body{font-family:Arial;background:#fff;color:#1a2238;padding:40px;max-width:800px;margin:auto;line-height:1.6;}h1{color:#7c5cff;border-bottom:3px solid #7c5cff;padding-bottom:8px;}h2{color:#5b3fe3;margin-top:25px;}table{width:100%;border-collapse:collapse;margin:10px 0;}td{padding:6px 10px;border-bottom:1px solid #ddd;}.bold{font-weight:bold;color:#16a34a;font-size:18px;}.sig{margin-top:50px;border-top:1px solid #333;padding-top:8px;text-align:center;font-size:13px;}@media print{button{display:none;}}</style></head><body>'
+      +'<h1>Recibo de Pagamento</h1>'
+      +'<p>A <b>'+esc(e.nome)+'</b>, inscrita no CNPJ <b>'+esc(e.cnpj)+'</b>, declara que realizou o pagamento ao colaborador abaixo:</p>'
+      +'<table>'
+        +'<tr><td><b>Colaborador:</b></td><td>'+esc(f.nome)+'</td></tr>'
+        +'<tr><td><b>Função:</b></td><td>'+esc(f.funcao||f.tipo)+'</td></tr>'
+        +'<tr><td><b>Mês de referência:</b></td><td>'+mesBR(mes)+'</td></tr>'
+        +'<tr><td><b>Valor bruto:</b></td><td>'+brl(c.bruto)+'</td></tr>'
+        +'<tr><td><b>Descontos:</b></td><td>'+brl(c.descTot)+'</td></tr>'
+        +'<tr><td><b>Valor líquido pago:</b></td><td class="bold">'+brl(fech.pago_hoje||c.liq)+'</td></tr>'
+        +'<tr><td><b>Forma de pagamento:</b></td><td>'+esc(fech.forma_pgto||'Pix')+'</td></tr>'
+        +'<tr><td><b>Data do pagamento:</b></td><td>'+(fech.dataFechamento||hojeISO()).split('-').reverse().join('/')+'</td></tr>'
+      +'</table>'
+      +'<p>Declaro que recebi o valor informado acima, referente ao fechamento de pagamento do mês citado.</p>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:50px;">'
+        +'<div class="sig">Assinatura do colaborador<br><b>'+esc(f.nome)+'</b></div>'
+        +'<div class="sig">Assinatura do responsável<br><b>'+esc(e.responsavel)+'</b></div>'
+      +'</div>'
+      +'<div style="margin-top:60px;text-align:center;font-size:11px;color:#666;">'+esc(e.nome)+' · '+esc(e.endereco)+' · '+esc(e.telefone)+' · '+esc(e.email)+'</div>'
+      +'<div style="text-align:center;margin-top:30px;"><button onclick="window.print()" style="background:#7c5cff;color:#fff;border:none;border-radius:10px;padding:12px 28px;cursor:pointer;font-weight:700;font-size:14px;">🖨 Imprimir / Salvar PDF</button></div>'
+      +'</body></html>');
+  };
+
+  // ══════════════════════════════════════════════════════════════
+  // DUPLICAR MÊS ANTERIOR
+  // ══════════════════════════════════════════════════════════════
+  window.folhaDuplicarMes=function(funcId, mes){
+    // pega o fechamento do mês anterior e duplica pro mês atual
+    var ant=new Date(mes+'-01'); ant.setMonth(ant.getMonth()-1); var mesAnt=ant.toISOString().slice(0,7);
+    var fechAnt=getFechs().filter(function(x){return x.func_id===funcId && x.mes===mesAnt;})[0];
+    if(!fechAnt){if(window.toast)toast('Sem fechamento em '+mesBR(mesAnt)+' pra copiar','er');return;}
+    var arr=getFechs();
+    var atual=arr.filter(function(x){return x.func_id===funcId && x.mes===mes;})[0];
+    if(atual && !confirm('Já existe fechamento de '+mesBR(mes)+'. Sobrescrever?')) return;
+    var novo=JSON.parse(JSON.stringify(fechAnt));
+    novo.id=uid('fc'); novo.mes=mes; novo.dataFechamento=hojeISO(); novo.status='Aberta'; novo.pago_hoje=0; novo.adiantamento_novo=0; novo.criadoEm=new Date().toISOString();
+    if(atual){var i=arr.indexOf(atual); arr[i]=novo;} else arr.unshift(novo);
+    ls('gn_folha_fech', arr); push('gn_folha_fech');
+    folhaRender();
+    if(window.toast) toast('✓ Mês duplicado de '+mesBR(mesAnt),'ok');
+  };
+
+  // ══════════════════════════════════════════════════════════════
+  // EXPORTAR + HISTÓRICO DE ALTERAÇÕES
+  // ══════════════════════════════════════════════════════════════
+  window.folhaExport=function(){
+    var data={emp:getEmp(), funcs:getFuncs(), fechs:getFechs(), divs:getDivs(), adis:getAdis(), reembs:getReembs(), exportado_em:new Date().toISOString()};
+    var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Folha_GasNetwork_'+hojeISO()+'.json'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    if(window.toast) toast('✓ Folha exportada','ok');
+  };
+  window.folhaVerAlt=function(){
+    var a=gj('gn_folha_alt');
+    var w=window.open('','_blank');
+    var rows=a.slice(0,200).map(function(x){return '<tr><td>'+new Date(x.em).toLocaleString('pt-BR')+'</td><td>'+esc(x.quem)+'</td><td>'+esc(x.tipo)+'</td><td>'+esc(x.motivo||'')+'</td></tr>';}).join('');
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Histórico de alterações</title><style>body{font-family:Arial;background:#0c1424;color:#cbd5e1;padding:20px;}h1{color:#f59e0b;}table{width:100%;border-collapse:collapse;font-size:12.5px;}th,td{border:1px solid #475569;padding:6px 10px;}th{background:#f59e0b;color:#fff;}</style></head><body><h1>📜 Histórico de alterações na Folha</h1><table><thead><tr><th>Quando</th><th>Quem</th><th>Tipo</th><th>Motivo</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
+  };
+
+  // ══════════════════════════════════════════════════════════════
+  // HOOK goTab + boot
+  // ══════════════════════════════════════════════════════════════
+  if(typeof window.goTab==='function' && !window.goTab.__folhaWrap){
+    var _ogt=window.goTab; window.goTab=function(t){_ogt.apply(this, arguments); try{buildPane(); var p=$('pane-folha'); if(p) p.style.display=(t==='folha')?'block':'none'; if(t==='folha') folhaRender();}catch(e){}};
+    try{for(var k in _ogt) if(_ogt.hasOwnProperty(k)) window.goTab[k]=_ogt[k];}catch(e){}
+    window.goTab.__folhaWrap=true;
+  }
+  setTimeout(buildPane, 2000);
+
+  setTimeout(function(){
+    try{ if(window.toast) toast('💼 Folha de Pagamento ativada — veja em "Folha pagamento" no menu lateral','ok'); }catch(e){}
+  }, 5500);
+
+})();
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════════
+// ═══ FIX 1: ORÇAMENTO MOBILE + CAMPO DESCONTO (% ou R$)          ═══
+// ═══ FIX 2: FAXINA NA TELA INICIAL — só compromissos do dia      ═══
+// ══════════════════════════════════════════════════════════════════
+(function(){
+  function $(id){return document.getElementById(id);}
+  function gj(k){try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];}}
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();}
+  function brl(n){n=Number(n)||0;return 'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function nBR(n){n=Number(n)||0;return n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function parseN(s){if(s==null)return 0;var t=String(s).replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.');return Number(t)||0;}
+
+  // ══════════════════════════════════════════════════════════════
+  // FIX 1: ORÇAMENTO — CSS mobile + campo desconto
+  // ══════════════════════════════════════════════════════════════
+  var st=document.createElement('style');
+  st.textContent=
+    // Aumentar campos no mobile (orçamento)
+    '@media(max-width:768px){'
+      +'#pane-novo .fi,#pane-novo input,#pane-novo textarea,#pane-novo select{font-size:15px!important;padding:11px 12px!important;}'
+      +'#pane-novo .field label{font-size:13px!important;font-weight:700!important;}'
+      +'#pane-novo .totv{font-size:28px!important;}'
+      +'#pane-novo .th{display:none!important;}' // esconde header da tabela serviços no mobile
+      +'#pane-novo #svc-list .svci{display:block!important;background:rgba(124,92,255,.05);border:1px solid rgba(124,92,255,.2);border-radius:10px;padding:10px;margin-bottom:8px;}'
+      +'#pane-novo #svc-list .svci input{width:100%!important;margin-bottom:6px;display:block;}'
+      +'#pane-novo #svc-list .svci .lb-mob{display:block!important;font-size:11px;color:#9fb0d0;font-weight:700;margin-bottom:3px;}'
+      +'#pane-novo .totb{padding:18px!important;}'
+      +'#pane-novo .totl{font-size:15px!important;}'
+      +'#pane-novo .tote{font-size:18px!important;padding:14px!important;}'
+      +'#pane-novo .bgen,#pane-novo .bog{font-size:16px!important;padding:14px!important;width:100%;}'
+    +'}'
+    +'.lb-mob{display:none;}' // mostrar só no mobile
+    // bloco de desconto
+    +'.gn-desc-bx{background:linear-gradient(135deg,rgba(245,158,11,.08),rgba(220,38,38,.04));border:1.5px solid #f59e0b;border-radius:12px;padding:14px;margin:14px 0;}'
+    +'.gn-desc-bx h4{margin:0 0 8px;color:#fde68a;font-size:14px;font-weight:800;}'
+    +'.gn-desc-bx .row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}'
+    +'@media(max-width:768px){.gn-desc-bx .row{grid-template-columns:1fr;}}'
+    +'.gn-desc-bx input,.gn-desc-bx select{background:#fff;border:1.5px solid #f59e0b;border-radius:8px;padding:10px 12px;font-size:14px;font-weight:700;color:#1a2238;width:100%;box-sizing:border-box;}'
+    +'.gn-desc-bx .lbl{font-size:11.5px;color:#fde68a;font-weight:700;display:block;margin-bottom:4px;}'
+    +'.gn-desc-bx .resumo{margin-top:10px;padding-top:10px;border-top:1px dashed rgba(245,158,11,.4);font-size:13px;color:#fde68a;}'
+    ;
+  document.head.appendChild(st);
+
+  // Adicionar labels "mobile" em cada serviço (sem quebrar desktop)
+  function patchSvcMobile(){
+    try{
+      var list=$('svc-list'); if(!list) return;
+      Array.prototype.forEach.call(list.children, function(row){
+        if(row.classList.contains('svci')) return;
+        if(row.querySelector('.lb-mob')) return;
+        // É uma linha de serviço — adicionar wrapper
+        row.classList.add('svci');
+        // adiciona labels invisíveis no desktop, visíveis no mobile
+        var inputs=row.querySelectorAll('input,textarea');
+        var labels=['Descrição do serviço','Quantidade','Valor unitário (R$)','Subtotal (R$)'];
+        inputs.forEach(function(inp, i){
+          if(i>=labels.length) return;
+          if(inp.previousElementSibling && inp.previousElementSibling.classList.contains('lb-mob')) return;
+          var l=document.createElement('span'); l.className='lb-mob'; l.textContent=labels[i];
+          inp.parentNode.insertBefore(l, inp);
+        });
+      });
+    }catch(e){}
+  }
+  setInterval(patchSvcMobile, 2000);
+
+  // Adicionar CAMPO DE DESCONTO antes do total
+  function ensureDesconto(){
+    try{
+      var tot=document.querySelector('#pane-novo .totw'); if(!tot) return;
+      if($('gn-desc-bloco')) return;
+      var box=document.createElement('div'); box.className='gn-desc-bx'; box.id='gn-desc-bloco';
+      box.innerHTML=
+        '<h4>💰 Desconto da proposta (opcional)</h4>'
+        +'<div class="row">'
+          +'<div><span class="lbl">Tipo</span><select id="gn-desc-tipo" onchange="gnDescCalc()"><option value="">Sem desconto</option><option value="pct">Percentual (%)</option><option value="val">Valor (R$)</option></select></div>'
+          +'<div><span class="lbl">Quanto?</span><input id="gn-desc-qtd" type="number" step="0.01" placeholder="Ex: 10 (=10%) ou 50.00" oninput="gnDescCalc()" inputmode="decimal"></div>'
+          +'<div><span class="lbl">Subtotal antes do desconto</span><input id="gn-desc-subtotal" type="text" readonly value="R$ 0,00" style="background:#f5f3ff;cursor:not-allowed;"></div>'
+        +'</div>'
+        +'<div class="resumo" id="gn-desc-resumo">Sem desconto aplicado. Total final será o subtotal dos serviços.</div>';
+      tot.parentNode.insertBefore(box, tot);
+    }catch(e){}
+  }
+  setInterval(ensureDesconto, 2000); setTimeout(ensureDesconto, 1500);
+
+  // Calcula subtotal dos serviços lendo a lista
+  function calcSubtotalServicos(){
+    try{
+      var list=$('svc-list'); if(!list) return 0;
+      var tot=0;
+      // tenta encontrar inputs de subtotal
+      var rows=list.children;
+      for(var i=0;i<rows.length;i++){
+        var r=rows[i];
+        var inps=r.querySelectorAll('input');
+        // padrão: [desc, qtd, vu, sub]
+        if(inps.length>=4){
+          var sub=parseN(inps[3].value);
+          if(!sub){
+            var q=parseN(inps[1].value)||1, v=parseN(inps[2].value);
+            sub=q*v;
+          }
+          tot+=sub;
+        }
+      }
+      return tot;
+    }catch(e){return 0;}
+  }
+
+  window.gnDescCalc=function(){
+    try{
+      var sub=calcSubtotalServicos();
+      $('gn-desc-subtotal').value=brl(sub);
+      var tipo=$('gn-desc-tipo').value;
+      var qtd=parseN($('gn-desc-qtd').value);
+      var desc=0, label='';
+      if(tipo==='pct' && qtd>0){
+        desc=sub*(qtd/100);
+        label='Desconto de '+qtd+'% = '+brl(desc);
+      } else if(tipo==='val' && qtd>0){
+        desc=qtd;
+        if(desc>sub) desc=sub;
+        label='Desconto fixo: '+brl(desc);
+      } else {
+        $('gn-desc-resumo').innerHTML='Sem desconto aplicado. Total final será o subtotal dos serviços ('+brl(sub)+').';
+        // restaurar total
+        try{ if(window.updTot) updTot(sub); else { var td=$('tot-disp'); if(td) td.textContent=brl(sub); } }catch(e){}
+        return;
+      }
+      var final=sub-desc;
+      $('gn-desc-resumo').innerHTML='<b>'+label+'</b><br>Subtotal: '+brl(sub)+' &minus; Desconto: '+brl(desc)+' = <b style="color:#16a34a;font-size:15px;">Total final: '+brl(final)+'</b>';
+      // atualiza o display do total e o input
+      try{
+        if(window.updTot) updTot(final);
+        else {
+          var td=$('tot-disp'); if(td) td.textContent=brl(final);
+          var fin=$('f-tot'); if(fin) fin.value=nBR(final);
+        }
+      }catch(e){}
+      // marca info no formulário oculto pra ir no PDF
+      var hidden=$('f-desconto-info');
+      if(!hidden){hidden=document.createElement('input'); hidden.type='hidden'; hidden.id='f-desconto-info'; document.body.appendChild(hidden);}
+      hidden.value=JSON.stringify({subtotal:sub, desconto:desc, tipo:tipo, qtd:qtd, total:final});
+    }catch(e){}
+  };
+
+  // Recalcular desconto quando qualquer serviço mudar
+  setInterval(function(){
+    try{
+      if(!$('gn-desc-bloco')) return;
+      var sub=calcSubtotalServicos();
+      var subInp=$('gn-desc-subtotal');
+      if(subInp && subInp.value!==brl(sub)){
+        subInp.value=brl(sub);
+        if($('gn-desc-tipo').value) gnDescCalc();
+      }
+    }catch(e){}
+  }, 1500);
+
+  // ══════════════════════════════════════════════════════════════
+  // FIX 2: TELA INICIAL — REMOVER BLOCOS EXTRAS
+  // ══════════════════════════════════════════════════════════════
+  // Vou: 1) remover gn-hpr (hoje resolver), gn-funil-mini, gn-gar-alert
+  //       2) parar de re-renderizar eles
+  //       3) criar um bloco SIMPLES com só compromissos do dia + ações
+  function cleanInicio(){
+    try{
+      ['gn-hpr','gn-funil-mini','gn-gar-alert','gn-resumo-bloco','gn-urg-banner'].forEach(function(id){
+        var el=$(id); if(el) el.style.display='none';
+      });
+    }catch(e){}
+  }
+  // Override das funções que reinjetam esses blocos
+  setTimeout(function(){
+    cleanInicio();
+    setInterval(cleanInicio, 2000);
+  }, 1200);
+
+  // BLOCO LIMPO: só compromissos do dia
+  function renderCompromissosDia(){
+    try{
+      var p=$('pane-inicio'); if(!p) return;
+      var box=$('gn-compromissos-dia');
+      if(!box){ box=document.createElement('div'); box.id='gn-compromissos-dia';
+        // posicionar logo após o título
+        var t=p.querySelector('.pgtitle')||p.firstChild;
+        if(t&&t.parentNode) t.parentNode.insertBefore(box, t.nextSibling);
+      }
+      var hoje=new Date().toISOString().slice(0,10);
+      var ag=gj('gn_agenda').filter(function(a){return String(a.data||'').slice(0,10)===hoje;}).sort(function(a,b){return (a.hora||'').localeCompare(b.hora||'');});
+      var done=[]; try{done=JSON.parse(localStorage.getItem('gn_notinha_done')||'[]');}catch(e){}
+      box.style.cssText='background:linear-gradient(135deg,rgba(124,92,255,.10),rgba(67,56,202,.04));border:1.5px solid #7c5cff;border-radius:14px;padding:14px 16px;margin-bottom:14px;';
+      if(!ag.length){
+        box.innerHTML='<div style="font-weight:800;color:#c4b5fd;font-size:15px;margin-bottom:6px;">📅 Compromissos de hoje</div>'
+          +'<div style="font-size:13px;color:#9fb0d0;padding:14px;text-align:center;border:1px dashed rgba(124,92,255,.3);border-radius:10px;">Nenhum compromisso pra hoje. 🎉</div>'
+          +'<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;"><button onclick="goTab(\'renov\')" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:700;font-size:13px;">🔄 Renovação de Laudos</button><button onclick="goTab(\'ped\')" style="background:#7c5cff;color:#fff;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:700;font-size:13px;">📊 Novo orçamento</button></div>';
+        return;
+      }
+      var rows=ag.map(function(a){
+        var feito=done.indexOf(a.id)>=0;
+        return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-left:4px solid '+(feito?'#16a34a':'#7c5cff')+';border-radius:10px;margin-bottom:6px;opacity:'+(feito?'0.6':'1')+';">'
+          +'<div style="min-width:0;flex:1;"><div style="font-weight:700;color:var(--gn-text);'+(feito?'text-decoration:line-through;':'')+'">'+esc(a.cliente||a.titulo||'?')+'</div><div style="font-size:12px;color:var(--gn-dim);">🕐 '+esc(a.hora||'')+' · '+esc(a.titulo||'')+'</div></div>'
+          +'<div style="display:flex;gap:4px;flex-wrap:wrap;">'
+            +(feito?'<button onclick="gnDesmarcarComp(\''+esc(String(a.id||'')).replace(/\x27/g,"\\\x27")+'\')" style="background:rgba(100,116,139,.25);color:#cbd5e1;border:none;border-radius:7px;padding:7px 11px;cursor:pointer;font-size:12px;">↩ desfazer</button>':'<button onclick="gnExecutaComp(\''+esc(String(a.id||'')).replace(/\x27/g,"\\\x27")+'\')" title="Marcar como executado" style="background:#16a34a;color:#fff;border:none;border-radius:7px;padding:7px 11px;cursor:pointer;font-weight:700;font-size:12px;">✓ Executei</button>')
+            +'<button onclick="gnExcluirComp(\''+esc(String(a.id||'')).replace(/\x27/g,"\\\x27")+'\')" title="Excluir compromisso" style="background:rgba(220,38,38,.18);color:#fca5a5;border:none;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:12px;">🗑</button>'
+          +'</div></div>';
+      }).join('');
+      box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px;">'
+        +'<div style="font-weight:800;color:#c4b5fd;font-size:15px;">📅 Compromissos de hoje <span style="background:#7c5cff;color:#fff;border-radius:10px;padding:2px 9px;font-size:11px;font-weight:700;margin-left:5px;">'+ag.length+'</span></div>'
+        +'<button onclick="goTab(\'renov\')" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;font-weight:700;font-size:12.5px;">🔄 Renovação de Laudos</button>'
+      +'</div>'+rows;
+    }catch(e){}
+  }
+  window.renderCompromissosDia=renderCompromissosDia;
+  setInterval(renderCompromissosDia, 5000); setTimeout(renderCompromissosDia, 1500);
+
+  window.gnExecutaComp=function(id){
+    var d=[]; try{d=JSON.parse(localStorage.getItem('gn_notinha_done')||'[]');}catch(e){}
+    if(d.indexOf(id)<0) d.push(id);
+    localStorage.setItem('gn_notinha_done', JSON.stringify(d));
+    try{if(window.gnCloud2PushKey)gnCloud2PushKey('gn_notinha_done');}catch(e){}
+    renderCompromissosDia();
+    if(window.toast) toast('✓ Marcado como executado','ok');
+  };
+  window.gnDesmarcarComp=function(id){
+    var d=[]; try{d=JSON.parse(localStorage.getItem('gn_notinha_done')||'[]');}catch(e){}
+    d=d.filter(function(x){return x!==id;});
+    localStorage.setItem('gn_notinha_done', JSON.stringify(d));
+    try{if(window.gnCloud2PushKey)gnCloud2PushKey('gn_notinha_done');}catch(e){}
+    renderCompromissosDia();
+  };
+  window.gnExcluirComp=function(id){
+    if(!confirm('Excluir este compromisso da agenda?')) return;
+    var ag=gj('gn_agenda').filter(function(a){return a.id!==id;});
+    try{localStorage.setItem('gn_agenda', JSON.stringify(ag));}catch(e){}
+    try{if(window.gnCloud2PushKey)gnCloud2PushKey('gn_agenda');}catch(e){}
+    try{if(typeof gnStoreDel==='function')gnStoreDel('agenda', id);}catch(e){}
+    renderCompromissosDia();
+    if(window.renderAge) renderAge();
+    if(window.toast) toast('✓ Compromisso removido','ok');
+  };
+
+  // ══════════════════════════════════════════════════════════════
+  // FIX 3: MOVER FUNIL DE ORÇAMENTOS PRA TELA DE PEDIDOS
+  // ══════════════════════════════════════════════════════════════
+  function renderFunilEmPedidos(){
+    try{
+      var p=$('pane-ped'); if(!p) return;
+      var box=$('gn-funil-em-ped');
+      if(!box){ box=document.createElement('div'); box.id='gn-funil-em-ped';
+        var primeiro=p.querySelector('.pgtitle')||p.firstChild;
+        if(primeiro&&primeiro.parentNode) primeiro.parentNode.insertBefore(box, primeiro.nextSibling);
+      }
+      var hist=gj('gn_hist').filter(function(d){return /or[çc]ament/i.test(d.tipo||d.servicos||'');});
+      if(!hist.length){box.innerHTML=''; return;}
+      var aprov=hist.filter(function(d){return d.aprovado;}).length;
+      var recus=hist.filter(function(d){return d.recusado;}).length;
+      var neg=hist.filter(function(d){return d.statusComercial==='Em negociação';}).length;
+      var taxa=Math.round(aprov/hist.length*100);
+      box.style.cssText='background:linear-gradient(135deg,rgba(124,92,255,.08),rgba(67,56,202,.04));border:1px solid rgba(124,92,255,.3);border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:13px;';
+      box.innerHTML='<div style="color:#c4b5fd;"><b>🎯 Funil:</b> '+hist.length+' enviados · <b style="color:#86efac;">'+aprov+' aprovados ('+taxa+'%)</b> · '+neg+' negociando · <b style="color:#fca5a5;">'+recus+' recusados</b></div>'
+        +'<button onclick="if(window.gnRelConversao)gnRelConversao()" style="background:#7c5cff;color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:11.5px;font-weight:700;">📊 Relatório completo</button>';
+    }catch(e){}
+  }
+  setInterval(renderFunilEmPedidos, 8000); setTimeout(renderFunilEmPedidos, 2500);
+
+  setTimeout(function(){
+    try{ if(window.toast) toast('✓ Tela inicial limpa + desconto no orçamento ativo','ok'); }catch(e){}
+  }, 3000);
+
+})();
+</script>
 </body>
 </html>
