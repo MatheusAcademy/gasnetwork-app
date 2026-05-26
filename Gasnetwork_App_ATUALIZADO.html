@@ -19602,6 +19602,368 @@ window.gnDocAbrir=function(tipo,id,num){
     }catch(e){}
   }, 1500);
 
+  // ══════════════════════════════════════════════════════════════════
+  // ═══ FIX MAIS AGRESSIVO PDFs — sanitização ULTRA + reset fonte    ═══
+  // ══════════════════════════════════════════════════════════════════
+
+  // Sanitização ULTRA agressiva — remove TUDO que não seja Latin-1 básico
+  window.gnSanitizaUltra=function(s){
+    if(s==null) return '';
+    var t=String(s);
+    // 1. Decompor caracteres (NFD) e remover marks de combinação se travar fonte
+    try{ t=t.normalize('NFC'); }catch(e){}
+    // 2. Substituir TODOS os tipos de bullets/dashes/quotes problemáticos
+    t=t
+      // Bullets
+      .replace(/[•·‣⁃⁌⁍∙◦●○■□▪▫]/g, '-')
+      // Setas
+      .replace(/[←-⇿⟰-⟿⤀-⥿]/g, '->')
+      // Dashes
+      .replace(/[‐-―−]/g, '-')
+      // Quotes
+      .replace(/[‘’‚‛′]/g, "'")
+      .replace(/[“”„‟″]/g, '"')
+      // Reticências
+      .replace(/[…]/g, '...')
+      // Espaços especiais
+      .replace(/[  -​  　]/g, ' ')
+      // Símbolos
+      .replace(/[®]/g, '(R)').replace(/[©]/g, '(c)').replace(/[™]/g, '(TM)')
+      // Fractions
+      .replace(/[½]/g, '1/2').replace(/[¼]/g, '1/4').replace(/[¾]/g, '3/4')
+      .replace(/[°]/g, 'o');
+    // 3. Remover EMOJIS de todos os ranges conhecidos
+    try{
+      t=t.replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
+         .replace(/[\u{2600}-\u{27BF}]/gu, '')
+         .replace(/[\u{2700}-\u{27BF}]/gu, '')
+         .replace(/[\u{FE00}-\u{FE0F}]/gu, '')
+         .replace(/[\u{200D}]/gu, '');
+    }catch(e){
+      // Fallback sem flag u (browsers antigos)
+      t=t.replace(/[\uD83C-\uDBFF][\uDC00-\uDFFF]/g, '');
+    }
+    // 4. REMOVER QUALQUER CHAR FORA do Latin-1 estendido (mantém acentos pt-BR)
+    // Range válido: 0x0020-0x007E (ASCII) + 0x00A1-0x00FF (Latin-1 supl) + \n \r \t
+    t=t.replace(/[^\x09\x0A\x0D\x20-\x7E -ſ]/g, '');
+    // 5. Limpar espaços/quebras múltiplas
+    t=t.replace(/  +/g,' ');
+    t=t.split('\n').map(function(l){return l.replace(/^\s+|\s+$/g,'');}).join('\n');
+    t=t.replace(/\n{3,}/g,'\n\n');
+    return t;
+  };
+
+  // Re-patchar jsPDF MAIS forte
+  function patchJsPDFUltra(){
+    try{
+      var JP=window.jspdf && window.jspdf.jsPDF;
+      if(!JP || !JP.API) return;
+      if(JP.API.__ultraSanitized) return;
+      // recolocar text com forced font + charspace + ultra sanitize
+      var origText=JP.API.text;
+      JP.API.text=function(text){
+        try{
+          // força fonte e charSpace antes de TUDO
+          try{ this.setFont && this.setFont('helvetica','normal'); }catch(e){}
+          try{ this.setCharSpace && this.setCharSpace(0); }catch(e){}
+          // sanitiza ultra
+          if(text!=null){
+            if(Array.isArray(text)){
+              arguments[0]=text.map(function(x){return window.gnSanitizaUltra(x);});
+            } else {
+              arguments[0]=window.gnSanitizaUltra(text);
+            }
+          }
+        }catch(e){}
+        return origText.apply(this, arguments);
+      };
+      var origSplit=JP.API.splitTextToSize;
+      if(origSplit){
+        JP.API.splitTextToSize=function(text){
+          try{
+            if(text!=null && typeof text==='string') arguments[0]=window.gnSanitizaUltra(text);
+          }catch(e){}
+          return origSplit.apply(this, arguments);
+        };
+      }
+      JP.API.__ultraSanitized=true;
+      console.log('[gnPDF ULTRA] jsPDF sanitizado AGRESSIVAMENTE');
+    }catch(e){console.warn(e);}
+  }
+  patchJsPDFUltra();
+  var ttU=0;
+  var ivU=setInterval(function(){ patchJsPDFUltra(); ttU++; if(ttU>30) clearInterval(ivU); }, 800);
+
+  // INTERCEPTAR gnDocPDF — sanitizar TODOS os campos do objeto opts
+  function sanitizeObj(o){
+    if(o==null) return o;
+    if(typeof o==='string') return window.gnSanitizaUltra(o);
+    if(Array.isArray(o)) return o.map(sanitizeObj);
+    if(typeof o==='object'){
+      var n={};
+      Object.keys(o).forEach(function(k){ n[k]=sanitizeObj(o[k]); });
+      return n;
+    }
+    return o;
+  }
+  function patchGnDocPDF(){
+    if(typeof window.gnDocPDF!=='function' || window.gnDocPDF.__ultraSan) return;
+    var orig=window.gnDocPDF;
+    window.gnDocPDF=function(opts){
+      try{ opts=sanitizeObj(opts); }catch(e){}
+      return orig.call(this, opts);
+    };
+    window.gnDocPDF.__ultraSan=true;
+    console.log('[gnPDF ULTRA] gnDocPDF sanitizado');
+  }
+  setTimeout(patchGnDocPDF, 1500);
+  setTimeout(patchGnDocPDF, 3000);
+  setTimeout(patchGnDocPDF, 6000);
+
+  // FUNÇÃO PARA LIMPAR DADOS ANTIGOS DO gn_hist (acessível via Configurações)
+  window.gnLimparEmojisHist=function(){
+    try{
+      ['gn_hist','gn_os','gn_rec','gn_ctr'].forEach(function(k){
+        var arr=JSON.parse(localStorage.getItem(k)||'[]');
+        var changed=0;
+        arr.forEach(function(item){
+          Object.keys(item).forEach(function(prop){
+            if(typeof item[prop]==='string'){
+              var novo=window.gnSanitizaUltra(item[prop]);
+              if(novo!==item[prop]){ item[prop]=novo; changed++; }
+            } else if(typeof item[prop]==='object' && item[prop]){
+              try{
+                var json=JSON.stringify(item[prop]);
+                var clean=window.gnSanitizaUltra(json);
+                if(clean!==json) item[prop]=JSON.parse(clean);
+              }catch(e){}
+            }
+          });
+        });
+        if(changed>0){
+          localStorage.setItem(k, JSON.stringify(arr));
+          try{ if(window.gnCloud2PushKey) gnCloud2PushKey(k); }catch(e){}
+        }
+      });
+      if(window.toast) toast('✓ Dados antigos limpos — gere o PDF de novo','ok');
+    }catch(e){if(window.toast) toast('Erro: '+e.message,'er');}
+  };
+
+  // Auto-limpa dados antigos UMA VEZ (na primeira abertura desta versão)
+  setTimeout(function(){
+    if(!localStorage.getItem('gn_emoji_clean_v1')){
+      try{
+        gnLimparEmojisHist();
+        localStorage.setItem('gn_emoji_clean_v1','1');
+      }catch(e){}
+    }
+  }, 4000);
+
+  // ══════════════════════════════════════════════════════════════════
+  // ═══ 15 MELHORIAS NA PÁGINA DE GERAÇÃO DE ORÇAMENTO              ═══
+  // ══════════════════════════════════════════════════════════════════
+
+  // CSS aplicado em pane-novo (página da proposta)
+  var stOrc=document.createElement('style');
+  stOrc.textContent=
+    // 2. Caixas MAIORES
+    '#pane-novo .fi,#pane-novo input.fi{font-size:15px!important;padding:11px 13px!important;}'
+    +'#pane-novo textarea.fi,#pane-novo .txa{font-size:15px!important;padding:13px 15px!important;min-height:160px!important;line-height:1.55!important;}'
+    +'#pane-novo .field label,#pane-novo label{font-size:13.5px!important;font-weight:700!important;margin-bottom:5px!important;}'
+    +'#pane-novo .sl{font-size:15px!important;font-weight:800!important;}'
+    +'#pane-novo .totv{font-size:30px!important;}'
+    // 14. Mais espaçamento entre seções
+    +'#pane-novo .div{margin:18px 0!important;}'
+    +'#pane-novo .sh{margin:14px 0 8px!important;}'
+    +'#pane-novo .field{margin-bottom:10px!important;}'
+    // 5. Editor ocupa mais largura (esconde texto auxiliar)
+    +'#pane-novo .pgsub{display:none;}'
+    // 10. Botão "Gerar PDF" sticky no rodapé
+    +'#gn-gen-sticky{position:sticky;bottom:0;background:linear-gradient(180deg,transparent,#0c1424 30%);padding:16px 0;z-index:50;margin-top:14px;}'
+    +'#gn-gen-sticky button{width:100%;background:linear-gradient(135deg,#7c5cff,#5b3fe3);color:#fff;border:none;border-radius:12px;padding:16px;cursor:pointer;font-weight:800;font-size:16px;box-shadow:0 8px 24px rgba(124,92,255,.4);}'
+    +'#gn-gen-sticky button:hover{transform:translateY(-1px);}'
+    // 6/7. Botão editar título/esconder bloco
+    +'#pane-novo .sh{position:relative;display:flex!important;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}'
+    +'.gn-bl-acts{display:inline-flex;gap:4px;}'
+    +'.gn-bl-acts button{background:rgba(124,92,255,.18);color:#c4b5fd;border:none;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;font-weight:700;}'
+    +'.gn-bl-acts button:hover{background:#7c5cff;color:#fff;}'
+    +'.gn-bl-hidden{opacity:.4;}'
+    +'.gn-bl-hidden::after{content:" (escondido do PDF)";color:#fca5a5;font-size:11px;font-weight:600;}'
+    // 11. Contador de páginas / 13. Histórico
+    +'#gn-orc-toolbar{position:sticky;top:0;background:#0c1424;border-bottom:1px solid rgba(124,92,255,.2);padding:10px 14px;margin:-14px -14px 14px;z-index:40;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}'
+    +'#gn-orc-toolbar .lf{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:#9fb0d0;}'
+    +'#gn-orc-toolbar .rg{display:flex;gap:6px;}'
+    +'#gn-orc-toolbar button{background:rgba(124,92,255,.18);color:#c4b5fd;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:11.5px;font-weight:700;}'
+    +'#gn-orc-toolbar button:hover{background:#7c5cff;color:#fff;}'
+    // 15. Badge obrigatório/opcional
+    +'.gn-bl-req{background:#dc2626;color:#fff;border-radius:8px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:5px;}'
+    +'.gn-bl-opt{background:#64748b;color:#fff;border-radius:8px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:5px;}'
+    +'@media(max-width:768px){'
+      +'#pane-novo textarea.fi,#pane-novo .txa{min-height:130px!important;}'
+      +'#pane-novo .totv{font-size:24px!important;}'
+    +'}'
+    ;
+  document.head.appendChild(stOrc);
+
+  // 1. REMOVER SUGESTÕES IA dentro da proposta aberta
+  // Sobrescrever funções que injetam sugestões
+  setTimeout(function(){
+    try{
+      // tentativa de neutralizar várias funções comuns de sugestão
+      ['gnSugerirSvc','gnSvcSuggest','aiSuggestOrcamento','svcAutoSeed','svcSugerirIA'].forEach(function(fn){
+        try{ window[fn]=function(){}; }catch(e){}
+      });
+      // remover banners de sugestão se já existirem
+      var seletores=[
+        '.gn-svc-sugest', '.gn-ia-suggest', '.gn-orc-sugest', '#gn-orc-sugest', '#gn-svc-sugest',
+        '[data-suggest]', '[data-ia-sugest]'
+      ];
+      seletores.forEach(function(s){
+        document.querySelectorAll(s).forEach(function(el){ el.remove(); });
+      });
+    }catch(e){}
+  }, 1500);
+
+  // Observer pra remover sugestões que voltem
+  setTimeout(function(){
+    try{
+      var p=document.getElementById('pane-novo'); if(!p) return;
+      var obs=new MutationObserver(function(muts){
+        muts.forEach(function(m){
+          if(m.addedNodes) m.addedNodes.forEach(function(n){
+            if(n.nodeType!==1) return;
+            var t=(n.textContent||'').toLowerCase();
+            // remove se tiver "sugest", "outros serviços", "talvez você queira"
+            if(/sugest|talvez voc.|outros servi.os|adicionar tamb.m|considera adicion/i.test(t) && (n.classList && (n.classList.contains('gn-suggest') || n.id.indexOf('sugest')>=0))){
+              try{ n.remove(); }catch(e){}
+            }
+          });
+        });
+      });
+      obs.observe(p, {childList:true, subtree:true});
+    }catch(e){}
+  }, 2000);
+
+  // 10. BOTÃO "GERAR PDF" STICKY NO RODAPÉ
+  function addStickyGen(){
+    try{
+      var p=$('pane-novo'); if(!p) return;
+      if($('gn-gen-sticky')) return;
+      var origBtn=p.querySelector('button.bgen,button.bog');
+      if(!origBtn) return;
+      // criar wrapper sticky
+      var w=document.createElement('div'); w.id='gn-gen-sticky';
+      var nb=document.createElement('button'); nb.innerHTML='📄  Gerar PDF e Baixar';
+      nb.onclick=function(){ try{ origBtn.click(); }catch(e){} };
+      w.appendChild(nb);
+      // esconder o original
+      origBtn.style.display='none';
+      p.appendChild(w);
+    }catch(e){}
+  }
+  setInterval(addStickyGen, 3000); setTimeout(addStickyGen, 1500);
+
+  // 11. TOOLBAR NO TOPO — contador, histórico, atalhos
+  function addOrcToolbar(){
+    try{
+      var p=$('pane-novo'); if(!p) return;
+      if($('gn-orc-toolbar')) return;
+      var preview=p.querySelector('.preview'); if(!preview) return;
+      var card=preview.querySelector('.card'); if(!card) return;
+      var t=document.createElement('div'); t.id='gn-orc-toolbar';
+      t.innerHTML='<div class="lf"><span id="gn-orc-paginas">📄 ~1 página</span><span>•</span><span id="gn-orc-blocos">0 blocos visíveis</span><span>•</span><span id="gn-orc-saved" style="color:#86efac;">✓ salvo</span></div>'
+        +'<div class="rg">'
+          +'<button onclick="gnOrcVerHistorico()" title="Histórico de versões">📜 Versões</button>'
+          +'<button onclick="document.querySelector(\'#pane-novo button.bgen,#pane-novo button.bog,#gn-gen-sticky button\').click();" title="Gerar PDF (Ctrl+S)">📄 Gerar PDF</button>'
+        +'</div>';
+      card.parentNode.insertBefore(t, card);
+      // recalcula stats
+      setInterval(updOrcStats, 3000);
+    }catch(e){}
+  }
+  function updOrcStats(){
+    try{
+      var p=$('pane-novo'); if(!p || p.style.display==='none') return;
+      var blocosVis=p.querySelectorAll('.sh:not(.gn-bl-hidden)').length;
+      var texto=p.querySelectorAll('textarea.fi'); var chars=0;
+      texto.forEach(function(t){ chars+=String(t.value||'').length; });
+      var pgs=Math.max(1, Math.ceil(chars/2500));
+      var pa=$('gn-orc-paginas'); if(pa) pa.textContent='📄 ~'+pgs+' página'+(pgs>1?'s':'');
+      var bl=$('gn-orc-blocos'); if(bl) bl.textContent=blocosVis+' blocos visíveis';
+    }catch(e){}
+  }
+  setInterval(addOrcToolbar, 3000); setTimeout(addOrcToolbar, 1500);
+
+  window.gnOrcVerHistorico=function(){
+    var num=(document.getElementById('badge')||{}).textContent||'';
+    if(window.gnVerVersoes) gnVerVersoes(num);
+    else alert('Histórico: '+num);
+  };
+
+  // 6/7. BOTÕES "EDITAR TÍTULO" e "ESCONDER" em cada bloco
+  function patchBlocos(){
+    try{
+      var p=$('pane-novo'); if(!p) return;
+      p.querySelectorAll('.sh').forEach(function(sh){
+        if(sh.querySelector('.gn-bl-acts')) return;
+        var sl=sh.querySelector('.sl'); if(!sl) return;
+        var nomeOrig=sl.textContent;
+        // criar acts
+        var ac=document.createElement('div'); ac.className='gn-bl-acts';
+        ac.innerHTML='<button class="gn-bl-edit" title="Renomear este bloco">✎ título</button>'
+          +'<button class="gn-bl-hide" title="Esconder este bloco no PDF">👁 esconder</button>';
+        sh.appendChild(ac);
+        ac.querySelector('.gn-bl-edit').onclick=function(ev){
+          ev.stopPropagation();
+          gnPrompt('Renomear bloco', nomeOrig, 'Texto que vai aparecer como título da seção no PDF').then(function(v){
+            if(v===null) return;
+            sl.textContent=v;
+            // salvar no rascunho
+            try{ localStorage.setItem('gn_orc_title_'+nomeOrig.replace(/\s+/g,'_'), v); }catch(e){}
+          });
+        };
+        ac.querySelector('.gn-bl-hide').onclick=function(ev){
+          ev.stopPropagation();
+          var isHidden=sh.classList.toggle('gn-bl-hidden');
+          // esconder o div seguinte (conteúdo)
+          var next=sh.nextElementSibling;
+          if(next){ next.style.display=isHidden?'none':''; }
+          ac.querySelector('.gn-bl-hide').innerHTML=isHidden?'👁 mostrar':'👁 esconder';
+        };
+      });
+    }catch(e){}
+  }
+  setInterval(patchBlocos, 3000); setTimeout(patchBlocos, 1800);
+
+  // 9. AUTO-SAVE A CADA 30s do rascunho
+  function autoSaveRascunho(){
+    try{
+      var p=$('pane-novo'); if(!p || p.style.display==='none') return;
+      var dados={};
+      p.querySelectorAll('input.fi,textarea.fi').forEach(function(el){
+        if(el.id) dados[el.id]=el.value;
+      });
+      localStorage.setItem('gn_orc_rascunho', JSON.stringify({em:Date.now(), dados:dados}));
+      var s=$('gn-orc-saved'); if(s){ s.textContent='✓ rascunho salvo '+new Date().toLocaleTimeString('pt-BR').slice(0,5); s.style.color='#86efac'; }
+    }catch(e){}
+  }
+  setInterval(autoSaveRascunho, 30000);
+
+  // 12. CTRL+S = GERAR PDF
+  document.addEventListener('keydown', function(e){
+    if((e.ctrlKey||e.metaKey) && (e.key==='s'||e.key==='S')){
+      var p=$('pane-novo'); if(p && p.style.display!=='none'){
+        e.preventDefault();
+        var b=document.querySelector('#gn-gen-sticky button, #pane-novo button.bgen, #pane-novo button.bog');
+        if(b) b.click();
+      }
+    }
+  });
+
+  setTimeout(function(){
+    try{ if(window.toast) toast('✓ 15 melhorias aplicadas no orçamento — caixas maiores, sticky button, sem sugestões','ok'); }catch(e){}
+  }, 4500);
+
   // Também atualiza quando clica nos botões do menu lateral
   setTimeout(function(){
     try{
