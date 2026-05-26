@@ -13336,6 +13336,75 @@ window.gnDocAbrir=function(tipo,id,num){
   }
   setInterval(function(){ var p=$('pane-ped'); if(p && p.style.display!=='none' && !$('ped-tudo-bloco')) renderPedTudo(); }, 5000);
 
+  // ── #65 BIS — TÍTULO COLORIDO em cima de CADA card da aba Pedidos ──
+  var TIPO_COR={
+    'Laudo de estanqueidade':{cor:'#a855f7',icon:'🔬',label:'LAUDO DE ESTANQUEIDADE'},
+    'Laudo técnico':{cor:'#a855f7',icon:'🔬',label:'LAUDO TÉCNICO'},
+    'Nota de Serviço':{cor:'#16a34a',icon:'📝',label:'NOTA DE SERVIÇO'},
+    'Nota de serviço':{cor:'#16a34a',icon:'📝',label:'NOTA DE SERVIÇO'},
+    'Recibo':{cor:'#0891b2',icon:'🧾',label:'RECIBO'},
+    'Contrato':{cor:'#f59e0b',icon:'📄',label:'CONTRATO'},
+    'Proposta comercial':{cor:'#2563eb',icon:'📑',label:'PROPOSTA COMERCIAL'},
+    'Pedido':{cor:'#4338ca',icon:'📦',label:'PEDIDO'},
+    'Fatura':{cor:'#dc2626',icon:'💸',label:'FATURA'},
+    'Resumo financeiro':{cor:'#0e7490',icon:'💰',label:'RESUMO FINANCEIRO'},
+    'Projeto':{cor:'#7c2d12',icon:'📐',label:'PROJETO'},
+    'Voucher de transporte':{cor:'#7c5cff',icon:'🎫',label:'VOUCHER'},
+    'Orçamento':{cor:'#7c5cff',icon:'📋',label:'ORÇAMENTO'}
+  };
+  function detectTipo(card){
+    try{
+      var sel=card.querySelector('select.ped-doc'); if(sel){var v=sel.value||sel.options[sel.selectedIndex].text; if(v && TIPO_COR[v]) return v;}
+      var txt=(card.textContent||'').toLowerCase();
+      if(/laudo de estanqueidade|estanqueidade/.test(txt)) return 'Laudo de estanqueidade';
+      if(/nota de servi|notinha/.test(txt)) return 'Nota de Serviço';
+      if(/recibo/.test(txt)) return 'Recibo';
+      if(/contrato/.test(txt)) return 'Contrato';
+      if(/proposta/.test(txt)) return 'Proposta comercial';
+      if(/fatura/.test(txt)) return 'Fatura';
+    }catch(e){}
+    return 'Orçamento';
+  }
+  function tagPedCards(){
+    try{
+      var list=$('ped-list'); if(!list) return;
+      Array.prototype.forEach.call(list.children, function(card){
+        if(!card || card.__tipoTagged) return;
+        var tipo=detectTipo(card); var def=TIPO_COR[tipo]||TIPO_COR['Orçamento'];
+        var tag=document.createElement('div');
+        tag.style.cssText='background:linear-gradient(90deg,'+def.cor+'33,transparent);border-left:5px solid '+def.cor+';color:'+def.cor+';font-weight:900;font-size:12px;letter-spacing:.06em;padding:5px 12px;margin:-12px -14px 9px;border-top-left-radius:9px;border-top-right-radius:9px;text-transform:uppercase;';
+        tag.textContent=def.icon+'  '+def.label;
+        card.style.borderLeftColor=def.cor;
+        card.insertBefore(tag, card.firstChild);
+        card.__tipoTagged=true;
+        // se o usuário trocar o tipo no dropdown, atualiza a tag
+        var sel=card.querySelector('select.ped-doc');
+        if(sel && !sel.__corHook){ sel.__corHook=true; sel.addEventListener('change', function(){
+          var novoTipo=sel.value||sel.options[sel.selectedIndex].text; var nd=TIPO_COR[novoTipo]||TIPO_COR['Orçamento'];
+          tag.style.cssText='background:linear-gradient(90deg,'+nd.cor+'33,transparent);border-left:5px solid '+nd.cor+';color:'+nd.cor+';font-weight:900;font-size:12px;letter-spacing:.06em;padding:5px 12px;margin:-12px -14px 9px;border-top-left-radius:9px;border-top-right-radius:9px;text-transform:uppercase;';
+          tag.textContent=nd.icon+'  '+nd.label;
+          card.style.borderLeftColor=nd.cor;
+        }); }
+      });
+    }catch(e){}
+  }
+  setInterval(tagPedCards, 1500);
+  // Também rodar nas listas de outros lugares (Hoje, Início, Pedidos recentes)
+  function tagDocsBlocos(){
+    try{
+      ['hoje-body','ini-cards-list','ped-outros','ped-tudo-bloco'].forEach(function(id){
+        var c=document.getElementById(id); if(!c) return;
+        Array.prototype.forEach.call(c.querySelectorAll('div[style*="border-left"]'), function(card){
+          if(card.__tipoTagged2) return; card.__tipoTagged2=true;
+          // já tem badge interna nesses blocos; só reforça contraste se faltar
+          var atual=(card.querySelector('span[style*="background"]')||{}).textContent||'';
+          if(atual) return;
+        });
+      });
+    }catch(e){}
+  }
+  setInterval(tagDocsBlocos, 3000);
+
   // ── #38 QR CODE POR FERRAMENTA (via Google Charts URL, sem dep) ──
   window.ferrQR=function(id){
     var arr=gj('gn_ferr'); var f=arr.filter(function(x){return x.id===id;})[0]; if(!f){alert('Ferramenta não encontrada');return;}
