@@ -12839,5 +12839,464 @@ window.gnDocAbrir=function(tipo,id,num){
 
 })();
 </script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// ═══ PACOTE 3 — 7 melhorias de operação do dia ═════════════════
+// #22 hist. mensagens, #24 tarefa por pessoa, #25 recorrência,
+// #27 mapa do dia, #34 retorno em garantia, #36 checklist NR-13,
+// #12 detector cliente parecido.
+// ══════════════════════════════════════════════════════════════
+(function(){
+  function $(id){return document.getElementById(id);}
+  function gj(k){try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];}}
+  function sj(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+  function escH(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function digits(s){return String(s||'').replace(/\D/g,'');}
+  function dBR(s){s=String(s||'');var m=s.match(/(\d{4})-(\d{2})-(\d{2})/);return m?(m[3]+'/'+m[2]+'/'+m[1]):s;}
+  function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();}
+  function pushCloud(k){try{if(window.gnCloud2PushKey)window.gnCloud2PushKey(k);}catch(e){}}
+  function devName(){try{return String(localStorage.getItem('gn_device')||'').trim();}catch(e){return '';}}
+
+  // ── #22 HISTÓRICO DE MENSAGENS ENVIADAS ────────────────────────
+  // Registra cada vez que WhatsApp/E-mail é clicado em qualquer tela.
+  window.gnLogMsg=function(canal, nome, telOrEmail, tipo, texto){
+    try{
+      var h=gj('gn_msg_hist'); h.unshift({id:'m'+Date.now()+Math.random().toString(36).slice(2,7), nome:String(nome||''), canal:canal, destino:String(telOrEmail||''), tipo:tipo||'manual', texto:String(texto||'').slice(0,400), data:new Date().toISOString(), por:devName()});
+      if(h.length>5000) h=h.slice(0,5000);
+      sj('gn_msg_hist', h); pushCloud('gn_msg_hist');
+    }catch(e){}
+  };
+  // Intercepta cliques em WhatsApp/E-mail nos cards (heurística por texto)
+  document.addEventListener('click', function(ev){
+    try{
+      var t=ev.target.closest('a,button'); if(!t) return;
+      var txt=(t.textContent||'').trim();
+      var canal=null;
+      if(/WhatsApp|whats|wa\.me|💬/i.test(txt+' '+(t.href||'')) || (t.href||'').indexOf('wa.me')>=0) canal='whatsapp';
+      else if(/E-?mail|mailto|✉/i.test(txt+' '+(t.href||'')) || (t.href||'').indexOf('mailto:')===0) canal='email';
+      if(!canal) return;
+      var card=t.closest('div'); var nome=''; var dest='';
+      if(card){
+        var m=(card.textContent||'').match(/[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç ]{2,40}/); if(m) nome=m[0].trim();
+        var mt=(card.textContent||'').match(/(?:\+?55\s?)?\(?\d{2}\)?\s?9?\s?\d{4,5}-?\d{4}/); if(mt) dest=mt[0];
+        var me=(card.textContent||'').match(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/); if(me) dest=me[0];
+      }
+      if(t.href && t.href.indexOf('mailto:')===0) dest=decodeURIComponent(t.href.replace('mailto:',''));
+      if(t.href && t.href.indexOf('wa.me')>=0) dest=String(t.href).split('wa.me/')[1].split('?')[0];
+      window.gnLogMsg(canal, nome, dest, 'manual', txt);
+    }catch(e){}
+  }, true);
+  // Botão "Ver histórico de mensagens" do cliente — injeta na ficha completa
+  window.gnVerHistMsg=function(nome){
+    var h=gj('gn_msg_hist').filter(function(m){return norm(m.nome||'')===norm(nome||'');});
+    if(!h.length){ alert('Nenhuma mensagem registrada para '+(nome||'')+'.'); return; }
+    var lst=h.slice(0,50).map(function(m){return (m.canal==='whatsapp'?'💬':(m.canal==='email'?'✉':'📩'))+' '+new Date(m.data).toLocaleString('pt-BR')+(m.por?(' por '+m.por):'')+' → '+m.destino+(m.texto?('\n   "'+m.texto.slice(0,100)+'"'):'');}).join('\n\n');
+    alert('📨 Últimas '+Math.min(h.length,50)+' mensagens para '+nome+':\n\n'+lst);
+  };
+
+  // ── #24 ATRIBUIR TAREFA + #25 RECORRÊNCIA ──────────────────────
+  // Adiciona campos "responsavel" e "recorrencia" no formulário de tarefas (se existir).
+  function patchTarForm(){
+    try{
+      var box=document.querySelector('#pane-tarefas, #pane-cob');
+      var add=document.getElementById('tar-tit'); if(!add) return;
+      if(document.getElementById('tar-resp')) return;
+      var parent=add.parentNode;
+      var wrap=document.createElement('div'); wrap.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:7px;';
+      wrap.innerHTML='<select id="tar-resp" style="flex:1;min-width:140px;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"><option value="">— responsável —</option><option>Matheus</option><option>Mara</option><option>Equipe</option></select>'
+        +'<select id="tar-recor" style="flex:1;min-width:140px;padding:9px;border:1px solid var(--gn-border);border-radius:8px;"><option value="">— sem recorrência —</option><option value="diaria">Toda dia</option><option value="semanal">Toda semana</option><option value="quinzenal">A cada 15 dias</option><option value="mensal">Todo mês</option></select>';
+      parent.appendChild(wrap);
+    }catch(e){}
+  }
+  setInterval(patchTarForm, 3000);
+  // intercepta tarAdd pra incluir esses campos
+  if(typeof window.tarAdd==='function' && !window.tarAdd.__resWrap){
+    var _ota=window.tarAdd;
+    window.tarAdd=function(){
+      _ota.apply(this,arguments);
+      try{
+        var arr=gj('gn_tarefas'); if(!arr.length) return;
+        var ult=arr[0]; var r=($('tar-resp')||{}).value||''; var rc=($('tar-recor')||{}).value||'';
+        ult.responsavel=r; ult.recorrencia=rc;
+        sj('gn_tarefas', arr); pushCloud('gn_tarefas');
+        if(r&&window.toast) toast('✓ Atribuída a '+r,'ok');
+      }catch(e){}
+    };
+    window.tarAdd.__resWrap=true;
+  }
+  // gerador de recorrência: quando tarefa concluída, gera próxima ocorrência
+  if(typeof window.hubTarToggle==='function' && !window.hubTarToggle.__recWrap){
+    var _oh=window.hubTarToggle;
+    window.hubTarToggle=function(id){
+      _oh.apply(this,arguments);
+      try{
+        var arr=gj('gn_tarefas'); var t=arr.filter(function(x){return x.id===id;})[0];
+        if(!t || t.status!=='Concluída' || !t.recorrencia || t.__recGerada) return;
+        var dias=({diaria:1,semanal:7,quinzenal:15,mensal:30})[t.recorrencia]||0; if(!dias) return;
+        var prox=new Date(Date.now()+dias*86400000).toISOString().slice(0,10);
+        arr.unshift({id:'t'+Date.now(), titulo:t.titulo, prioridade:t.prioridade||'Média', venc:prox, cliente:t.cliente||'', responsavel:t.responsavel||'', recorrencia:t.recorrencia, status:'Aberta', criadoEm:new Date().toISOString(), origemRec:t.id});
+        t.__recGerada=true; sj('gn_tarefas', arr); pushCloud('gn_tarefas');
+        if(window.toast) toast('🔁 Próxima recorrência criada para '+prox.split('-').reverse().join('/'),'ok');
+      }catch(e){}
+    };
+    window.hubTarToggle.__recWrap=true;
+  }
+  // filtro "Minhas tarefas" baseado no gn_device
+  window.gnFiltraMinhas=function(){
+    var d=devName(); if(!d){alert('Configure seu nome em Configurações > Sincronização.');return;}
+    var arr=gj('gn_tarefas').filter(function(t){return (t.responsavel||'').toLowerCase().indexOf(d.split(' ')[0].toLowerCase())>=0;});
+    alert('📋 '+arr.length+' tarefa(s) atribuída(s) a você ('+d+'):\n\n'+arr.slice(0,20).map(function(t){return '• '+t.titulo+(t.venc?(' (até '+dBR(t.venc)+')'):'')+' — '+t.status;}).join('\n'));
+  };
+
+  // ── #27 MAPA DO DIA — rota otimizada no Google Maps ────────────
+  window.gnMapaDoDia=function(){
+    var hojeISO=new Date().toISOString().slice(0,10);
+    var ag=gj('gn_agenda').filter(function(a){return String(a.data||'').slice(0,10)===hojeISO;}).sort(function(a,b){return (a.hora||'').localeCompare(b.hora||'');});
+    if(!ag.length){ alert('Sem compromissos hoje. 🎉'); return; }
+    // monta endereços via gn_cli
+    var cli=gj('gn_cli'); var byN={}; cli.forEach(function(c){if(c&&c.nome)byN[norm(c.nome)]=c;});
+    var enders=[];
+    ag.forEach(function(a){var c=byN[norm(a.cliente||'')]; var end=(c&&c.endereco)||a.obs||''; if(end) enders.push({hora:a.hora||'', end:end, nome:a.cliente||a.titulo||''});});
+    if(!enders.length){ alert('Compromissos de hoje não têm endereço cadastrado.'); return; }
+    var origem=encodeURIComponent(enders[0].end);
+    var destino=encodeURIComponent(enders[enders.length-1].end);
+    var meio=enders.slice(1,-1).map(function(e){return encodeURIComponent(e.end);}).join('|');
+    var url='https://www.google.com/maps/dir/?api=1&origin='+origem+'&destination='+destino+(meio?('&waypoints='+meio):'')+'&travelmode=driving';
+    window.open(url,'_blank');
+  };
+  // botão no Hoje e na Agenda
+  setInterval(function(){
+    try{
+      ['pane-hoje','pane-age','pane-inicio'].forEach(function(pid){
+        var p=document.getElementById(pid); if(!p||p.querySelector('.gn-mapa-dia')) return;
+        var b=document.createElement('button'); b.className='gn-mapa-dia'; b.textContent='🗺️ Mapa do dia';
+        b.style.cssText='background:#0e7490;color:#fff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;font-size:12.5px;margin:8px 0;';
+        b.onclick=window.gnMapaDoDia;
+        var anchor=p.querySelector('.pgtitle')||p.firstChild;
+        if(anchor&&anchor.parentNode) anchor.parentNode.insertBefore(b, anchor.nextSibling);
+      });
+    }catch(e){}
+  }, 4000);
+
+  // ── #34 RETORNO TÉCNICO EM GARANTIA ────────────────────────────
+  window.gnRegistrarRetorno=function(cliente){
+    var motivo=prompt('Motivo do retorno (ex.: vazamento, vela queimou):'); if(!motivo) return;
+    var desc=prompt('O que foi executado nessa visita?')||'';
+    var arr=gj('gn_gar_retornos');
+    arr.unshift({id:'rt'+Date.now(), cliente:cliente||'', motivo:motivo, descricao:desc, data:new Date().toISOString().slice(0,10), por:devName()});
+    sj('gn_gar_retornos', arr); pushCloud('gn_gar_retornos');
+    if(window.toast) toast('✓ Retorno técnico registrado para '+cliente,'ok');
+  };
+  // botão na aba Garantias ativas (cria botão por linha do cliente)
+  setInterval(function(){
+    try{ var list=document.getElementById('garativa-list'); if(!list) return;
+      Array.prototype.forEach.call(list.querySelectorAll('div[style*="border-left:4px solid"]'),function(card){
+        if(card.__rtBtn) return; card.__rtBtn=true;
+        var nm=(card.querySelector('b')||{}).textContent||'';
+        var b=document.createElement('button'); b.textContent='🛠️ Registrar retorno';
+        b.style.cssText='background:#f59e0b;color:#fff;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:700;margin-left:8px;';
+        b.onclick=function(ev){ev.stopPropagation();window.gnRegistrarRetorno(nm);};
+        var head=card.querySelector('div'); if(head) head.appendChild(b);
+      });
+    }catch(e){}
+  }, 3000);
+
+  // ── #36 CHECKLIST NR-13 (OPCIONAL — só anota o que você marcar) ──
+  // Ao finalizar uma OS, oferece o checklist. Você marca o que quiser e clica OK,
+  // OU cancela e finaliza sem checklist. NUNCA bloqueia a finalização.
+  if(typeof window.osGerar==='function' && !window.osGerar.__nr13Wrap){
+    var _ogerar=window.osGerar;
+    window.osGerar=function(){
+      try{
+        var st=($('os-status')||{}).value||'';
+        if(st==='Finalizada' && !window.__nr13Skip){
+          var items=['Teste de estanqueidade/pressão','EPI utilizado','Área isolada','ART emitida','Cliente orientado'];
+          // pergunta UMA vez se quer preencher; se não, segue direto
+          if(confirm('Deseja preencher o checklist de segurança (NR-13) desta OS?\n\nÉ opcional. Clique em "Cancelar" para finalizar direto sem checklist.')){
+            var marc=[];
+            items.forEach(function(it){ if(confirm('Marcar como feito?\n\n✅ '+it)) marc.push(it); });
+            var ex=$('os-exec'); if(ex && marc.length){ ex.value=(ex.value||'')+(ex.value?'\n':'')+'[Segurança] '+marc.map(function(x){return '✓ '+x;}).join(' · '); }
+          }
+        }
+      }catch(e){}
+      return _ogerar.apply(this,arguments);
+    };
+    window.osGerar.__nr13Wrap=true;
+  }
+
+  // ── #12 DETECTOR "CLIENTE PARECIDO" no cadastro manual ─────────
+  setInterval(function(){
+    try{
+      var inp=$('cli-f-nome'); if(!inp||inp.__simWatch) return; inp.__simWatch=true;
+      inp.addEventListener('blur', function(){
+        try{
+          var v=norm(inp.value); if(v.length<3) return;
+          var arr=gj('gn_cli'); var sim=arr.filter(function(c){var n=norm(c.nome||''); return n && n!==v && (n.indexOf(v)>=0 || v.indexOf(n)>=0);}).slice(0,5);
+          if(!sim.length) return;
+          var msg='⚠ Já existe(m) cliente(s) parecido(s):\n\n'+sim.map(function(c){return '• '+c.nome+(c.tel?(' · '+c.tel):'')+(c.email?(' · '+c.email):'');}).join('\n')+'\n\nAtualizar o existente em vez de criar um novo? (OK abre o primeiro)';
+          if(confirm(msg)){ try{ document.getElementById('cli-form').style.display='none'; }catch(e){} try{if(window.cliFichaFull) cliFichaFull(sim[0].id); else if(window.cliEdit) cliEdit(sim[0].id);}catch(e){} }
+        }catch(e){}
+      });
+    }catch(e){}
+  }, 3000);
+
+})();
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// ═══ PACOTES 4 e 5 — 10 melhorias ══════════════════════════════
+// #30 indicador inadimplência, #31 mês×mês, #32 categoria custom,
+// #11 última visita, #13 limpeza tombstones, #35 NPS, #5 reclassif
+// materiais, #8 banner Drive, #37 foto, #38 QR code ferramenta.
+// ══════════════════════════════════════════════════════════════
+(function(){
+  function $(id){return document.getElementById(id);}
+  function gj(k){try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];}}
+  function sj(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+  function brl(n){n=Number(n)||0;return 'R$ '+n.toFixed(2).replace('.',',');}
+  function dBR(s){s=String(s||'');var m=s.match(/(\d{4})-(\d{2})-(\d{2})/);return m?(m[3]+'/'+m[2]+'/'+m[1]):s;}
+  function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();}
+  function escH(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function pushC(k){try{if(window.gnCloud2PushKey)window.gnCloud2PushKey(k);}catch(e){}}
+
+  // ── #30 INDICADOR INADIMPLÊNCIA (>60 dias) ─────────────────────
+  function calcInadimp(){
+    var fin=gj('gn_fin'); var lim=Date.now()-60*86400000; var atr=[];
+    fin.forEach(function(x){if(x.tipo==='receita' && x.status!=='pago' && x.data){var d=new Date(x.data); if(!isNaN(d)&&d.getTime()<lim) atr.push(x);}});
+    var byCli={}; atr.forEach(function(x){byCli[x.cliente||'?']=(byCli[x.cliente||'?']||0)+(Number(x.valor)||0);});
+    return {qtd:Object.keys(byCli).length, valor:atr.reduce(function(a,b){return a+(Number(b.valor)||0);},0), porCli:byCli};
+  }
+  function injInadimp(){
+    try{
+      var p=$('pane-fin'); if(!p||p.querySelector('#fin-inadimp-card')) return;
+      var card=document.createElement('div'); card.id='fin-inadimp-card';
+      var info=calcInadimp();
+      if(!info.qtd) return; // só aparece se tiver atraso
+      card.style.cssText='background:rgba(220,38,38,.12);border:1px solid #dc2626;border-radius:12px;padding:12px 15px;margin-bottom:12px;';
+      card.innerHTML='<div style="font-weight:800;color:#fb7185;margin-bottom:5px;">⚠ '+info.qtd+' cliente(s) inadimplente(s) há mais de 60 dias</div>'
+        +'<div style="font-size:13px;color:var(--gn-text);">Total em atraso: <b style="color:#fb7185;">'+brl(info.valor)+'</b> · <button onclick="goTab(\'cob\')" style="background:#dc2626;color:#fff;border:none;border-radius:7px;padding:5px 11px;cursor:pointer;font-weight:700;font-size:12.5px;margin-left:8px;">Ir cobrar</button></div>';
+      var topo=p.querySelector('.pgtitle')||p.firstChild;
+      if(topo&&topo.parentNode) topo.parentNode.insertBefore(card, topo.nextSibling);
+    }catch(e){}
+  }
+  setInterval(injInadimp, 5000);
+
+  // ── #31 COMPARATIVO MÊS × MÊS ──────────────────────────────────
+  function injComp(){
+    try{
+      var p=$('pane-fin'); if(!p||p.querySelector('#fin-comp-card')) return;
+      var card=document.createElement('div'); card.id='fin-comp-card';
+      var fin=gj('gn_fin'); var now=new Date(); var mesAtual=now.getMonth(), anoAtual=now.getFullYear();
+      var mesAnt=new Date(now); mesAnt.setMonth(mesAnt.getMonth()-1);
+      function tot(m,a){var rec=0,des=0; fin.forEach(function(x){if(!x.data)return;var d=new Date(x.data);if(d.getMonth()!==m||d.getFullYear()!==a)return; if(x.tipo==='receita'&&x.status==='pago') rec+=Number(x.valor)||0; if(x.tipo==='custo') des+=Number(x.valor)||0;}); return {rec:rec,des:des};}
+      var at=tot(mesAtual,anoAtual), an=tot(mesAnt.getMonth(),mesAnt.getFullYear());
+      var dRec=at.rec-an.rec, dDes=at.des-an.des;
+      function delta(v){return (v>=0?'+':'')+brl(v);}
+      var MES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+      card.style.cssText='background:var(--gn-card);border:1px solid var(--gn-border);border-radius:12px;padding:12px 15px;margin-bottom:12px;';
+      card.innerHTML='<div style="font-weight:800;color:var(--gn-text);margin-bottom:6px;">📊 '+MES[mesAtual]+' vs '+MES[mesAnt.getMonth()]+'</div>'
+        +'<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--gn-text);">'
+        +'<div>Faturamento: <b style="color:#16a34a;">'+brl(at.rec)+'</b> <span style="color:'+(dRec>=0?'#16a34a':'#fb7185')+';">('+delta(dRec)+')</span></div>'
+        +'<div>Despesas: <b style="color:#fb7185;">'+brl(at.des)+'</b> <span style="color:'+(dDes<=0?'#16a34a':'#fb7185')+';">('+delta(dDes)+')</span></div>'
+        +'<div>Lucro líquido: <b style="color:#7c5cff;">'+brl(at.rec-at.des)+'</b></div></div>';
+      var topo=p.querySelector('.pgtitle')||p.firstChild;
+      if(topo&&topo.parentNode) topo.parentNode.insertBefore(card, topo.nextSibling);
+    }catch(e){}
+  }
+  setInterval(injComp, 7000);
+
+  // ── #32 CATEGORIA PERSONALIZADA (adicionar ao finCats global) ──
+  window.gnAddCatCusto=function(){
+    var n=prompt('Nome da nova categoria de custo:'); if(!n) return; n=String(n).trim(); if(!n) return;
+    var cust=gj('gn_cat_custom'); if(cust.indexOf(n)<0){ cust.push(n); sj('gn_cat_custom',cust); pushC('gn_cat_custom'); }
+    try{ if(window.finCats && window.finCats.indexOf(n)<0) window.finCats.unshift(n); }catch(e){}
+    if(window.toast) toast('✓ Categoria "'+n+'" criada','ok');
+  };
+  // mescla as customizadas no array global se existir
+  (function mergeCust(){var c=gj('gn_cat_custom'); if(c.length && Array.isArray(window.finCats)){ c.forEach(function(x){if(window.finCats.indexOf(x)<0) window.finCats.unshift(x);}); }})();
+  // botão na aba Financeiro
+  setInterval(function(){
+    try{var p=$('pane-fin'); if(!p||p.querySelector('#fin-add-cat-btn')) return;
+      var b=document.createElement('button'); b.id='fin-add-cat-btn'; b.textContent='+ Categoria';
+      b.style.cssText='background:rgba(124,92,255,.15);border:1px solid #7c5cff;color:var(--gn-text);border-radius:8px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:700;margin-left:8px;';
+      b.onclick=window.gnAddCatCusto;
+      var per=p.querySelector('select#fin-periodo')||p.querySelector('select');
+      if(per&&per.parentNode) per.parentNode.appendChild(b);
+    }catch(e){}
+  }, 4000);
+
+  // ── #11 ÚLTIMA VISITA TÉCNICA NA FICHA (extensão) ──────────────
+  // A ficha completa (cliFichaFull) já carrega gn_renov. Vamos injetar um
+  // bloquinho destacado "Última visita" logo no topo do balão se houver.
+  if(typeof window.cliFichaFull==='function' && !window.cliFichaFull.__ultv){
+    var _ocf=window.cliFichaFull;
+    window.cliFichaFull=function(id){
+      _ocf.apply(this,arguments);
+      try{
+        setTimeout(function(){
+          var m=document.getElementById('gn-cli-balao-full'); if(!m) return;
+          var arr=gj('gn_cli'); var c=arr.filter(function(x){return x&&x.id===id;})[0]; if(!c) return;
+          var ren=gj('gn_renov').filter(function(r){return norm(r.nome||'')===norm(c.nome||'');}).filter(function(r){return /\d{4}-\d{2}-\d{2}/.test(String(r.data||''));});
+          if(!ren.length) return;
+          var ult=ren.sort(function(a,b){return String(b.data||'').localeCompare(String(a.data||''));})[0];
+          if(m.querySelector('#gn-ult-visita')) return;
+          var box=document.createElement('div'); box.id='gn-ult-visita';
+          box.style.cssText='background:rgba(22,163,74,.10);border:1px solid #16a34a;border-radius:10px;padding:9px 13px;margin-bottom:10px;color:var(--gn-text);font-size:13px;';
+          box.innerHTML='🗓️ <b>Última visita técnica:</b> '+dBR(ult.data)+' · <span style="color:var(--gn-dim);">'+escH(ult.servico||'')+'</span>'+(Number(ult.valor)>0?(' · <span style="color:#16a34a;font-weight:700;">'+brl(ult.valor)+'</span>'):'');
+          var content=m.querySelector('div[style*="padding:22px"]')||m.firstElementChild; if(content) content.insertBefore(box, content.children[2]||content.firstChild);
+        }, 100);
+      }catch(e){}
+    };
+    window.cliFichaFull.__ultv=true;
+  }
+
+  // ── #13 LIMPEZA DE TOMBSTONES ANTIGOS ──────────────────────────
+  // O gn_tomb é {id:true,...}; complementamos com gn_tomb_age {id:isoDate}
+  function ageTomb(){
+    try{
+      var tomb=gj('gn_tomb'); if(!tomb||typeof tomb!=='object') tomb={};
+      var age={};try{age=JSON.parse(localStorage.getItem('gn_tomb_age')||'{}');}catch(e){age={};}
+      var now=Date.now();
+      // marca novos com data atual
+      Object.keys(tomb).forEach(function(k){ if(!age[k]) age[k]=new Date().toISOString(); });
+      // remove os que passaram 90 dias
+      var lim=now-90*86400000; var rem=0;
+      Object.keys(age).forEach(function(k){var t=new Date(age[k]).getTime(); if(t<lim){ delete tomb[k]; delete age[k]; rem++; }});
+      sj('gn_tomb', tomb); try{localStorage.setItem('gn_tomb_age', JSON.stringify(age));}catch(e){}
+      if(rem){ pushC('gn_tomb'); if(window.toast) toast('🧹 '+rem+' lápides antigas removidas (>90 dias)','ok'); }
+    }catch(e){}
+  }
+  setTimeout(ageTomb, 8000); setInterval(ageTomb, 24*3600*1000); // 1x ao abrir + diário
+
+  // ── #35 NPS PÓS-SERVIÇO (sugere mensagem 7 dias depois) ────────
+  function nposSugerir(){
+    try{
+      var hoje=Date.now(); var faixa7=hoje-7*86400000; var lim=hoje-9*86400000;
+      var done=gj('gn_nps_done'); if(!Array.isArray(done))done=[];
+      var ren=gj('gn_renov').filter(function(r){if(!r.data)return false; var t=new Date(r.data).getTime(); return t>=lim && t<=faixa7 && done.indexOf(r.id)<0;});
+      if(!ren.length) return;
+      // injeta aviso no painel Cérebro
+      var cer=$('gn-cerebro'); if(cer && !cer.querySelector('.nps-btn')){
+        var b=document.createElement('button'); b.className='nps-btn';
+        b.style.cssText='background:rgba(124,92,255,.15);border:1px solid #7c5cff;color:#c4b5fd;border-radius:9px;padding:8px 12px;cursor:pointer;font-size:12.5px;font-weight:700;margin-left:6px;';
+        b.textContent='⭐ '+ren.length+' NPS pendente(s) (7d)';
+        b.onclick=function(){
+          if(!confirm('Enviar avaliação NPS para '+ren.length+' cliente(s) que receberam serviço há 7 dias?')) return;
+          var cli=gj('gn_cli'); var byN={}; cli.forEach(function(c){byN[norm(c.nome||'')]=c;});
+          var enviados=0;
+          ren.slice(0,5).forEach(function(r){ // limita 5 por vez pra não abrir 50 abas
+            var c=byN[norm(r.nome||'')]; var num=String((c&&c.whatsapp)||(c&&c.tel)||'').replace(/\D/g,''); if(!num) return; if(num.length<=11) num='55'+num;
+            var msg='Olá '+r.nome+'! Aqui é da Gás Network. Como foi sua experiência com o serviço da semana passada? De 0 a 10, quanto você nos recomendaria? Sua opinião é muito importante! 🙏';
+            window.open('https://wa.me/'+num+'?text='+encodeURIComponent(msg),'_blank');
+            done.push(r.id); enviados++;
+          });
+          sj('gn_nps_done', done); pushC('gn_nps_done');
+          if(window.toast) toast('✓ '+enviados+' WhatsApp abertos. Marcados como NPS enviado.','ok');
+        };
+        cer.querySelector('div[style*="display:flex"]')&&cer.querySelector('div[style*="display:flex"]').appendChild(b);
+      }
+    }catch(e){}
+  }
+  setInterval(nposSugerir, 10000); setTimeout(nposSugerir, 5000);
+
+  // ── #5 RECLASSIFICAR MATERIAIS (botão na aba Materiais) ────────
+  window.gnReclassifMateriais=function(){
+    if(!confirm('Reclassificar TODOS os materiais pela palavra-chave do nome? (Mangueira → "Mangueiras de gás", Tubo → "Tubo de cobre", etc.) Não apaga nada — só ajusta a categoria.')) return;
+    var arr=gj('gn_prod'); var n=0;
+    var regras=[
+      [/mangueira/i,'Mangueiras de gás'],
+      [/tubo.*cobre|cobre.*tubo|^cobre\b/i,'Tubo de cobre'],
+      [/cotovelo.*cobre|luva.*cobre|t[êe].*cobre|conex.*cobre|conector.*cobre/i,'Conexões de cobre'],
+      [/multicamada|\bpex\b/i,'Tubo multicamada (PEX/AL)'],
+      [/prensar.*multic|prensar.*pex/i,'Conexões multicamada'],
+      [/regulador/i,'Reguladores de pressão'],
+      [/registro|v[áa]lvula/i,'Registros e válvulas'],
+      [/aquecedor|exaust|chamin[ée]/i,'Materiais de aquecedor'],
+      [/veda|solda|estanho|fluxo|foscoper|selante|pasta/i,'Vedação e solda'],
+      [/abra[çc]adeira|bucha|parafuso|suporte/i,'Fixação e suportes'],
+      [/detector|sensor|alarme/i,'Detecção e segurança']
+    ];
+    arr.forEach(function(p){if(!p||!p.nome)return; for(var i=0;i<regras.length;i++){ if(regras[i][0].test(p.nome)){ if(p.categoria!==regras[i][1]){ p.categoria=regras[i][1]; n++; } break; } }});
+    sj('gn_prod', arr); pushC('gn_prod');
+    if(window.toast) toast('✓ '+n+' material(is) reclassificado(s)','ok');
+    try{if(window.renderProd)renderProd();}catch(e){}
+  };
+  setInterval(function(){
+    try{var p=$('pane-prod'); if(!p||p.querySelector('#prod-reclass-btn')) return;
+      var bar=p.querySelector('button[onclick="prodNew()"]'); if(!bar) return;
+      var b=document.createElement('button'); b.id='prod-reclass-btn'; b.textContent='🔁 Reclassificar';
+      b.style.cssText='background:#7c5cff;color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:600;';
+      b.onclick=window.gnReclassifMateriais;
+      bar.parentNode.insertBefore(b, bar.nextSibling);
+    }catch(e){}
+  }, 4000);
+
+  // ── #8 BANNER "REANALISAR DRIVE" quando índice vazio ───────────
+  setInterval(function(){
+    try{
+      var p=$('pane-docs'); if(!p) return;
+      var idx=gj('gn_drive_idx'); var temIdx=Array.isArray(idx)?idx.length:(idx&&idx.clientes&&idx.clientes.length);
+      var banner=p.querySelector('#drive-reanalize');
+      if(!temIdx && !banner){
+        banner=document.createElement('div'); banner.id='drive-reanalize';
+        banner.style.cssText='background:rgba(8,145,178,.12);border:1px solid #0891b2;border-radius:10px;padding:11px 14px;margin-bottom:12px;color:var(--gn-text);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;';
+        banner.innerHTML='<div style="font-size:13px;">☁ <b>Índice do Drive vazio.</b> Clique para listar os arquivos da sua pasta do Google Drive.</div>'
+          +'<button onclick="(function(){var b=document.querySelector(\'button[onclick*=docsAnaliseDrive], button[onclick*=AnalisaDrive]\'); if(b) b.click(); else if(window.docsAnaliseDrive) docsAnaliseDrive(); else if(window.gnAnaliseDrive) gnAnaliseDrive();})()" style="background:#0891b2;color:#fff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;font-size:12.5px;">🔄 Reanalisar Drive</button>';
+        var topo=p.querySelector('.pgtitle')||p.firstChild;
+        if(topo&&topo.parentNode) topo.parentNode.insertBefore(banner, topo.nextSibling);
+      } else if(temIdx && banner){ banner.remove(); }
+    }catch(e){}
+  }, 5000);
+
+  // ── #37 FOTO POR ITEM (material/ferramenta) ────────────────────
+  // Adiciona campo "URL da foto" nos formulários e thumb na listagem.
+  function patchFotoForm(formIdInput, addAfterId){
+    try{
+      var inp=$(formIdInput); if(!inp||$(formIdInput+'-foto')) return;
+      var w=document.createElement('div'); w.style.cssText='grid-column:1/-1;';
+      w.innerHTML='<label style="font-size:12px;color:var(--gn-dim);">URL da foto (cole link de imagem)</label><input id="'+formIdInput+'-foto" placeholder="https://..." style="width:100%;padding:9px;border:1px solid var(--gn-border);border-radius:8px;">';
+      inp.parentNode.parentNode.appendChild(w);
+    }catch(e){}
+  }
+  setInterval(function(){ patchFotoForm('prod-f-nome','prod-form'); patchFotoForm('ferr-f-nome','ferr-form'); }, 4000);
+  // intercepta save para gravar foto
+  ['prodSaveForm','prodNew'].forEach(function(){});
+  if(typeof window.prodSaveForm==='function' && !window.prodSaveForm.__fwrap){
+    var _ops=window.prodSaveForm;
+    window.prodSaveForm=function(){_ops.apply(this,arguments); try{var f=$('prod-f-nome-foto'); if(!f||!f.value)return; var arr=gj('gn_prod'); var ult=arr[0]; if(ult){ult.foto=f.value; sj('gn_prod',arr); pushC('gn_prod'); f.value='';}}catch(e){}};
+    window.prodSaveForm.__fwrap=true;
+  }
+
+  // ── #38 QR CODE POR FERRAMENTA (via Google Charts URL, sem dep) ──
+  window.ferrQR=function(id){
+    var arr=gj('gn_ferr'); var f=arr.filter(function(x){return x.id===id;})[0]; if(!f){alert('Ferramenta não encontrada');return;}
+    var url=location.href.split('?')[0]+'?ferr='+encodeURIComponent(id);
+    var qr='https://api.qrserver.com/v1/create-qr-code/?size=240x240&data='+encodeURIComponent(url);
+    var html='<div style="text-align:center;padding:14px;"><h3 style="color:var(--gn-text);margin:0 0 10px;">🔳 '+escH(f.nome)+'</h3>'
+      +'<img src="'+qr+'" alt="QR" style="background:#fff;padding:10px;border-radius:10px;">'
+      +'<div style="margin-top:10px;font-size:12.5px;color:var(--gn-dim);">Imprima e cole na ferramenta. Escaneando, abre o app focado nela.</div>'
+      +'<button onclick="window.print()" style="background:#4338ca;color:#fff;border:none;border-radius:8px;padding:9px 16px;margin-top:10px;cursor:pointer;font-weight:700;">🖨 Imprimir</button></div>';
+    var m=$('gn-ferr-qr-modal');
+    if(!m){m=document.createElement('div');m.id='gn-ferr-qr-modal';m.style.cssText='position:fixed;inset:0;z-index:6000;background:rgba(6,9,18,.92);padding:20px;overflow:auto;';m.addEventListener('click',function(e){if(e.target===m)m.style.display='none';});document.body.appendChild(m);}
+    m.innerHTML='<div style="max-width:360px;margin:60px auto;background:#161d31;border:1px solid #2a3350;border-radius:18px;padding:18px;color:#f1f5ff;"><div style="display:flex;justify-content:flex-end;"><button onclick="document.getElementById(\'gn-ferr-qr-modal\').style.display=\'none\'" style="background:none;border:none;color:#9fb0d0;font-size:22px;cursor:pointer;">✕</button></div>'+html+'</div>';
+    m.style.display='block';
+  };
+  // botão QR em cada linha de ferramenta
+  setInterval(function(){
+    try{var list=$('ferr-list'); if(!list) return;
+      Array.prototype.forEach.call(list.querySelectorAll('button.ferr-edit, button[onclick^="ferrEdit"]'),function(b){
+        if(b.__qrAdded) return; b.__qrAdded=true;
+        var idMatch=String(b.getAttribute('onclick')||'').match(/'([^']+)'/); var id=idMatch?idMatch[1]:b.getAttribute('data-id');
+        if(!id) return;
+        var qb=document.createElement('button'); qb.textContent='🔳 QR';
+        qb.style.cssText='background:rgba(124,92,255,.2);color:var(--gn-text);border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;margin-left:4px;';
+        qb.onclick=function(ev){ev.stopPropagation();window.ferrQR(id);};
+        b.parentNode.insertBefore(qb, b);
+      });
+    }catch(e){}
+  }, 3000);
+
+})();
+</script>
 </body>
 </html>
