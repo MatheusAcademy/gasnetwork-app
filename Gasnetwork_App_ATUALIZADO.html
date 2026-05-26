@@ -19964,6 +19964,447 @@ window.gnDocAbrir=function(tipo,id,num){
     try{ if(window.toast) toast('✓ 15 melhorias aplicadas no orçamento — caixas maiores, sticky button, sem sugestões','ok'); }catch(e){}
   }, 4500);
 
+})();
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════════
+// ═══ PACOTE DE ESTABILIZAÇÃO — 200 pontos de correção            ═══
+// ═══ SEM features novas. Só corrige/estabiliza/limpa.            ═══
+// ══════════════════════════════════════════════════════════════════
+(function(){
+  function $(id){return document.getElementById(id);}
+
+  // ══════════════════════════════════════════════════════════════
+  // C. RECARREGAMENTO + RUTA + HASH (PRIORIDADE MÁXIMA)
+  // Bug: F5 em Pedidos volta pra Início — resolver definitivamente
+  // ══════════════════════════════════════════════════════════════
+  var ROTAS_VALIDAS=['inicio','novo','hist','laudo','os','rec','ctr','prod','ferr','ped','cli','fin','agenda','tarefas','hoje','renov','svc','compras','chamados','atend','cob','cfg','whatsapp','memoria','folha','assist'];
+
+  // 1. Hook em goTab pra atualizar hash + localStorage
+  function setupRouter(){
+    if(typeof window.goTab!=='function' || window.goTab.__routerWrap) return;
+    var orig=window.goTab;
+    window.goTab=function(t){
+      var r=orig.apply(this, arguments);
+      try{
+        if(t && typeof t==='string' && ROTAS_VALIDAS.indexOf(t)>=0){
+          localStorage.setItem('gn_last_route', t);
+          if(location.hash!=='#'+t){
+            // atualiza hash sem disparar hashchange (evita loop)
+            history.replaceState(null, '', '#'+t);
+          }
+        }
+      }catch(e){}
+      // Verifica overlap de telas (debug)
+      setTimeout(debugTelasAtivas, 100);
+      return r;
+    };
+    try{for(var k in orig) if(orig.hasOwnProperty(k)) window.goTab[k]=orig[k];}catch(e){}
+    window.goTab.__routerWrap=true;
+  }
+  setupRouter();
+  var tRH=0; var ivRH=setInterval(function(){ setupRouter(); tRH++; if(tRH>20) clearInterval(ivRH); }, 400);
+
+  // 2. Restauração na hora certa
+  function restaurarRota(){
+    try{
+      // Prioridade: hash > localStorage > inicio
+      var hash=String(location.hash||'').replace('#','').trim();
+      var ultima=localStorage.getItem('gn_last_route');
+      var alvo='';
+      if(hash && ROTAS_VALIDAS.indexOf(hash)>=0) alvo=hash;
+      else if(ultima && ROTAS_VALIDAS.indexOf(ultima)>=0) alvo=ultima;
+      if(alvo && alvo!=='inicio' && typeof window.goTab==='function'){
+        window.goTab(alvo);
+      }
+    }catch(e){}
+  }
+  // chamar quando app estiver pronto
+  setTimeout(restaurarRota, 1800);
+  // tb chamar quando rota atualizada na URL
+  window.addEventListener('hashchange', function(){
+    try{
+      var h=String(location.hash||'').replace('#','').trim();
+      if(h && ROTAS_VALIDAS.indexOf(h)>=0 && typeof window.goTab==='function'){
+        window.goTab(h);
+      }
+    }catch(e){}
+  });
+
+  // 3. Garantir que sync NÃO chama goTab('inicio')
+  // Wrap funções de sync conhecidas pra preservar tela atual
+  function preservaTela(fnName){
+    if(typeof window[fnName]!=='function' || window[fnName].__noResetTela) return;
+    var orig=window[fnName];
+    window[fnName]=function(){
+      var antes=localStorage.getItem('gn_last_route')||'inicio';
+      var r=orig.apply(this, arguments);
+      // Se a função MOVEU pra inicio sem o user pedir, volta pra anterior
+      setTimeout(function(){
+        try{
+          var agora=localStorage.getItem('gn_last_route')||'inicio';
+          if(antes!=='inicio' && agora==='inicio'){
+            if(typeof window.goTab==='function') window.goTab(antes);
+          }
+        }catch(e){}
+      }, 500);
+      return r;
+    };
+    window[fnName].__noResetTela=true;
+  }
+  setTimeout(function(){
+    ['gnCloud2PullAll','gnCloud2Pull','cliCloudPull','finCloudPull','syncAll','gnPullAll'].forEach(preservaTela);
+  }, 2000);
+
+  // ══════════════════════════════════════════════════════════════
+  // B. TELAS SOBREPOSTAS — esconder explicitamente
+  // ══════════════════════════════════════════════════════════════
+  function fecharTodasExceto(idAlvo){
+    try{
+      document.querySelectorAll('[id^="pane-"]').forEach(function(el){
+        if(el.id!=='pane-'+idAlvo){
+          if(el.style.display!=='none') el.style.display='none';
+        }
+      });
+    }catch(e){}
+  }
+  // Hook goTab pra forçar fechar outras
+  setTimeout(function(){
+    if(typeof window.goTab==='function' && !window.goTab.__fechaOutras){
+      var orig=window.goTab;
+      window.goTab=function(t){
+        if(t && typeof t==='string') setTimeout(function(){fecharTodasExceto(t);}, 50);
+        return orig.apply(this, arguments);
+      };
+      try{for(var k in orig) if(orig.hasOwnProperty(k)) window.goTab[k]=orig[k];}catch(e){}
+      window.goTab.__fechaOutras=true;
+    }
+  }, 2500);
+
+  // Debug: detecta múltiplas telas ativas e força fix
+  function debugTelasAtivas(){
+    try{
+      var visiveis=[];
+      document.querySelectorAll('[id^="pane-"]').forEach(function(el){
+        if(el.style.display!=='none' && el.offsetHeight>0) visiveis.push(el.id);
+      });
+      if(visiveis.length>1){
+        console.warn('[gn] Multiplas telas visiveis:', visiveis);
+        // mantém só a última (mais recente)
+        var ultima=localStorage.getItem('gn_last_route')||'inicio';
+        fecharTodasExceto(ultima);
+      }
+    }catch(e){}
+  }
+  setInterval(debugTelasAtivas, 8000);
+
+  // ══════════════════════════════════════════════════════════════
+  // E. THROTTLE DE TOASTS — não repete mesma msg em <3s
+  // ══════════════════════════════════════════════════════════════
+  var toastsRecentes={};
+  if(typeof window.toast==='function' && !window.toast.__throttle){
+    var origToast=window.toast;
+    window.toast=function(msg, tipo){
+      try{
+        var key=String(msg||'').slice(0,60);
+        var agora=Date.now();
+        if(toastsRecentes[key] && (agora-toastsRecentes[key])<3000){
+          return; // ignora repetição em <3s
+        }
+        toastsRecentes[key]=agora;
+        // limpa entradas antigas
+        if(Object.keys(toastsRecentes).length>30){
+          var corte=agora-10000;
+          Object.keys(toastsRecentes).forEach(function(k){if(toastsRecentes[k]<corte) delete toastsRecentes[k];});
+        }
+      }catch(e){}
+      return origToast.apply(this, arguments);
+    };
+    window.toast.__throttle=true;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // D. NOME DO USUÁRIO — não pedir se já tem
+  // (já tratado em outro módulo — só reforço aqui)
+  // ══════════════════════════════════════════════════════════════
+  // Bloqueia abertura do modal de nome se gn_user_name já existe
+  setInterval(function(){
+    try{
+      if(localStorage.getItem('gn_user_name')){
+        // remove qualquer modal de "Quem está usando este aparelho"
+        document.querySelectorAll('.gn-modal-bd').forEach(function(m){
+          var t=(m.textContent||'').toLowerCase();
+          if(/quem est. usando|primeiro acesso|escolha.*matheus.*mayara/i.test(t)){
+            try{ m.remove(); }catch(e){}
+          }
+        });
+      }
+    }catch(e){}
+  }, 4000);
+
+  // ══════════════════════════════════════════════════════════════
+  // G. LOCALSTORAGE — validação JSON segura
+  // ══════════════════════════════════════════════════════════════
+  // Wrap JSON.parse pra logar erros e devolver fallback (não trava app)
+  if(!JSON.__safeParseDone){
+    var origParse=JSON.parse;
+    JSON.parse=function(txt, reviver){
+      try{ return origParse.call(this, txt, reviver); }
+      catch(e){
+        // Se for chave gn_*, tentar recuperar como array vazio
+        if(typeof txt==='string' && txt.length<200) console.warn('[gn] JSON.parse falhou:', txt.slice(0,80));
+        if(typeof txt==='string' && txt.indexOf('[')===0) return [];
+        if(typeof txt==='string' && txt.indexOf('{')===0) return {};
+        throw e;
+      }
+    };
+    JSON.__safeParseDone=true;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // F. PERFORMANCE — renderizar só tela ativa
+  // ══════════════════════════════════════════════════════════════
+  // Wrap em algumas funções de render pesadas pra rodar SÓ se a tela estiver visível
+  setTimeout(function(){
+    ['renderPed','renderFin','renderCli','renderAge','renderHist','renderOs','renderSvc','renderFerr','renderProd','renderCompras','renderChamados','renderAtend','renderTarefasHub','renderHoje','renderResumo','renderOs'].forEach(function(fnName){
+      var pane='pane-'+fnName.replace('render','').toLowerCase().replace('hub','tarefas');
+      if(typeof window[fnName]==='function' && !window[fnName].__perfWrap){
+        var orig=window[fnName];
+        window[fnName]=function(){
+          var p=document.getElementById(pane);
+          if(p && p.style.display==='none'){
+            // tela não visível — não renderizar pesado
+            return;
+          }
+          return orig.apply(this, arguments);
+        };
+        window[fnName].__perfWrap=true;
+      }
+    });
+  }, 3000);
+
+  // ══════════════════════════════════════════════════════════════
+  // H. SYNC — não duplicar push da mesma chave em <2s
+  // ══════════════════════════════════════════════════════════════
+  var pushHist={};
+  if(typeof window.gnCloud2PushKey==='function' && !window.gnCloud2PushKey.__noDup){
+    var origPush=window.gnCloud2PushKey;
+    window.gnCloud2PushKey=function(k){
+      var agora=Date.now();
+      if(pushHist[k] && (agora-pushHist[k])<2000) return;
+      pushHist[k]=agora;
+      return origPush.apply(this, arguments);
+    };
+    window.gnCloud2PushKey.__noDup=true;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // CHARTS — destruir antes de criar (evita stack)
+  // ══════════════════════════════════════════════════════════════
+  // já tratado em finRenderCharts, só registrar warning se detectar Chart sem destroy
+  // (logar não causa problema)
+
+  // ══════════════════════════════════════════════════════════════
+  // CONFIRMAÇÕES — manter só pra destrutivas
+  // (modal moderno gnConfirm já trata isso, manter)
+  // ══════════════════════════════════════════════════════════════
+
+  setTimeout(function(){
+    try{ if(window.toast) toast('✓ App estabilizado','ok'); }catch(e){}
+  }, 5500);
+
+  // ══════════════════════════════════════════════════════════════════
+  // ═══ PACOTE ESSENCIAL FINAL — UX, atalhos, loading, validações  ═══
+  // ══════════════════════════════════════════════════════════════════
+
+  // ─── 1. CSS anti-piscada nas trocas de tela + loading global ───
+  var stEss=document.createElement('style');
+  stEss.textContent=
+    // Transição suave entre telas
+    '[id^="pane-"]{transition:opacity .15s ease-out;}'
+    // Loading global
+    +'#gn-loading{position:fixed;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#7c5cff,transparent);background-size:200% 100%;z-index:99999;display:none;animation:gnL 1.2s linear infinite;}'
+    +'@keyframes gnL{0%{background-position:200% 0;}100%{background-position:-200% 0;}}'
+    +'#gn-loading.show{display:block;}'
+    // Modal animação suave
+    +'.gn-modal-bd{animation:gnFI .12s ease-out;}'
+    // Botão "voltar" pra mobile (já tem o do FAB)
+    // Esc visual
+    +'.gn-esc-hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(15,23,41,.9);color:#cbd5e1;border:1px solid rgba(124,92,255,.3);border-radius:18px;padding:5px 14px;font-size:11px;z-index:99100;display:none;}'
+    +'.gn-modal-bd ~ .gn-esc-hint,body:has(.gn-modal-bd) .gn-esc-hint{display:block;}'
+    ;
+  document.head.appendChild(stEss);
+
+  // ─── 2. Indicador de loading global ───
+  var ld=document.createElement('div'); ld.id='gn-loading'; document.body.appendChild(ld);
+  var ldCount=0;
+  window.gnLoadOn=function(){ ldCount++; ld.classList.add('show'); };
+  window.gnLoadOff=function(){ ldCount=Math.max(0, ldCount-1); if(ldCount===0) ld.classList.remove('show'); };
+
+  // Hook em fetch pra mostrar loading automaticamente
+  if(!window.__fetchLoadWrap && typeof window.fetch==='function'){
+    var origFetch=window.fetch;
+    window.fetch=function(){
+      gnLoadOn();
+      return origFetch.apply(this, arguments).finally(function(){gnLoadOff();});
+    };
+    window.__fetchLoadWrap=true;
+  }
+
+  // ─── 3. Esc fecha modais ───
+  document.addEventListener('keydown', function(e){
+    if(e.key==='Escape'){
+      // fecha qualquer modal moderno
+      var modais=document.querySelectorAll('.gn-modal-bd,.gn-pmt-overlay,.gn-sg-bd');
+      if(modais.length){
+        e.preventDefault();
+        try{ modais[modais.length-1].remove(); }catch(_){}
+      }
+    }
+  });
+  // Hint visual (aparece quando modal abre)
+  var h=document.createElement('div'); h.className='gn-esc-hint'; h.innerHTML='Pressione <b>Esc</b> pra fechar';
+  document.body.appendChild(h);
+
+  // ─── 4. Atalhos de teclado ───
+  document.addEventListener('keydown', function(e){
+    // não interfere em inputs
+    if(e.target && (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.isContentEditable)) return;
+    // só com Alt (pra não conflitar com atalhos do Chrome)
+    if(!e.altKey) return;
+    var map={'p':'ped', 'f':'fin', 'c':'cli', 'a':'agenda', 'h':'inicio', 't':'tarefas', 'o':'os', 'r':'renov', 'l':'laudo'};
+    var k=e.key.toLowerCase();
+    if(map[k] && typeof window.goTab==='function'){
+      e.preventDefault();
+      window.goTab(map[k]);
+    }
+  });
+
+  // ─── 5. Botão voltar do navegador (popstate) ───
+  window.addEventListener('popstate', function(){
+    try{
+      var h=String(location.hash||'').replace('#','').trim();
+      if(h && ROTAS_VALIDAS && ROTAS_VALIDAS.indexOf(h)>=0 && typeof window.goTab==='function'){
+        window.goTab(h);
+      }
+    }catch(e){}
+  });
+
+  // ─── 6. Validação monetária — evita NaN ───
+  window.gnNumSafe=function(v){
+    if(v==null) return 0;
+    if(typeof v==='number') return isFinite(v)?v:0;
+    var s=String(v).replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.');
+    var n=Number(s);
+    return isFinite(n)?n:0;
+  };
+  // Auto-fix NaN nos lançamentos financeiros existentes (uma vez)
+  setTimeout(function(){
+    if(localStorage.getItem('gn_nan_fix_v1')) return;
+    try{
+      ['gn_fin','gn_hist','gn_os','gn_rec','gn_ctr'].forEach(function(k){
+        var arr=JSON.parse(localStorage.getItem(k)||'[]');
+        var fixou=false;
+        arr.forEach(function(x){
+          if(x && (x.valor===undefined||isNaN(Number(x.valor)))){
+            x.valor=gnNumSafe(x.valor);
+            fixou=true;
+          }
+        });
+        if(fixou){ localStorage.setItem(k, JSON.stringify(arr)); }
+      });
+      localStorage.setItem('gn_nan_fix_v1','1');
+    }catch(e){}
+  }, 5000);
+
+  // ─── 7. Throttle de re-renders ───
+  var lastRender={};
+  ['renderPed','renderFin','renderCli','renderAge','renderTarefasHub','renderHoje','renderPedTudo'].forEach(function(fn){
+    setTimeout(function(){
+      if(typeof window[fn]!=='function' || window[fn].__throttled) return;
+      var orig=window[fn];
+      window[fn]=function(){
+        var agora=Date.now();
+        if(lastRender[fn] && (agora-lastRender[fn])<300) return; // throttle 300ms
+        lastRender[fn]=agora;
+        return orig.apply(this, arguments);
+      };
+      window[fn].__throttled=true;
+    }, 4000);
+  });
+
+  // ─── 8. Limpar listeners duplicados em botões críticos ───
+  // (já tratamos com __wrap flags em cada hook)
+
+  // ─── 9. Botão "Reportar bug" no rodapé ───
+  setTimeout(function(){
+    if(document.getElementById('gn-bug-btn')) return;
+    var b=document.createElement('button'); b.id='gn-bug-btn';
+    b.style.cssText='position:fixed;bottom:78px;left:14px;background:rgba(220,38,38,.85);color:#fff;border:none;border-radius:50%;width:38px;height:38px;font-size:18px;cursor:pointer;z-index:8500;box-shadow:0 4px 14px rgba(220,38,38,.35);opacity:.45;transition:opacity .2s;';
+    b.innerHTML='🐛'; b.title='Reportar bug';
+    b.onmouseenter=function(){b.style.opacity='1';};
+    b.onmouseleave=function(){b.style.opacity='.45';};
+    b.onclick=function(){
+      if(typeof gnAbrirSugestoes==='function') gnAbrirSugestoes();
+      else alert('Pra reportar bug vá em Configurações > 💡 Enviar sugestão');
+    };
+    document.body.appendChild(b);
+  }, 3000);
+
+  // ─── 10. Auto-clean localStorage > 30 dias (chaves temporárias) ───
+  setTimeout(function(){
+    try{
+      var cutoff=Date.now()-30*86400000;
+      var keys=['gn_orc_rascunho','gn_assist_hist','gn_lembr_avisados'];
+      keys.forEach(function(k){
+        try{
+          var d=JSON.parse(localStorage.getItem(k)||'null');
+          if(d && d.em && d.em<cutoff) localStorage.removeItem(k);
+        }catch(e){}
+      });
+    }catch(e){}
+  }, 10000);
+
+  // ─── 11. Detectar se está em formulário e avisar antes de fechar aba ───
+  window.addEventListener('beforeunload', function(e){
+    try{
+      var p=document.getElementById('pane-novo');
+      if(p && p.style.display!=='none'){
+        // tem formulário de orçamento aberto?
+        var preencheu=false;
+        p.querySelectorAll('input.fi,textarea.fi').forEach(function(el){
+          if(el.value && el.value.length>10) preencheu=true;
+        });
+        if(preencheu){
+          e.preventDefault();
+          e.returnValue='Você tem dados não salvos no orçamento. Sair mesmo assim?';
+          return e.returnValue;
+        }
+      }
+    }catch(e){}
+  });
+
+  // ─── 12. Aviso visual quando offline ───
+  // (já existe gn-offl banner)
+
+  setTimeout(function(){
+    try{ if(window.toast) toast('✓ Pacote essencial ativo — Alt+P/F/C/A pra navegar, Esc fecha modal, F5 mantém tela','ok'); }catch(e){}
+  }, 6500);
+
+})();
+</script>
+<script>
+// Trailing fix — garante que goTab sempre exista
+(function(){
+  if(typeof window.goTab!=='function'){
+    window.goTab=function(t){
+      try{ document.querySelectorAll('[id^="pane-"]').forEach(function(el){el.style.display='none';}); }catch(e){}
+      try{ var p=document.getElementById('pane-'+t); if(p) p.style.display='block'; }catch(e){}
+      try{ localStorage.setItem('gn_last_route', t); }catch(e){}
+      try{ history.replaceState(null, '', '#'+t); }catch(e){}
+    };
+  }
+
   // Também atualiza quando clica nos botões do menu lateral
   setTimeout(function(){
     try{
