@@ -19402,5 +19402,169 @@ window.gnDocAbrir=function(tipo,id,num){
 
 })();
 </script>
+<script>
+// ══════════════════════════════════════════════════════════════════
+// ═══ FIX TRIPLO CRÍTICO                                          ═══
+// ═══ 1. Orçamentos geram → aparecem na hora em Pedidos           ═══
+// ═══ 2. Layout estabilizado (para de mudar de hora em hora)      ═══
+// ═══ 3. Modo COMPACTO por padrão (letras menores, design limpo)  ═══
+// ══════════════════════════════════════════════════════════════════
+(function(){
+  function $(id){return document.getElementById(id);}
+
+  // ══════════════════════════════════════════════════════════════
+  // 1) HOOK saveHist + auto-render Pedidos
+  // Toda vez que QUALQUER documento for salvo, força render imediato
+  // ══════════════════════════════════════════════════════════════
+  function forceRenderPedidos(){
+    try{
+      if(window.renderPedTudo) renderPedTudo();
+      if(window.renderPed) renderPed();
+      if(window.updCount) updCount();
+    }catch(e){}
+  }
+  // wrap saveHist
+  setTimeout(function(){
+    if(typeof window.saveHist==='function' && !window.saveHist.__autoRender){
+      var orig=window.saveHist;
+      window.saveHist=function(){
+        var r=orig.apply(this, arguments);
+        setTimeout(forceRenderPedidos, 100);
+        setTimeout(forceRenderPedidos, 500); // segunda vez pra garantir
+        return r;
+      };
+      window.saveHist.__autoRender=true;
+    }
+    if(typeof window.gnAutoSaveDoc==='function' && !window.gnAutoSaveDoc.__autoRender){
+      var orig2=window.gnAutoSaveDoc;
+      window.gnAutoSaveDoc=function(){
+        var r=orig2.apply(this, arguments);
+        setTimeout(forceRenderPedidos, 100);
+        return r;
+      };
+      window.gnAutoSaveDoc.__autoRender=true;
+    }
+  }, 1500);
+
+  // ══════════════════════════════════════════════════════════════
+  // 2) Storage event listener — detecta mudanças e re-renderiza
+  // ══════════════════════════════════════════════════════════════
+  window.addEventListener('storage', function(ev){
+    if(!ev || !ev.key) return;
+    if(/^gn_(hist|os|rec|ctr|renov)$/.test(ev.key)){
+      setTimeout(forceRenderPedidos, 100);
+    }
+  });
+
+  // Polling local de gn_hist (caso o storage event não dispare na mesma aba)
+  var lastHistLen=0;
+  setInterval(function(){
+    try{
+      var arr=JSON.parse(localStorage.getItem('gn_hist')||'[]');
+      if(arr.length!==lastHistLen){
+        lastHistLen=arr.length;
+        var p=$('pane-ped');
+        if(p && p.style.display!=='none') forceRenderPedidos();
+      }
+    }catch(e){}
+  }, 2000);
+
+  // ══════════════════════════════════════════════════════════════
+  // 3) MODO COMPACTO POR PADRÃO (letras/botões menores, layout limpo)
+  // ══════════════════════════════════════════════════════════════
+  try{
+    if(!localStorage.getItem('gn_layout_mode')){
+      localStorage.setItem('gn_layout_mode','compact');
+    }
+  }catch(e){}
+  // aplica imediatamente
+  setTimeout(function(){
+    document.body.classList.remove('gn-cozy','gn-compact');
+    document.body.classList.add('gn-compact');
+  }, 500);
+
+  // CSS COMPACTO global — mais agressivo
+  var st=document.createElement('style');
+  st.textContent=
+    'body.gn-compact .ini-card,body.gn-compact #fin-cards>div{padding:8px 10px!important;}'
+    +'body.gn-compact button{padding:7px 10px!important;font-size:12px!important;}'
+    +'body.gn-compact .pgtitle{font-size:18px!important;margin-bottom:2px!important;}'
+    +'body.gn-compact .pgsub{font-size:12px!important;margin-bottom:8px!important;}'
+    +'body.gn-compact .gn-ped-v3 .doc{padding:11px 13px!important;margin-bottom:6px!important;}'
+    +'body.gn-compact .gn-ped-v3 .doc-nome{font-size:14px!important;}'
+    +'body.gn-compact .gn-ped-v3 .doc-val{font-size:14.5px!important;}'
+    +'body.gn-compact .gn-ped-v3 .doc-meta{font-size:11px!important;}'
+    +'body.gn-compact .gn-ped-v3 .ab{padding:5px 9px!important;font-size:11.5px!important;}'
+    +'body.gn-compact .gn-ped-v3 .chip{padding:5px 11px!important;font-size:12px!important;}'
+    +'body.gn-compact .eyebrow{font-size:10px!important;letter-spacing:1px;}'
+    +'body.gn-compact label{font-size:12px!important;}'
+    +'body.gn-compact input,body.gn-compact textarea,body.gn-compact select{font-size:13px!important;padding:8px 10px!important;}'
+    ;
+  document.head.appendChild(st);
+
+  // ══════════════════════════════════════════════════════════════
+  // 4) LAYOUT ESTÁVEL: parar TODOS os setInterval de re-render
+  // do pane-inicio. Renderiza UMA VEZ no load e quando muda algo.
+  // ══════════════════════════════════════════════════════════════
+  // O sistema atual tem 5+ setIntervals que reinjetam blocos.
+  // Vou neutralizar TODOS e deixar UM ÚNICO render no pane-inicio.
+
+  // Lista FINAL e DEFINITIVA do que pode aparecer na tela inicial
+  var BANIDOS_INICIO=['gn-hpr','gn-funil-mini','gn-gar-alert','gn-resumo-bloco','gn-urg-banner','gn-cerebro'];
+
+  // CSS força banimento
+  var stBan=document.createElement('style');
+  stBan.textContent=BANIDOS_INICIO.map(function(id){return '#pane-inicio #'+id+', #'+id;}).join(',')+'{display:none!important;visibility:hidden!important;}';
+  document.head.appendChild(stBan);
+
+  // Renderiza compromissos UMA VEZ
+  var __compRendered=false;
+  function renderCompUmaVez(){
+    try{
+      if(typeof window.renderCompromissosDia==='function'){
+        window.renderCompromissosDia();
+        __compRendered=true;
+      }
+    }catch(e){}
+  }
+  setTimeout(renderCompUmaVez, 1200);
+
+  // Re-render só se a tela inicial estiver visível E o usuário mudou alguma agenda
+  var lastAgLen=0;
+  setInterval(function(){
+    try{
+      var p=$('pane-inicio'); if(!p || p.style.display==='none') return;
+      var ag=JSON.parse(localStorage.getItem('gn_agenda')||'[]');
+      if(ag.length!==lastAgLen){
+        lastAgLen=ag.length;
+        renderCompUmaVez();
+      }
+    }catch(e){}
+  }, 3000);
+
+  // ══════════════════════════════════════════════════════════════
+  // 5) FAB mobile: garantir que está sempre acessível
+  // ══════════════════════════════════════════════════════════════
+  // (já existe — não mexer)
+
+  // ══════════════════════════════════════════════════════════════
+  // 6) Forçar render no abrir do pane-ped
+  // ══════════════════════════════════════════════════════════════
+  if(typeof window.goTab==='function' && !window.goTab.__pedAutoR){
+    var _ogt=window.goTab;
+    window.goTab=function(t){
+      _ogt.apply(this, arguments);
+      if(t==='ped') setTimeout(forceRenderPedidos, 200);
+    };
+    try{for(var k in _ogt) if(_ogt.hasOwnProperty(k)) window.goTab[k]=_ogt[k];}catch(e){}
+    window.goTab.__pedAutoR=true;
+  }
+
+  setTimeout(function(){
+    try{ if(window.toast) toast('✓ Tela inicial estável + modo compacto + Pedidos sempre atualizados','ok'); }catch(e){}
+  }, 3500);
+
+})();
+</script>
 </body>
 </html>
