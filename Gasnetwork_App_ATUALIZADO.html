@@ -19329,28 +19329,12 @@ window.gnDocAbrir=function(tipo,id,num){
     return arg;
   }
 
-  // ═══ MONKEY-PATCH jsPDF assim que estiver disponível ═══
+  // ═══ DESATIVADO — wrap de jsPDF estava quebrando geração ═══
+  // A sanitização agora é feita ANTES dos dados chegarem ao jsPDF
+  // (no momento de salvar em gn_hist e ler do gn_hist)
   function patchJsPDF(){
-    try{
-      var JP=window.jspdf && window.jspdf.jsPDF;
-      if(!JP || !JP.API || JP.API.__gnSanitized) return;
-      var origText=JP.API.text;
-      JP.API.text=function(text){
-        try{
-          arguments[0]=sanitize(text);
-        }catch(e){}
-        return origText.apply(this, arguments);
-      };
-      var origSplit=JP.API.splitTextToSize;
-      if(origSplit){
-        JP.API.splitTextToSize=function(text){
-          try{ arguments[0]=sanitize(text); }catch(e){}
-          return origSplit.apply(this, arguments);
-        };
-      }
-      JP.API.__gnSanitized=true;
-      console.log('[gnPDF] jsPDF sanitizado com sucesso');
-    }catch(e){console.warn('[gnPDF] erro patch:', e);}
+    // no-op — deixar jsPDF puro
+    return;
   }
 
   // Tenta agora e tenta de novo conforme o jsPDF carrega
@@ -19653,49 +19637,29 @@ window.gnDocAbrir=function(tipo,id,num){
     return t;
   };
 
-  // Re-patchar jsPDF MAIS forte
-  function patchJsPDFUltra(){
-    try{
-      var JP=window.jspdf && window.jspdf.jsPDF;
-      if(!JP || !JP.API) return;
-      if(JP.API.__ultraSanitized) return;
-      // recolocar text com forced font + charspace + ultra sanitize
-      var origText=JP.API.text;
-      JP.API.text=function(text){
-        try{
-          // força fonte e charSpace antes de TUDO
-          try{ this.setFont && this.setFont('helvetica','normal'); }catch(e){}
-          try{ this.setCharSpace && this.setCharSpace(0); }catch(e){}
-          // sanitiza ultra
-          if(text!=null){
-            if(Array.isArray(text)){
-              arguments[0]=text.map(function(x){return window.gnSanitizaUltra(x);});
-            } else {
-              arguments[0]=window.gnSanitizaUltra(text);
-            }
-          }
-        }catch(e){}
-        return origText.apply(this, arguments);
-      };
-      var origSplit=JP.API.splitTextToSize;
-      if(origSplit){
-        JP.API.splitTextToSize=function(text){
-          try{
-            if(text!=null && typeof text==='string') arguments[0]=window.gnSanitizaUltra(text);
-          }catch(e){}
-          return origSplit.apply(this, arguments);
-        };
-      }
-      JP.API.__ultraSanitized=true;
-      console.log('[gnPDF ULTRA] jsPDF sanitizado AGRESSIVAMENTE');
-    }catch(e){console.warn(e);}
-  }
-  patchJsPDFUltra();
-  var ttU=0;
-  var ivU=setInterval(function(){ patchJsPDFUltra(); ttU++; if(ttU>30) clearInterval(ivU); }, 800);
+  // REMOVIDO: patchJsPDFUltra causava conflito com o primeiro patch.
+  // A sanitização do primeiro patch (gnLimpaTxtPDF) já remove emojis.
 
   // REMOVIDO: wrap do gnDocPDF estava causando "Cannot read properties of undefined (reading 'apply')"
   // A sanitização do jsPDF.text já resolve emojis nos PDFs gerados.
+
+  // SANITIZAÇÃO EM OUTRO NÍVEL — hook em saveHist (limpa antes de salvar)
+  setTimeout(function(){
+    if(typeof window.saveHist==='function' && !window.saveHist.__sanWrap){
+      var orig=window.saveHist;
+      window.saveHist=function(entry){
+        try{
+          if(entry && typeof entry==='object'){
+            ['cliente','servicos','tipoDoc','descricao','obs','obsTec','escopo'].forEach(function(k){
+              if(typeof entry[k]==='string') entry[k]=window.gnSanitizaUltra(entry[k]);
+            });
+          }
+        }catch(e){}
+        return orig.apply(this, arguments);
+      };
+      window.saveHist.__sanWrap=true;
+    }
+  }, 3000);
 
   // FUNÇÃO PARA LIMPAR DADOS ANTIGOS DO gn_hist (acessível via Configurações)
   window.gnLimparEmojisHist=function(){
@@ -20554,6 +20518,262 @@ window.gnDocAbrir=function(tipo,id,num){
 })();
 </script>
 <script>
+// ════════════════════════════════════════════════════════════
+// TESTADOR DE PDFs — gera 5 exemplos pra validar
+// ════════════════════════════════════════════════════════════
+(function(){
+  // Função única que gera PDFs de teste e baixa todos
+  window.gnTestarPDFs=function(){
+    if(!window.jspdf || !window.jspdf.jsPDF){
+      alert('jsPDF não carregado. Aguarde 2s e tente de novo.');
+      return;
+    }
+    var JS=window.jspdf.jsPDF;
+
+    // PDF 1 — Teste básico (caracteres normais)
+    setTimeout(function(){
+      try{
+        var doc=new JS({unit:'mm', format:'a4'});
+        doc.setFont('helvetica','bold'); doc.setFontSize(18);
+        doc.text('TESTE 1 — Gás Network — PDF Básico', 20, 25);
+        doc.setFont('helvetica','normal'); doc.setFontSize(11);
+        var y=40;
+        var linhas=[
+          'Cliente: João da Silva',
+          'CPF: 123.456.789-00',
+          'Endereço: Rua das Flores, 123 - São Paulo/SP',
+          '',
+          'Serviços executados:',
+          '- Instalação de tubulação de gás GLP',
+          '- Teste de estanqueidade conforme NBR 15526',
+          '- Aplicação de resina em vazamento',
+          '- Troca de regulador',
+          '',
+          'Valor total: R$ 1.234,56',
+          'Pagamento: PIX à vista (5% desc)',
+          'Garantia: 1 ano',
+          '',
+          'Acentuação: ção, ã, é, á, ó, ú, ç, ê, î',
+          'Observação técnica importante!'
+        ];
+        linhas.forEach(function(l){ doc.text(l, 20, y); y+=7; });
+        doc.save('TESTE-1-PDF-Basico.pdf');
+      }catch(e){ alert('Erro teste 1: '+e.message); }
+    }, 100);
+
+    // PDF 2 — Teste com EMOJIS (deveriam ser removidos)
+    setTimeout(function(){
+      try{
+        var doc=new JS({unit:'mm', format:'a4'});
+        doc.setFont('helvetica','bold'); doc.setFontSize(18);
+        doc.text('TESTE 2 — Texto com emojis (devem sumir)', 20, 25);
+        doc.setFont('helvetica','normal'); doc.setFontSize(11);
+        var y=40;
+        var linhas=[
+          '📅 Agenda do dia 26/05/2026',
+          '🛡 Garantia ativa de 12 meses',
+          '🔧 Etapa 1 — Elaboração do Projeto',
+          '📋 Checklist de execução',
+          '✅ Item concluído',
+          '✗ Item pendente',
+          '• Bullet com ponto medio',
+          '— Dash longo',
+          '→ Seta direita',
+          '"Aspas curvas" e \'mais aspas\'',
+          'Reticências…',
+          'Símbolos ™ © ®',
+          'Acentos: aplicação não é só técnica'
+        ];
+        linhas.forEach(function(l){ doc.text(l, 20, y); y+=7; });
+        doc.save('TESTE-2-Com-Emojis.pdf');
+      }catch(e){ alert('Erro teste 2: '+e.message); }
+    }, 400);
+
+    // PDF 3 — Teste com TABELA (orçamento simulado)
+    setTimeout(function(){
+      try{
+        var doc=new JS({unit:'mm', format:'a4'});
+        // cabeçalho
+        doc.setFont('helvetica','bold'); doc.setFontSize(16);
+        doc.text('Gás Network Engenharia', 20, 20);
+        doc.setFontSize(9); doc.setFont('helvetica','normal');
+        doc.text('CNPJ: 46.701.957/0001-66 · (11) 98542-4462', 20, 26);
+        // linha
+        doc.line(20, 30, 190, 30);
+        // título
+        doc.setFontSize(14); doc.setFont('helvetica','bold');
+        doc.text('PROPOSTA COMERCIAL — Nº ORC-2605-001', 105, 40, {align:'center'});
+        // cliente
+        doc.setFontSize(11);
+        doc.text('Cliente:', 20, 55); doc.setFont('helvetica','normal'); doc.text('Maria das Graças Oliveira', 50, 55);
+        doc.setFont('helvetica','bold'); doc.text('CPF/CNPJ:', 20, 62); doc.setFont('helvetica','normal'); doc.text('987.654.321-00', 50, 62);
+        doc.setFont('helvetica','bold'); doc.text('Endereço:', 20, 69); doc.setFont('helvetica','normal'); doc.text('Rua das Camélias 456, Vila Mariana', 50, 69);
+        doc.setFont('helvetica','bold'); doc.text('Telefone:', 20, 76); doc.setFont('helvetica','normal'); doc.text('(11) 99876-5432', 50, 76);
+        // tabela
+        doc.setFont('helvetica','bold'); doc.setFontSize(10);
+        doc.setFillColor(124,92,255); doc.rect(20, 90, 170, 8, 'F');
+        doc.setTextColor(255,255,255);
+        doc.text('Descrição do serviço', 22, 96);
+        doc.text('Qtd', 120, 96, {align:'right'});
+        doc.text('Vlr Unit.', 150, 96, {align:'right'});
+        doc.text('Subtotal', 188, 96, {align:'right'});
+        doc.setTextColor(0,0,0); doc.setFont('helvetica','normal');
+        var items=[
+          ['Aplicação de resina em vazamento', 1, 350.00, 350.00],
+          ['Troca de mangueira (5 metros)', 5, 25.00, 125.00],
+          ['Laudo técnico de estanqueidade', 1, 320.00, 320.00],
+          ['ART do CREA', 1, 150.00, 150.00]
+        ];
+        var y=104;
+        items.forEach(function(it){
+          doc.text(String(it[0]), 22, y);
+          doc.text(String(it[1]), 120, y, {align:'right'});
+          doc.text('R$ '+it[2].toLocaleString('pt-BR',{minimumFractionDigits:2}), 150, y, {align:'right'});
+          doc.text('R$ '+it[3].toLocaleString('pt-BR',{minimumFractionDigits:2}), 188, y, {align:'right'});
+          y+=7;
+        });
+        // total
+        doc.line(20, y, 190, y); y+=8;
+        doc.setFont('helvetica','bold'); doc.setFontSize(12);
+        doc.text('VALOR TOTAL: R$ 945,00', 188, y, {align:'right'});
+        // condições
+        y+=15;
+        doc.setFont('helvetica','bold'); doc.setFontSize(11);
+        doc.text('Condições da proposta', 20, y); y+=7;
+        doc.setFont('helvetica','normal'); doc.setFontSize(10);
+        doc.text('Pagamento: 50% sinal + 50% conclusão (PIX)', 20, y); y+=6;
+        doc.text('Prazo de execução: até 10 dias úteis', 20, y); y+=6;
+        doc.text('Validade da proposta: 30 dias', 20, y); y+=6;
+        doc.text('Garantia: 12 meses para serviços executados', 20, y);
+        // rodapé
+        doc.setFontSize(8); doc.setTextColor(120,120,120);
+        doc.text('Gás Network Engenharia · Rua Ascânio 263 · São Paulo/SP · contato@gasnetwork.com.br', 105, 285, {align:'center'});
+        doc.save('TESTE-3-Proposta-Completa.pdf');
+      }catch(e){ alert('Erro teste 3: '+e.message); }
+    }, 800);
+
+    // PDF 4 — Teste com TEXTO LONGO (várias páginas)
+    setTimeout(function(){
+      try{
+        var doc=new JS({unit:'mm', format:'a4'});
+        doc.setFont('helvetica','bold'); doc.setFontSize(14);
+        doc.text('TESTE 4 — Texto longo (deve quebrar páginas)', 20, 25);
+        doc.setFont('helvetica','normal'); doc.setFontSize(10);
+        var texto='A proposta apresentada pela Gás Network Engenharia tem por objeto a execução completa do sistema de tubulação de gás natural do imóvel localizado no endereço informado pelo cliente. Os serviços incluem o levantamento técnico preliminar, a elaboração do projeto executivo conforme as normas NBR 15526, NBR 13103 e NBR 15358, bem como a Instrução Técnica IT-28/IT-29 do Corpo de Bombeiros. ';
+        texto=texto.repeat(15);
+        var linhas=doc.splitTextToSize(texto, 170);
+        var y=40;
+        linhas.forEach(function(l){
+          if(y>275){ doc.addPage(); y=20; }
+          doc.text(l, 20, y);
+          y+=5;
+        });
+        doc.save('TESTE-4-Texto-Longo.pdf');
+      }catch(e){ alert('Erro teste 4: '+e.message); }
+    }, 1200);
+
+    // PDF 5 — Teste com valores monetários e datas
+    setTimeout(function(){
+      try{
+        var doc=new JS({unit:'mm', format:'a4'});
+        doc.setFont('helvetica','bold'); doc.setFontSize(14);
+        doc.text('TESTE 5 — Números e datas brasileiros', 20, 25);
+        doc.setFont('helvetica','normal'); doc.setFontSize(11);
+        var y=40;
+        var linhas=[
+          'Valores formatados em R$:',
+          '  R$ 1.234,56',
+          '  R$ 10.987,00',
+          '  R$ 100.000,00',
+          '  R$ 1.000.000,00',
+          '',
+          'Datas brasileiras:',
+          '  26/05/2026',
+          '  01/01/2025',
+          '  31/12/2026',
+          '',
+          'Horários:',
+          '  09:30',
+          '  14:00 às 18:00',
+          '',
+          'Percentuais:',
+          '  10%',
+          '  3,5%',
+          '  100%',
+          '',
+          'Telefones:',
+          '  (11) 98542-4462',
+          '  +55 11 99999-9999',
+          '',
+          'CNPJ: 46.701.957/0001-66',
+          'CPF: 123.456.789-00',
+          'CEP: 03373-080'
+        ];
+        linhas.forEach(function(l){ doc.text(l, 20, y); y+=7; });
+        doc.save('TESTE-5-Numeros-Datas.pdf');
+      }catch(e){ alert('Erro teste 5: '+e.message); }
+    }, 1600);
+
+    if(window.toast) toast('🧪 Gerando 5 PDFs de teste... verifique sua pasta de Downloads','ok');
+  };
+})();
+</script>
+<script>
+// ════════════════════════════════════════════════════════════
+// ROUTER GUARD — proteção AGRESSIVA contra goTab('inicio') no boot
+// ════════════════════════════════════════════════════════════
+(function(){
+  // Detecta SE o usuário queria abrir uma tela específica
+  var hashIni=String(location.hash||'').replace('#','').trim();
+  var lastRoute='';
+  try{ lastRoute=localStorage.getItem('gn_last_route')||localStorage.getItem('gn_last_tab')||''; }catch(e){}
+  var rotaAlvo=hashIni || lastRoute || '';
+
+  // Se não queria inicio, BLOQUEIA goTab('inicio') por 8 segundos
+  if(rotaAlvo && rotaAlvo!=='inicio'){
+    window.__gnRotaAlvo=rotaAlvo;
+    window.__gnBloqInicio=true;
+    setTimeout(function(){ window.__gnBloqInicio=false; }, 8000);
+
+    // Hook em goTab pra bloquear inicio durante boot
+    var checkInterval=setInterval(function(){
+      if(typeof window.goTab!=='function') return;
+      if(window.goTab.__guardWrap){ clearInterval(checkInterval); return; }
+      var orig=window.goTab;
+      window.goTab=function(t){
+        if(window.__gnBloqInicio && t==='inicio' && window.__gnRotaAlvo){
+          // bloqueado — usuário queria outra tela
+          console.log('[gn-router] Bloqueado goTab(inicio), forçando', window.__gnRotaAlvo);
+          return orig.apply(this, [window.__gnRotaAlvo]);
+        }
+        // se o user clicou MANUAL em inicio, deixa
+        return orig.apply(this, arguments);
+      };
+      try{for(var k in orig) if(orig.hasOwnProperty(k)) window.goTab[k]=orig[k];}catch(e){}
+      window.goTab.__guardWrap=true;
+      clearInterval(checkInterval);
+
+      // Força abrir a rota alvo no boot
+      var tentativas=0;
+      var ivAbrir=setInterval(function(){
+        try{
+          var p=document.getElementById('pane-'+rotaAlvo);
+          if(p){
+            // verificar se já está aberta
+            if(p.style.display==='none' || !p.offsetHeight){
+              window.goTab(rotaAlvo);
+            }
+            tentativas++;
+            if(tentativas>10) clearInterval(ivAbrir);
+          }
+        }catch(e){}
+      }, 600);
+      setTimeout(function(){ clearInterval(ivAbrir); }, 9000);
+    }, 100);
+  }
+})();
+</script>
+<script>
 // Final wrapper - hook menu lateral pra salvar última aba
 (function(){
   setTimeout(function(){
@@ -20567,6 +20787,7 @@ window.gnDocAbrir=function(tipo,id,num){
             if(t){
               try{ localStorage.setItem('gn_last_tab', t); }catch(e){}
               try{ localStorage.setItem('gn_last_route', t); }catch(e){}
+              try{ if(history.replaceState) history.replaceState(null, '', '#'+t); }catch(e){}
             }
           }
         }, true);
@@ -20578,3 +20799,4 @@ window.gnDocAbrir=function(tipo,id,num){
 </script>
 </body>
 </html>
+          
