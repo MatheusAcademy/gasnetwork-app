@@ -3215,14 +3215,14 @@ function gerarPDF(){
         } else {
           var _v=Number(total)||0; var _v1=_v/2;
           var _brlP=function(n){return 'R$ '+(Number(n)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
-          var _tplPrem='Liberar formalmente a area para inicio e execucao dos servicos contratados;\n\n'
-            +'Efetuar o pagamento do sinal de 50%'+(_v?(' ('+_brlP(_v1)+')'):'')+' para autorizacao de inicio do projeto;\n\n'
-            +'Garantir acesso ao local da obra nos dias e horarios previamente acordados;\n\n'
-            +'Informar antecipadamente qualquer restricao de horario, regra do condominio, necessidade de autorizacao interna ou particularidade do local;\n\n'
-            +'Comunicar previamente a existencia de possiveis interferencias, como rede eletrica, hidraulica, estrutural, tubulacoes embutidas, acabamentos sensiveis ou qualquer outro fator que possa interferir na execucao;\n\n'
-            +'Disponibilizar responsavel no local para acompanhamento, liberacao de acesso e validacao das etapas executadas, quando necessario;\n\n'
-            +'Providenciar autorizacoes junto ao condominio, administracao, sindico ou responsavel pelo imovel, quando aplicavel;\n\n'
-            +'Garantir que o ambiente esteja livre e acessivel para a execucao segura dos servicos.';
+          var _tplPrem='Liberar formalmente a área para início e execução dos serviços contratados.\n\n'
+            +'Efetuar o pagamento do sinal de 50%'+(_v?(' ('+_brlP(_v1)+')'):'')+' para autorização de início do projeto.\n\n'
+            +'Garantir acesso ao local da obra nos dias e horários previamente acordados.\n\n'
+            +'Informar antecipadamente qualquer restrição de horário, regra do condomínio, necessidade de autorização interna ou particularidade do local.\n\n'
+            +'Comunicar previamente a existência de possíveis interferências, como rede elétrica, hidráulica, estrutural, tubulações embutidas, acabamentos sensíveis ou qualquer outro fator que possa interferir na execução.\n\n'
+            +'Disponibilizar responsável no local para acompanhamento, liberação de acesso e validação das etapas executadas, quando necessário.\n\n'
+            +'Providenciar autorizações junto ao condomínio, administração, síndico ou responsável pelo imóvel, quando aplicável.\n\n'
+            +'Garantir que o ambiente esteja livre e acessível para a execução segura dos serviços.';
           _add('Responsabilidades do Contratante', _tplPrem);
         }
       }
@@ -3237,30 +3237,30 @@ function gerarPDF(){
       if(_condTextoLivre.trim()){
         _add('Condições de Pagamento', _condTextoLivre);
       } else {
-        // Template padrão profissional sem emojis (Matheus 26/05/2026)
+        // Template padrão profissional COM acentos pt-BR (igual ao PDF de exemplo)
         var _v=Number(total)||0;
         var _v1=_v/2; var _v2=_v-_v1;
         var _brl=function(n){return 'R$ '+(Number(n)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
-        var _tplCond='O pagamento sera dividido em duas parcelas de 50%.\n\n'
-          +'A primeira parcela, no valor de '+_brl(_v1)+', sera paga na aprovacao da proposta, para inicio do projeto tecnico, emissao da ART e agendamento da obra.\n\n'
-          +'A segunda parcela, no valor de '+_brl(_v2)+', sera paga em ate 30 dias corridos apos o pagamento do sinal.\n\n'
+        var _tplCond='O pagamento será dividido em duas parcelas de 50%.\n\n'
+          +'A primeira parcela, no valor de '+_brl(_v1)+', será paga na aprovação da proposta, para início do projeto técnico, emissão da ART e agendamento da obra.\n\n'
+          +'A segunda parcela, no valor de '+_brl(_v2)+', será paga em até 30 dias corridos após o pagamento do sinal.\n\n'
           +'Valor total da proposta: '+_brl(_v)+'.\n\n'
-          +'Formas de pagamento aceitas: PIX, transferencia bancaria ou deposito identificado.\n\n'
-          +'Em caso de atraso, podera haver multa de 2%, juros de 1% ao mes e correcao pelo IGP-M.\n\n'
-          +'Sera emitida Nota Fiscal conforme cada pagamento recebido.';
-        _add('Condicoes de Pagamento', _tplCond);
+          +'Formas de pagamento aceitas: PIX, transferência bancária ou depósito identificado.\n\n'
+          +'Em caso de atraso, poderá haver multa de 2%, juros de 1% ao mês e correção pelo IGP-M.\n\n'
+          +'Será emitida Nota Fiscal conforme cada pagamento recebido.';
+        _add('Condições de Pagamento', _tplCond);
       }
-      // Prazo de Execucao — template inteligente
+      // Prazo de Execução — template inteligente (com acentos)
       var _prazoLivre=(document.getElementById('f-prazos-det')||{}).value||'';
       if(!_prazoLivre.trim()){
-        var _tplPrazo='Apos o pagamento do sinal, sera iniciado o projeto tecnico, incluindo planta da rede de gas, desenho isometrico e emissao da ART, com prazo de ate 10 dias uteis.\n\n'
-          +'Apos a entrega do projeto e da ART, sera realizado o agendamento da instalacao com o cliente.\n\n'
-          +'A execucao contempla os servicos descritos no escopo desta proposta, incluindo a instalacao da tubulacao, conexoes, fixacoes e pintura de identificacao quando aplicavel.\n\n'
-          +'Apos a instalacao, sera realizado o teste de estanqueidade e entregue a documentacao tecnica.';
-        _add('Prazo de Execucao', _tplPrazo);
+        var _tplPrazo='Após o pagamento do sinal, será iniciado o projeto técnico, incluindo planta da rede de gás, desenho isométrico e emissão da ART, com prazo de até 10 dias úteis.\n\n'
+          +'Após a entrega do projeto e da ART, será realizado o agendamento da instalação com o cliente.\n\n'
+          +'A execução contempla os serviços descritos no escopo desta proposta, incluindo a instalação da tubulação, conexões, fixações e pintura de identificação quando aplicável.\n\n'
+          +'Após a instalação, será realizado o teste de estanqueidade e entregue a documentação técnica.';
+        _add('Prazo de Execução', _tplPrazo);
       }
-      // Validade — sempre aparece
-      _add('Validade da Proposta', 'A proposta e valida por '+(validade||'30 dias')+' corridos a partir da data de emissao.');
+      // Validade — sempre aparece (com acentos)
+      _add('Validade da Proposta', 'A proposta é válida por '+(validade||'30 dias')+' corridos a partir da data de emissão.');
       var _infoPad='Esta proposta foi elaborada com base nas informações repassadas até o momento. Caso sejam identificadas necessidades técnicas adicionais no local, a proposta poderá ser reavaliada. A ART é fornecida mediante solicitação prévia. Os serviços seguem as normas ABNT NBR 15526, 13103, 15358 e IT-28/IT-29.';
       var _infoAdic = obsAdic? (obsAdic+'\n'+_infoPad) : _infoPad;
       var _opts={ titulo:(currentMode==='completo'?'PROPOSTA COMERCIAL':'ORÇAMENTO'), numero:docNum, data:dtStr,
@@ -20951,6 +20951,219 @@ window.gnDocAbrir=function(tipo,id,num){
       }
     }catch(e){}
   }, 2000);
+})();
+</script>
+<script>
+// ════════════════════════════════════════════════════════════
+// SANITIZAÇÃO GLOBAL DE PDFs — só letras, números e pontuação
+// ════════════════════════════════════════════════════════════
+(function(){
+  // Função que limpa texto pra PDF — mantém só caracteres seguros
+  function soLetras(s){
+    if(s==null) return '';
+    var t=String(s);
+    // 1. Remove emojis Unicode (todos os ranges)
+    try{
+      t=t.replace(/[\u{1F000}-\u{1FFFF}]/gu,'');
+      t=t.replace(/[\u{2600}-\u{27BF}]/gu,'');
+      t=t.replace(/[\u{FE00}-\u{FE0F}]/gu,'');
+      t=t.replace(/[\u{200B}-\u{200F}]/gu,'');
+      t=t.replace(/[\u{2060}-\u{206F}]/gu,'');
+      t=t.replace(/[\u{FFF0}-\u{FFFF}]/gu,'');
+    }catch(e){
+      t=t.replace(/[\uD83C-\uDBFF][\uDC00-\uDFFF]/g,'');
+    }
+    // 2. Remove caracteres de emoji corrompidos comuns (Ø=ÜÆ, &™þ, 'þ)
+    t=t.replace(/Ø=ÜÆ/g,'').replace(/Ø=Ý'/g,'').replace(/&™þ/g,'');
+    t=t.replace(/Ø=[^\s]+/g,'');
+    t=t.replace(/['"]?\s*þ\s*/g,'');
+    t=t.replace(/\bþ\b/g,'');
+    // 3. Substitui caracteres tipográficos por equivalentes ASCII
+    t=t.replace(/[‘’‚‛]/g,"'");
+    t=t.replace(/[“”„‟]/g,'"');
+    t=t.replace(/[–—―]/g,'-');
+    t=t.replace(/[…]/g,'...');
+    t=t.replace(/[ ]/g,' ');
+    // 4. Substitui bullets por hífen
+    t=t.replace(/[•‣◦⁃⁌⁍∙●○]/g,'-');
+    // 5. Remove caracteres de controle (exceto \n \r \t)
+    t=t.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,'');
+    // 6. SÓ permite: ASCII printável (32-126) + Latin-1 (160-255) + quebras
+    var out='';
+    for(var i=0;i<t.length;i++){
+      var c=t.charCodeAt(i);
+      if(c===10||c===13||c===9||(c>=32&&c<=126)||(c>=160&&c<=255)){
+        out+=t[i];
+      }
+    }
+    // 7. Limpa espaços duplos
+    out=out.replace(/[ \t]+/g,' ');
+    return out;
+  }
+  window.gnSoLetras=soLetras;
+
+  // Aplicar patch no jsPDF — SUPER defensivo
+  function aplicarPatchPDF(){
+    try{
+      var JP=window.jspdf && window.jspdf.jsPDF;
+      if(!JP || !JP.API) return false;
+      if(JP.API.__soLetrasPatch) return true;
+      var origText=JP.API.text;
+      if(typeof origText!=='function') return false;
+      JP.API.text=function(text){
+        // forçar fonte e charSpace antes
+        try{ this.setFont&&this.setFont('helvetica','normal'); }catch(_){}
+        try{ this.setCharSpace&&this.setCharSpace(0); }catch(_){}
+        // sanitizar texto
+        try{
+          if(text!=null){
+            if(Array.isArray(text)){
+              arguments[0]=text.map(function(x){return typeof x==='string'?soLetras(x):x;});
+            } else if(typeof text==='string'){
+              arguments[0]=soLetras(text);
+            }
+          }
+        }catch(_){}
+        // chamar original com proteção dupla
+        try{
+          return origText.apply(this, arguments);
+        }catch(e){
+          try{ return origText.call(this, String(text||'')); }
+          catch(e2){ return undefined; }
+        }
+      };
+      var origSplit=JP.API.splitTextToSize;
+      if(typeof origSplit==='function'){
+        JP.API.splitTextToSize=function(text){
+          try{
+            if(typeof text==='string') arguments[0]=soLetras(text);
+          }catch(_){}
+          try{ return origSplit.apply(this, arguments); }
+          catch(e){ return [String(text||'')]; }
+        };
+      }
+      JP.API.__soLetrasPatch=true;
+      console.log('[PDF] sanitizacao global aplicada — so letras');
+      return true;
+    }catch(e){
+      console.warn('[PDF] erro ao aplicar patch:', e);
+      return false;
+    }
+  }
+
+  // Tenta aplicar agora, depois várias vezes conforme o jsPDF carrega
+  aplicarPatchPDF();
+  var tentativas=0;
+  var iv=setInterval(function(){
+    if(aplicarPatchPDF()){ clearInterval(iv); return; }
+    tentativas++;
+    if(tentativas>40) clearInterval(iv);
+  }, 800);
+
+  // Hook ao salvar dados — limpa antes de gravar no localStorage
+  setTimeout(function(){
+    if(typeof window.saveHist==='function' && !window.saveHist.__soLetras){
+      var origSH=window.saveHist;
+      window.saveHist=function(entry){
+        try{
+          if(entry && typeof entry==='object'){
+            ['cliente','servicos','tipoDoc','descricao','obs','obsTec','escopo','premissas','entregaveis','prazosDet','obsAdic','condicoes'].forEach(function(k){
+              if(typeof entry[k]==='string') entry[k]=soLetras(entry[k]);
+            });
+            if(entry.snapshot && typeof entry.snapshot==='object'){
+              Object.keys(entry.snapshot).forEach(function(k){
+                if(typeof entry.snapshot[k]==='string') entry.snapshot[k]=soLetras(entry.snapshot[k]);
+              });
+            }
+          }
+        }catch(_){}
+        return origSH.apply(this, arguments);
+      };
+      window.saveHist.__soLetras=true;
+    }
+  }, 3000);
+
+  // LIMPEZA FORÇADA TOTAL — percorre TUDO recursivamente em todas as chaves
+  function limparTudoRecursivo(o, depth){
+    if(depth>8||o==null) return o;
+    if(typeof o==='string') return soLetras(o);
+    if(Array.isArray(o)) return o.map(function(x){return limparTudoRecursivo(x, depth+1);});
+    if(typeof o==='object'){
+      Object.keys(o).forEach(function(k){
+        o[k]=limparTudoRecursivo(o[k], depth+1);
+      });
+    }
+    return o;
+  }
+  window.gnLimparTudoPDF=function(){
+    try{
+      var keys=['gn_hist','gn_os','gn_rec','gn_ctr','gn_ped','gn_renov','gn_modelos','gn_modelos_orc','gn_cli','gn_msg_hist','gn_memoria','gn_whatsapp_log','gn_assist_mem'];
+      var totalLimpo=0;
+      keys.forEach(function(k){
+        try{
+          var raw=localStorage.getItem(k); if(!raw) return;
+          var rawCleaned=soLetras(raw);
+          var data=JSON.parse(rawCleaned);
+          data=limparTudoRecursivo(data, 0);
+          localStorage.setItem(k, JSON.stringify(data));
+          totalLimpo++;
+        }catch(e){}
+      });
+      try{ if(window.toast) toast('Limpeza concluida — '+totalLimpo+' chaves limpas','ok'); }catch(_){}
+      return totalLimpo;
+    }catch(e){ return 0; }
+  };
+
+  // Auto-roda na abertura (versão v7 — força sempre)
+  setTimeout(function(){
+    if(localStorage.getItem('gn_pdf_clean_v7')==='1') return;
+    setTimeout(function(){
+      window.gnLimparTudoPDF();
+      localStorage.setItem('gn_pdf_clean_v7','1');
+    }, 500);
+  }, 3500);
+
+  // ALÉM disso: hook em gnDocPDF (motor) pra limpar opts antes de processar
+  setTimeout(function(){
+    if(typeof window.gnDocPDF==='function' && !window.gnDocPDF.__soLetras){
+      var origDocPDF=window.gnDocPDF;
+      window.gnDocPDF=function(opts){
+        try{
+          if(opts && typeof opts==='object'){
+            opts=limparTudoRecursivo(opts, 0);
+          }
+        }catch(_){}
+        try{
+          return origDocPDF.call(this, opts);
+        }catch(e){
+          console.warn('[gnDocPDF erro]', e);
+          try{ return origDocPDF.apply(this, arguments); }
+          catch(e2){ return null; }
+        }
+      };
+      window.gnDocPDF.__soLetras=true;
+    }
+  }, 4000);
+
+  // Botão "Limpar Emojis Agora" no rodapé do app pra forçar limpeza manual
+  setTimeout(function(){
+    if(document.getElementById('gn-btn-limpar-emoji')) return;
+    var b=document.createElement('button');
+    b.id='gn-btn-limpar-emoji';
+    b.style.cssText='position:fixed;bottom:130px;left:14px;background:rgba(245,158,11,.9);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:16px;cursor:pointer;z-index:8500;opacity:.4;box-shadow:0 4px 14px rgba(245,158,11,.35);transition:opacity .2s;';
+    b.innerHTML='🧹';
+    b.title='Limpar emojis/caracteres de todos os PDFs';
+    b.onmouseenter=function(){b.style.opacity='1';};
+    b.onmouseleave=function(){b.style.opacity='.4';};
+    b.onclick=function(){
+      if(confirm('Limpar caracteres especiais e emojis de TODOS os documentos salvos? Recomendado se PDFs estao saindo com letras quebradas.')){
+        var n=window.gnLimparTudoPDF();
+        alert('Limpeza concluida em '+n+' areas do app. Gere os PDFs novamente.');
+      }
+    };
+    document.body.appendChild(b);
+  }, 5000);
+
 })();
 </script>
 </body>
