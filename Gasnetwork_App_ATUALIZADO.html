@@ -3,6 +3,88 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- ═══ ANTI-FOUC: evita flash de fonte e layout shift ═══ -->
+<style id="gn-anti-fouc">
+/* Fonte fallback dimensionada para coincidir com Inter (evita salto de tamanho) */
+@font-face {
+  font-family: 'Inter-Fallback';
+  src: local('Segoe UI'), local('Roboto'), local('Helvetica Neue'), local('Arial');
+  size-adjust: 107%;
+  ascent-override: 90%;
+  descent-override: 22%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Playfair-Fallback';
+  src: local('Georgia'), local('Times New Roman'), local('Times');
+  size-adjust: 104%;
+  ascent-override: 96%;
+  descent-override: 25%;
+}
+/* Aplica fallback enquanto Google Font não carrega */
+html.gn-fonts-loading body,
+html.gn-fonts-loading * {
+  font-family: 'Inter-Fallback','Segoe UI',Roboto,Helvetica,Arial,sans-serif !important;
+}
+html.gn-fonts-loading .pgtitle,
+html.gn-fonts-loading h1,
+html.gn-fonts-loading h2,
+html.gn-fonts-loading .hdr-brand .nm {
+  font-family: 'Playfair-Fallback', Georgia, 'Times New Roman', serif !important;
+}
+/* Esconde o body com fade até a página estabilizar */
+html.gn-booting body {
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+}
+html.gn-ready body {
+  opacity: 1;
+}
+/* Mostra um indicador de carregamento sutil */
+html.gn-booting::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #5b9eff, transparent);
+  z-index: 99999;
+  animation: gn-load-pulse 1s linear infinite;
+}
+@keyframes gn-load-pulse {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+</style>
+<script>
+/* Marca o HTML como "carregando" o mais cedo possível */
+document.documentElement.classList.add('gn-booting','gn-fonts-loading');
+
+/* Detecta quando fontes Google estão prontas e revela a página */
+(function(){
+  var reveal = function(){
+    document.documentElement.classList.remove('gn-booting');
+    document.documentElement.classList.remove('gn-fonts-loading');
+    document.documentElement.classList.add('gn-ready');
+  };
+
+  /* Promise das fontes (Font Loading API moderna) */
+  if (document.fonts && document.fonts.ready) {
+    var done = false;
+    document.fonts.ready.then(function(){ if(!done){ done=true; reveal(); } });
+    /* Garantia máxima: 600ms — mesmo se a fonte demorar, mostramos */
+    setTimeout(function(){ if(!done){ done=true; reveal(); } }, 600);
+  } else {
+    /* Navegadores antigos: mostra depois de DOMContentLoaded + 200ms */
+    document.addEventListener('DOMContentLoaded', function(){
+      setTimeout(reveal, 200);
+    });
+    /* Garantia */
+    setTimeout(reveal, 1000);
+  }
+})();
+</script>
+
 <!-- ═══ MIGRAÇÃO AGENDA BOA: carrega os dados reais na 1ª abertura ═══ -->
 <script src="gn_migracao.js"></script>
 <script src="gn_certs.js"></script>
@@ -45,25 +127,15 @@
   console.log('[GN Financeiro] ✓ Importados '+(D.gn_fin||[]).length+' lançamentos. Saldo inicial: R$ '+D.gn_saldo_inicial);
   console.log('[GN Financeiro] Período: '+D._meta_fin.periodo_inicio+' a '+D._meta_fin.periodo_fim);
   console.log('[GN Financeiro] Saldo reconstruído: R$ '+D._meta_fin.saldo_reconstruido_via_gn_fin+' (real: R$ '+D._meta_fin.saldo_final_conjunto_pdf+')');
-  // Notifica visualmente após o app carregar
-  setTimeout(function(){
-    try{
-      var msg='✓ Financeiro importado!\n\n'
-        + (D.gn_fin||[]).length+' lançamentos do C6 Bank + Asaas\n'
-        + 'Período: '+D._meta_fin.periodo_inicio+' até '+D._meta_fin.periodo_fim+'\n'
-        + 'Saldo inicial: R$ '+D.gn_saldo_inicial+'\n'
-        + 'Saldo final (recalc.): R$ '+D._meta_fin.saldo_reconstruido_via_gn_fin.toFixed(2)+'\n\n'
-        + '17 transferências internas C6↔Asaas detectadas e excluídas\n'
-        + 'para não dobrar receita.';
-      if(window.toast){ window.toast(msg.split('\n')[0],'ok'); }
-      else { alert(msg); }
-    }catch(e){}
-  }, 1500);
+  // [SILENCIOSO] Importação financeira sem mostrar popup/toast — apenas log no console.
 }catch(e){ console.warn('GN Financeiro', e); } })();
 </script>
 <!-- ═══ FIM INJEÇÃO FINANCEIRA ═══ -->
 
 <title>Orçamentos — Gás Network Engenharia</title>
+<!-- Preconnect Google Fonts (acelera carregamento) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -12321,7 +12393,7 @@ window.gnDocAbrir=function(tipo,id,num){
       try{ if(window.renderSvc) renderSvc(); }catch(e){}
     }catch(e){}
   }
-  setTimeout(rodarSeedServicos, 2500);
+  setTimeout(rodarSeedServicos, 300);
   setTimeout(rodarSeedServicos, 8000); // segunda tentativa depois do sync inicial
 
   // ── #3 Drive-first: limita snapshots financeiros (já tem backup no Drive a cada 2h) ──
@@ -12621,8 +12693,8 @@ window.gnDocAbrir=function(tipo,id,num){
     }catch(e){}
   }
   setInterval(checkLembretesAgenda, 60000); // a cada 1 minuto
-  setTimeout(checkLembretesAgenda, 5000);
-  try{ if('Notification' in window && Notification.permission==='default') Notification.requestPermission(); }catch(e){}
+  setTimeout(checkLembretesAgenda, 500);
+  /* [DESATIVADO pelo usuário] try{ if('Notification' in window && Notification.permission==='default') Notification.requestPermission(); }catch(e){} */
 
   // ── #28 CALENDÁRIO COLORIDO POR TIPO (estilo aplicado às céls) ─
   var st2=document.createElement('style');
@@ -12721,7 +12793,7 @@ window.gnDocAbrir=function(tipo,id,num){
     }catch(e){}
   }
   setInterval(renderCerebro, 5000);
-  setTimeout(renderCerebro, 1500);
+  setTimeout(renderCerebro, 150);
 
   // ── #9 DEDUP DE CLIENTES (botão na aba Clientes) ───────────────
   window.cliDedupAuto=function(){
@@ -13106,7 +13178,7 @@ window.gnDocAbrir=function(tipo,id,num){
       if(rem){ pushC('gn_tomb'); if(window.toast) toast('🧹 '+rem+' lápides antigas removidas (>90 dias)','ok'); }
     }catch(e){}
   }
-  setTimeout(ageTomb, 8000); setInterval(ageTomb, 24*3600*1000); // 1x ao abrir + diário
+  setTimeout(ageTomb, 1500); setInterval(ageTomb, 24*3600*1000); // 1x ao abrir + diário
 
   // ── #35 NPS PÓS-SERVIÇO (sugere mensagem 7 dias depois) ────────
   function nposSugerir(){
@@ -13463,7 +13535,7 @@ window.gnDocAbrir=function(tipo,id,num){
       };
     });
   }
-  setTimeout(buildBotbar, 800);
+  setTimeout(buildBotbar, 50);
 
   // ── #9 BOTÃO "VOLTAR AO TOPO" ──
   function buildTopBtn(){
@@ -13473,7 +13545,7 @@ window.gnDocAbrir=function(tipo,id,num){
     document.body.appendChild(t);
     window.addEventListener('scroll', function(){ t.classList.toggle('show', window.scrollY>400); });
   }
-  setTimeout(buildTopBtn, 1000);
+  setTimeout(buildTopBtn, 80);
 
   // ── #14 LONG-PRESS em cards abre menu de ações ──
   document.addEventListener('touchstart', function(ev){
@@ -13692,7 +13764,7 @@ window.gnDocAbrir=function(tipo,id,num){
     try{for(var k in _ogt) if(_ogt.hasOwnProperty(k)) window.goTab[k]=_ogt[k];}catch(e){}
     window.goTab.__memWrap=true;
   }
-  setTimeout(buildMemPane, 1800);
+  setTimeout(buildMemPane, 200);
   // busca live
   setInterval(function(){ var i=$('mem-busca'); if(i && !i.__hook){ i.__hook=true; i.addEventListener('input', function(){window.memRefresh();}); } }, 3000);
 
@@ -13988,7 +14060,25 @@ window.gnDocAbrir=function(tipo,id,num){
     if(window.__compFiltro.tipo && window.__compFiltro.tipo!=='todos') arr=arr.filter(function(x){return x.tipo===window.__compFiltro.tipo;});
     var w=window.open('','_blank');
     var rows=arr.map(function(x){return '<tr><td>'+escH(x.tipo||'')+'</td><td>'+escH(x.material||'')+'</td><td>'+escH(x.qtd||'1')+'</td><td>'+escH(x.forn||'')+'</td><td>'+escH(x.valor||'')+'</td><td>'+escH(x.status||'')+'</td></tr>';}).join('');
-    w.document.write('<html><head><title>Compras Gás Network</title><style>body{font-family:Arial,sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;font-size:12px;}th,td{border:1px solid #999;padding:6px;text-align:left;}th{background:#7c5cff;color:#fff;}h1{color:#0e7490;}</style></head><body><h1>Gás Network — Lista de Compras</h1><div>Gerado em '+new Date().toLocaleString('pt-BR')+' · '+arr.length+' item(ns)</div><table><thead><tr><th>Tipo</th><th>Material</th><th>Qtd</th><th>Fornecedor</th><th>Valor</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table><div style="margin-top:18px;"><button onclick="window.print()">🖨 Imprimir / Salvar PDF</button></div></body></html>');
+    w.document.write('<html><head><title>Compras Gás Network</title><style>body{font-family:Arial,sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;font-size:12px;}th,td{border:1px solid #999;padding:6px;text-align:left;}th{background:#7c5cff;color:#fff;}h1{color:#0e7490;}</style></head><body><h1>Gás Network — Lista de Compras</h1><div>Gerado em '+new Date().toLocaleString('pt-BR')+' · '+arr.length+' item(ns)</div><table><thead><tr><th>Tipo</th><th>Material</th><th>Qtd</th><th>Fornecedor</th><th>Valor</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table><div style="margin-top:18px;"><button onclick="window.print()">🖨 Imprimir / Salvar PDF</button></div>
+<!-- ═══ BOOST: chama renderInicio() na primeira oportunidade ═══ -->
+<script>
+(function(){
+  function boot(){
+    try{
+      if(typeof window.renderInicio==='function') window.renderInicio();
+      if(typeof window.renderResumoDia==='function') window.renderResumoDia();
+    }catch(e){}
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+
+</body></html>');
   }
 
   // Adicionar campo Tipo no formulário de compras (uma vez)
@@ -14003,7 +14093,7 @@ window.gnDocAbrir=function(tipo,id,num){
     // simplificando: appendChild manual
     while(d.firstChild) wrap.appendChild(d.firstChild);
   }
-  setInterval(patchCompForm, 3000); setTimeout(patchCompForm, 1000);
+  setInterval(patchCompForm, 3000); setTimeout(patchCompForm, 100);
 
   // Hook comprasAdd pra salvar tipo
   if(typeof window.comprasAdd==='function' && !window.comprasAdd.__v2){
@@ -17050,7 +17140,7 @@ window.gnDocAbrir=function(tipo,id,num){
       if(hpr&&hpr.parentNode) hpr.parentNode.insertBefore(box, hpr.nextSibling);
     }catch(e){}
   }
-  setTimeout(alertaGarantias, 3500);
+  setTimeout(alertaGarantias, 100);
 
   // ══════════════════════════════════════════════════════════════
   // 9) BOTÃO Checklist + Cobrança rápida + Linha Tempo nos cards de pedido
@@ -18443,9 +18533,9 @@ window.gnDocAbrir=function(tipo,id,num){
     }
   }, 2000);
 
-  setTimeout(function(){
+  /* [DESATIVADO pelo usuário] setTimeout(function(){
     try{ if(window.toast) toast('✓ Prompts feios substituídos por modal moderno','ok'); }catch(e){}
-  }, 2500);
+  }, 2500); */
 
 })();
 </script>
@@ -18618,9 +18708,9 @@ window.gnDocAbrir=function(tipo,id,num){
     });
   }, 1000);
 
-  setTimeout(function(){
+  /* [DESATIVADO pelo usuário] setTimeout(function(){
     try{ if(window.toast) toast('✓ Tela inicial estabilizada — sem mais piscar','ok'); }catch(e){}
-  }, 2000);
+  }, 2000); */
 
 })();
 </script>
